@@ -30,6 +30,7 @@ class ImageContractError(ValueError):
 class ParsedImage:
     path: Path
     ranges: tuple[tuple[int, int], ...]
+    entry: int | None = None
 
 
 def _ranges(addresses: Iterable[int]) -> tuple[tuple[int, int], ...]:
@@ -116,12 +117,12 @@ def parse_elf(path: Path) -> ParsedImage:
         header = struct.Struct("<16sHHIIIIIHHHHHH")
         program = struct.Struct("<IIIIIIII")
         fields = header.unpack_from(data)
-        offset, entry_size, count = fields[5], fields[9], fields[10]
+        entry, offset, entry_size, count = fields[4], fields[5], fields[9], fields[10]
     else:
         header = struct.Struct("<16sHHIQQQIHHHHHH")
         program = struct.Struct("<IIQQQQQQ")
         fields = header.unpack_from(data)
-        offset, entry_size, count = fields[5], fields[9], fields[10]
+        entry, offset, entry_size, count = fields[4], fields[5], fields[9], fields[10]
     if entry_size != program.size or offset + count * entry_size > len(data):
         raise ImageContractError("ELF program header table is invalid")
     ranges: list[tuple[int, int]] = []
@@ -140,7 +141,7 @@ def parse_elf(path: Path) -> ParsedImage:
         ranges.append((physical, physical + file_size))
     if not ranges:
         raise ImageContractError("ELF has no file-backed LOAD segments")
-    return ParsedImage(path.resolve(), tuple(sorted(ranges)))
+    return ParsedImage(path.resolve(), tuple(sorted(ranges)), entry)
 
 
 def require_allowed(

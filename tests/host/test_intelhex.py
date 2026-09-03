@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import tempfile
+import struct
 import unittest
 from pathlib import Path
 
-from nrf_cmake_tools.image import ImageContractError, parse_ihex, require_allowed
+from nrf_cmake_tools.image import ImageContractError, parse_elf, parse_ihex, require_allowed
 
 
 def record(address: int, kind: int, payload: bytes) -> str:
@@ -68,6 +69,21 @@ class IntelHexTests(unittest.TestCase):
         path = self.hex_at(0x00200000)
         with self.assertRaisesRegex(ImageContractError, "outside the manifest allowlist"):
             require_allowed(parse_ihex(path).ranges, ((0, 0x001F4000),))
+
+    def test_elf_entry_and_file_backed_load_range_are_parsed(self) -> None:
+        ident = b"\x7fELF" + bytes((1, 1, 1)) + bytes(9)
+        header = struct.pack(
+            "<16sHHIIIIIHHHHHH",
+            ident, 2, 40, 1, 0x1001, 52, 0, 0, 52, 32, 1, 0, 0, 0,
+        )
+        program = struct.pack("<IIIIIIII", 1, 84, 0x2000, 0x1000, 4, 4, 5, 4)
+        with tempfile.NamedTemporaryFile("wb", suffix=".elf", delete=False) as temporary:
+            temporary.write(header + program + b"code")
+        path = Path(temporary.name)
+        self.addCleanup(path.unlink)
+        image = parse_elf(path)
+        self.assertEqual(image.entry, 0x1001)
+        self.assertEqual(image.ranges, ((0x1000, 0x1004),))
 
 
 if __name__ == "__main__":

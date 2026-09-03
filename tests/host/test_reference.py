@@ -7,10 +7,24 @@ from pathlib import Path
 from unittest import mock
 
 from nrf_cmake_tools.process import ProcessResult
-from nrf_cmake_tools.reference import ReferenceContractError, build
+from nrf_cmake_tools.reference import (
+    ReferenceContractError, build, official_toolchain_compiler,
+)
 
 
 class ReferenceBuildTests(unittest.TestCase):
+    def test_official_toolchain_compiler_supports_both_sdk_layouts(self) -> None:
+        for variant, relative in (
+            ("zephyr", "opt/zephyr-sdk/arm-zephyr-eabi/bin/arm-zephyr-eabi-gcc"),
+            ("zephyr/gnu", "opt/zephyr-sdk/gnu/arm-zephyr-eabi/bin/arm-zephyr-eabi-gcc"),
+        ):
+            with self.subTest(variant=variant), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                compiler = root / relative
+                compiler.parent.mkdir(parents=True)
+                compiler.touch()
+                self.assertEqual(official_toolchain_compiler(root), (variant, compiler))
+
     def test_manifest_failure_finalizes_run_report(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)

@@ -11,6 +11,7 @@ import subprocess
 import time
 from typing import Any
 
+from .device import safe_backend_contract
 from .image import parse_elf, parse_ihex, require_allowed
 from .process import atomic_json, run_logged
 
@@ -125,6 +126,14 @@ def _toolchain_variant(toolchain: Path) -> str:
     return matches[0]
 
 
+def official_toolchain_compiler(toolchain: Path) -> tuple[str, Path]:
+    toolchain = toolchain.resolve()
+    variant = _toolchain_variant(toolchain)
+    prefix = "gnu/" if variant == "zephyr/gnu" else ""
+    compiler = toolchain / f"opt/zephyr-sdk/{prefix}arm-zephyr-eabi/bin/arm-zephyr-eabi-gcc"
+    return variant, compiler.resolve()
+
+
 def prepare(project: Path, oracle_id: str, root: Path, toolchain: Path) -> Path:
     root = root.resolve()
     toolchain = toolchain.resolve()
@@ -233,8 +242,12 @@ def _build_manifest(
         "soc": contract["soc"], "core": contract["core"], "board": contract["board"],
         "board_version": contract["board_version"], "device_family": contract["device_family"],
         "expected_token": contract["expected_token"], "vcom": contract["vcom"],
+        "backend": safe_backend_contract(),
         "debug_allowlist": debug_allowlist,
-        "debug_elf": {"path": str(elf.resolve()), "sha256": sha256(elf), "ranges": elf_image.ranges},
+        "debug_elf": {
+            "path": str(elf.resolve()), "sha256": sha256(elf),
+            "entry": elf_image.entry, "ranges": elf_image.ranges,
+        },
         "images": images,
     }
     manifest_path = build_dir / "image-manifest.json"

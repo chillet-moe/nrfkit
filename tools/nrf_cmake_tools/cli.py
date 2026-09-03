@@ -25,11 +25,14 @@ from typing import Any, Iterator
 
 from .device import (
     DeviceContractError, nrfutil_prefix, parse_json_lines, program_argv,
-    reset_argv, select_device,
+    reset_argv, safe_backend_contract, select_device,
 )
 from .image import ImageContractError, parse_elf, parse_ihex, require_allowed
 from .process import atomic_json, run_logged
-from .reference import ReferenceContractError, build, oracle, prepare, sha256
+from .reference import (
+    ReferenceContractError, build, load_receipt, official_toolchain_compiler,
+    oracle, prepare, sha256,
+)
 
 
 class ToolError(RuntimeError):
@@ -55,10 +58,12 @@ def load_manifest(path: Path, *, artifacts: bool = True) -> dict[str, Any]:
     required = {
         "schema", "oracle", "source_receipt_sha256", "soc", "core", "board",
         "board_version", "device_family", "expected_token", "vcom", "debug_allowlist",
-        "debug_elf", "images",
+        "debug_elf", "images", "backend",
     }
     if value.get("schema") != "nrf-cmake-sdk-image/v1" or set(value) != required:
         raise ToolError("image manifest schema or fields are invalid")
+    if value["backend"] != safe_backend_contract():
+        raise ToolError("image manifest backend contract is invalid")
     if not isinstance(value["debug_allowlist"], list) or not value["debug_allowlist"]:
         raise ToolError("image manifest debug allowlist is invalid")
     if artifacts:
@@ -80,6 +85,8 @@ def load_manifest(path: Path, *, artifacts: bool = True) -> dict[str, Any]:
                 raise ToolError(f"manifest {name} allowlist is invalid")
             ranges = tuple(tuple(item) for item in allowlist)
             require_allowed(parsed.ranges, ranges)
+            if parsed.entry is not None and artifact.get("entry") != parsed.entry:
+                raise ToolError(f"manifest {name} entry is stale")
             if [list(item) for item in parsed.ranges] != artifact["ranges"]:
                 raise ToolError(f"manifest {name} ranges are stale")
     return value
@@ -156,10 +163,26 @@ def _doctor(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
             tools["gdb"].update({"sha256": gdb_hash, "locked": gdb_hash in locked_hashes})
         except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
             tools["gdb"].update({"locked": False, "lock_error": str(error)})
+    official_toolchain = getattr(args, "official_toolchain", None)
+    if official_toolchain:
+        try:
+            variant, compiler = official_toolchain_compiler(official_toolchain)
+            compiler_report = _run_version([str(compiler), "--version"])
+            tools["official_toolchain"] = {
+                "root": str(official_toolchain.resolve()), "variant": variant,
+                "returncode": compiler_report["returncode"], "compiler": compiler_report,
+            }
+        except ReferenceContractError as error:
+            tools["official_toolchain"] = {"returncode": None, "error": str(error)}
+    else:
+        tools["official_toolchain"] = {
+            "returncode": None, "error": "an official reference toolchain was not selected",
+        }
     payload = {"schema": "nrf-cmake-sdk-doctor/v1", "tools": tools}
     required = ("cmake", "ninja", "west", "nrfutil", "jlink_gdb_server", "gdb")
     healthy = all(tools[name].get("returncode") == 0 for name in required)
-    return payload, healthy and tools["gdb"].get("locked") is True
+    toolchain_healthy = tools["official_toolchain"].get("returncode") == 0
+    return payload, healthy and toolchain_healthy and tools["gdb"].get("locked") is True
 
 
 def command_doctor(args: argparse.Namespace) -> int:
@@ -202,6 +225,7 @@ def command_inspect(args: argparse.Namespace) -> int:
         manifest = load_manifest(args.manifest)
         payload = {
         "status": "ok", "oracle": manifest["oracle"],
+        "elf_entry": manifest["debug_elf"]["entry"],
         "elf_ranges": manifest["debug_elf"]["ranges"],
         "images": [{"domain": item["domain"], "ranges": item["ranges"]} for item in manifest["images"]],
         "run_report": str((run_dir / "run.json").resolve()),
@@ -413,6 +437,8 @@ def command_run(args: argparse.Namespace) -> int:
     try:
         manifest_path = getattr(args, "manifest", None)
         if getattr(args, "oracle", None):
+            if getattr(args, "official_toolchain", None) is None:
+                _, args.official_toolchain, _ = load_receipt(project_root(), args.oracle)
             doctor_payload, healthy = _doctor(args)
             report["tools"] = doctor_payload["tools"]
             report["stages"] = []
@@ -635,6 +661,7 @@ def main(argv: list[str] | None = None) -> int:
     doctor.add_argument("--nrfutil", default=shutil.which("nrfutil") or "nrfutil")
     doctor.add_argument("--jlink", default=shutil.which("JLinkGDBServerCLExe") or "JLinkGDBServerCLExe")
     doctor.add_argument("--gdb")
+    doctor.add_argument("--official-toolchain", type=Path, required=True)
     doctor.set_defaults(handler=command_doctor)
 
     reference = subparsers.add_parser("reference")
@@ -674,6 +701,7 @@ def main(argv: list[str] | None = None) -> int:
         "--jlink", default=shutil.which("JLinkGDBServerCLExe") or "JLinkGDBServerCLExe"
     )
     run.add_argument("--gdb")
+    run.add_argument("--official-toolchain", type=Path)
     run.set_defaults(handler=command_run)
     gdb = subparsers.add_parser("gdb-smoke")
     add_device_arguments(gdb)

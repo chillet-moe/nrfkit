@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import argparse
+import json
 import os
 from pathlib import Path
 import tempfile
@@ -10,9 +11,9 @@ from unittest import mock
 
 from nrf_cmake_tools.cli import (
     ToolError, _probe_lock, _serial_reader, _serial_reader_stop, command_flash,
-    command_run,
+    command_run, load_manifest,
 )
-from nrf_cmake_tools.device import program_argv
+from nrf_cmake_tools.device import program_argv, safe_backend_contract
 from nrf_cmake_tools.image import ImageContractError
 
 
@@ -43,6 +44,22 @@ class FlashCommandTests(unittest.TestCase):
         enumerate_devices.assert_not_called()
         program.assert_not_called()
 
+    def test_manifest_cannot_relax_backend_contract(self) -> None:
+        manifest = {
+            "schema": "nrf-cmake-sdk-image/v1", "oracle": "test",
+            "source_receipt_sha256": "0" * 64, "soc": "test", "core": "Application",
+            "board": "test", "board_version": "test", "device_family": "test",
+            "expected_token": "test", "vcom": "VCOM1", "debug_allowlist": [[0, 1]],
+            "debug_elf": {}, "images": [], "backend": safe_backend_contract(),
+        }
+        manifest["backend"]["program_options"]["chip_erase_mode"] = "ERASE_ALL"
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as temporary:
+            json.dump(manifest, temporary)
+        path = Path(temporary.name)
+        self.addCleanup(path.unlink)
+        with self.assertRaisesRegex(ToolError, "backend contract"):
+            load_manifest(path, artifacts=False)
+
     def test_serial_reader_drains_while_an_operation_is_running(self) -> None:
         read_descriptor, write_descriptor = os.pipe()
         self.addCleanup(os.close, read_descriptor)
@@ -70,7 +87,7 @@ class FlashCommandTests(unittest.TestCase):
             args = argparse.Namespace(
                 manifest=None, oracle="ncs-hello-world", build_timeout=900,
                 west="west", timeout=90, token_timeout=10,
-                serial_ready_delay=0.5,
+                serial_ready_delay=0.5, official_toolchain=Path("toolchain"),
             )
             manifest = {
                 "oracle": "ncs-hello-world", "board_version": "PCA10184",

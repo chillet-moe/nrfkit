@@ -11,6 +11,21 @@ class DeviceContractError(RuntimeError):
     pass
 
 
+SAFE_PROGRAM_OPTIONS = (
+    ("chip_erase_mode", "ERASE_NONE"),
+    ("verify", "VERIFY_READ"),
+    ("reset", "RESET_NONE"),
+)
+
+
+def safe_backend_contract() -> dict[str, Any]:
+    return {
+        "programmer": "nrfutil-device",
+        "program_options": dict(SAFE_PROGRAM_OPTIONS),
+        "resetter": "nrfutil-device-reset",
+    }
+
+
 def parse_json_lines(output: str, field: str) -> Any:
     matches: list[Any] = []
     for number, line in enumerate(output.splitlines(), start=1):
@@ -53,10 +68,11 @@ def nrfutil_prefix(executable: str) -> list[str]:
 def program_argv(
     executable: str, image: str, serial: str, family: str, core: str
 ) -> list[str]:
+    options = ",".join(f"{name}={value}" for name, value in SAFE_PROGRAM_OPTIONS)
     return nrfutil_prefix(executable) + [
         "device", "program", "--firmware", image, "--serial-number", serial,
         "--traits", "jlink", "--core", core.lower(), "--family", family.lower(),
-        "--options", "chip_erase_mode=ERASE_NONE,verify=VERIFY_READ,reset=RESET_NONE",
+        "--options", options,
     ]
 
 
