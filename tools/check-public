@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: BSD-3-Clause
+
+from pathlib import Path
+import re
+import sys
+
+
+ROOT = Path(__file__).resolve().parents[1]
+EXCLUDED = {".git", ".local", ".work", "build"}
+PATTERNS = (
+    ("absolute home path", re.compile(r"/(?:home|Users)/[^/\s]+/")),
+    ("Linux serial device", re.compile(r"/dev/tty(?:ACM|USB)\d+")),
+    ("probe serial", re.compile(r"(?<![0-9a-fA-F])[0-9]{10,}(?![0-9a-fA-F])")),
+)
+
+
+def main() -> int:
+    failures: list[str] = []
+    for path in sorted(ROOT.rglob("*")):
+        if not path.is_file() or any(part in EXCLUDED or part == "__pycache__" for part in path.relative_to(ROOT).parts):
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            continue
+        for number, line in enumerate(text.splitlines(), start=1):
+            for label, pattern in PATTERNS:
+                if pattern.search(line):
+                    failures.append(f"{path.relative_to(ROOT)}:{number}: {label}")
+    if failures:
+        print("public hygiene check failed:", file=sys.stderr)
+        print("\n".join(failures), file=sys.stderr)
+        return 1
+    print("public hygiene check passed")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

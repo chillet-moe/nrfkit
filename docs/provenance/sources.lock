@@ -1,0 +1,63 @@
+{
+  "schema": "nrf-cmake-sdk-sources/v1",
+  "oracles": {
+    "ncs-hello-world": {
+      "release": "nRF Connect SDK v3.4.0",
+      "repository": "https://github.com/nrfconnect/sdk-nrf",
+      "sample": "zephyr/samples/hello_world",
+      "board": "nrf54lm20dk/nrf54lm20a/cpuapp",
+      "soc": "nrf54lm20a",
+      "core": "Application",
+      "device_family": "NRF54L",
+      "board_version": "PCA10184",
+      "expected_token": "Hello World! nrf54lm20dk/nrf54lm20a/cpuapp",
+      "vcom": 1,
+      "image_allowlists": {"hello_world": [[0, 2048000]]},
+      "modules": {
+        "nrf": "99553055607b2e9885fbc80ccd11fa9da81c2df0",
+        "zephyr": "bf801e4e3d19e1ffa76164346480cb7734dd2800",
+        "modules/hal/nordic": "18da0cc9726f8759c627dba3180b3ba9294e433c"
+      },
+      "files": {
+        "zephyr/samples/hello_world/CMakeLists.txt": "4fb1ac53d25ad1943827352dbc773825f9a89668286db956bb4b98f949a2f93d",
+        "zephyr/samples/hello_world/prj.conf": "81661c2d549ab252e266fcaad53350640c58a6d4d17dad54268e3cfc1166b6b3",
+        "zephyr/samples/hello_world/src/main.c": "441f01eaf3bb6fb71614fad7264c5aaab135078ce3a73ae8c9d6889de5271d6b"
+      },
+      "license": "Apache-2.0",
+      "imported": false,
+      "patches": "none"
+    },
+    "nrf-bm-leds-s115": {
+      "release": "nRF Connect SDK Bare Metal v2.0.1",
+      "repository": "https://github.com/nrfconnect/sdk-nrf-bm",
+      "sample": "nrf-bm/samples/peripherals/leds",
+      "board": "bm_nrf54lm20dk/nrf54lm20a/cpuapp/s115_softdevice",
+      "soc": "nrf54lm20a",
+      "core": "Application",
+      "device_family": "NRF54L",
+      "board_version": "PCA10184",
+      "expected_token": "LEDs sample initialized",
+      "vcom": 1,
+      "image_allowlists": {
+        "softdevice": [[1980416, 2083840]],
+        "leds": [[0, 1980416]]
+      },
+      "modules": {
+        "nrf-bm": "51484143c09199e19bccc16fa3b437f7a502a72b",
+        "nrf": "ba167d9f3db4abbdc9b67887ca3ea66c64f2d956",
+        "zephyr": "fd9204a02d52630660ce8d729945a4dd743feabf",
+        "modules/hal/nordic": "1acb428a205bad58f3dfd4e38f2d1663bb784ba1"
+      },
+      "files": {
+        "nrf-bm/samples/peripherals/leds/CMakeLists.txt": "aa3356d170f4887dc478bc63665f6b8a754d97b239db79c7d1e1f39ba45e833d",
+        "nrf-bm/samples/peripherals/leds/prj.conf": "47a0a1b5bc31319bcfdb73c06da8d9a5170218d2f52687f4783714a4251f56fd",
+        "nrf-bm/samples/peripherals/leds/src/main.c": "3b22522fba19b974592fd2de52ce634adb8f5d899176162863514e4bdbb41e6b",
+        "nrf-bm/components/softdevice/nrf54lm/s115/s115_nrf54lm20_10.0.1_softdevice.hex": "c2b5bcf2b436e11daa9a85e9dca12060052244c2eec50032bf54d87a4a77c3a2"
+      },
+      "license": "LicenseRef-Nordic-5-Clause",
+      "wireless_component": "S115 for nRF54LM20 10.0.1",
+      "imported": false,
+      "patches": "none"
+    }
+  }
+}

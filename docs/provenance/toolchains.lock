@@ -1,0 +1,16 @@
+{
+  "schema": "nrf-cmake-sdk-toolchains/v1",
+  "tools": {
+    "arm-gnu-gdb": {
+      "release": "Arm GNU Toolchain 15.3.Rel1",
+      "platform": "x86_64-arm-none-eabi",
+      "source": "https://gitlab.arm.com/api/v4/projects/tooling%2Fgnu-toolchains-for-arm/packages/generic/gnu-toolchain/15.3.rel1/arm-gnu-toolchain-15.3.rel1-x86_64-arm-none-eabi.tar.xz",
+      "checksum_source": "https://gitlab.arm.com/api/v4/projects/tooling%2Fgnu-toolchains-for-arm/packages/generic/gnu-toolchain/15.3.rel1/arm-gnu-toolchain-15.3.rel1-x86_64-arm-none-eabi.tar.xz.sha256asc",
+      "archive_sha256": "563bebb2b97d53382b956d6ee1fe61e2cae26699901417234a37df505ef9b5fa",
+      "executable": "bin/arm-none-eabi-gdb",
+      "executable_sha256": "89d2e0a8d434306a4d17ba93694c424637513e4341923b697291254d07b1e683",
+      "version_output": "GNU gdb (Arm GNU Toolchain 15.3.Rel1 (Build arm-15.149)) 16.3.90.20250906-git",
+      "installed_by_consumer_build": false
+    }
+  }
+}
