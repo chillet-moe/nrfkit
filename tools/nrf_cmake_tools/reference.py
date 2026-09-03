@@ -256,42 +256,48 @@ def _build_manifest(
 
 
 def build(project: Path, oracle_id: str, timeout: float, west: str = "west") -> Path:
-    root, toolchain, receipt = load_receipt(project, oracle_id)
-    contract = oracle(project, oracle_id)
-    build_dir = project / ".work/reference/build" / oracle_id
     run_dir = project / ".work/runs" / f"{time.strftime('%Y%m%d-%H%M%S')}-reference-build-{oracle_id}-{os.getpid()}"
     run_dir.mkdir(parents=True, exist_ok=False)
-    argv = [
-        west, "-z", str(root / "zephyr"), "build",
-        "--build-dir", str(build_dir), str(root / contract["sample"]),
-        "--board", contract["board"], "--pristine=always",
-    ]
     report: dict[str, Any] = {
         "schema": "nrf-cmake-sdk-run/v1", "operation": "reference-build",
-        "oracle": oracle_id, "status": "running", "argv": argv,
-        "source_receipt_sha256": sha256(project / ".work/reference/sources" / f"{oracle_id}.json"),
+        "oracle": oracle_id, "status": "running",
     }
     atomic_json(run_dir / "run.json", report)
-    environment = os.environ.copy()
-    cache_dir = project / ".work/reference/cache"
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    environment.update({
-        "ZEPHYR_TOOLCHAIN_VARIANT": receipt["toolchain_variant"],
-        "ZEPHYR_SDK_INSTALL_DIR": str(toolchain / "opt/zephyr-sdk"),
-        "XDG_CACHE_HOME": str(cache_dir),
-    })
-    result = run_logged(
-        argv, run_dir / "build.log", timeout, cwd=root, environment=environment
-    )
-    report["process"] = {
-        "returncode": result.returncode, "timed_out": result.timed_out,
-        "duration_seconds": result.duration_seconds,
-    }
-    if result.returncode:
-        report["status"] = "failed"
-        atomic_json(run_dir / "run.json", report)
-        raise ReferenceContractError(f"official reference build failed; see {run_dir / 'build.log'}")
     try:
+        root, toolchain, receipt = load_receipt(project, oracle_id)
+        contract = oracle(project, oracle_id)
+        build_dir = project / ".work/reference/build" / oracle_id
+        argv = [
+            west, "-z", str(root / "zephyr"), "build",
+            "--build-dir", str(build_dir), str(root / contract["sample"]),
+            "--board", contract["board"], "--pristine=always",
+        ]
+        report.update({
+            "argv": argv,
+            "source_receipt_sha256": sha256(
+                project / ".work/reference/sources" / f"{oracle_id}.json"
+            ),
+        })
+        atomic_json(run_dir / "run.json", report)
+        environment = os.environ.copy()
+        cache_dir = project / ".work/reference/cache"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        environment.update({
+            "ZEPHYR_TOOLCHAIN_VARIANT": receipt["toolchain_variant"],
+            "ZEPHYR_SDK_INSTALL_DIR": str(toolchain / "opt/zephyr-sdk"),
+            "XDG_CACHE_HOME": str(cache_dir),
+        })
+        result = run_logged(
+            argv, run_dir / "build.log", timeout, cwd=root, environment=environment
+        )
+        report["process"] = {
+            "returncode": result.returncode, "timed_out": result.timed_out,
+            "duration_seconds": result.duration_seconds,
+        }
+        if result.returncode:
+            raise ReferenceContractError(
+                f"official reference build failed; see {run_dir / 'build.log'}"
+            )
         manifest_path = _build_manifest(
             oracle_id, root, build_dir, contract, report["source_receipt_sha256"]
         )

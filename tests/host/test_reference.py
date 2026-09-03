@@ -25,6 +25,17 @@ class ReferenceBuildTests(unittest.TestCase):
                 compiler.touch()
                 self.assertEqual(official_toolchain_compiler(root), (variant, compiler))
 
+    def test_missing_receipt_still_finalizes_run_report(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            with self.assertRaises(ReferenceContractError):
+                build(project, "missing", 10)
+            reports = list((project / ".work/runs").glob("*/run.json"))
+            self.assertEqual(len(reports), 1)
+            report = json.loads(reports[0].read_text(encoding="utf-8"))
+            self.assertEqual(report["status"], "failed")
+            self.assertIn("source receipt", report["error"])
+
     def test_manifest_failure_finalizes_run_report(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)

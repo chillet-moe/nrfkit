@@ -307,10 +307,10 @@ def _program(
 
 
 def command_flash(args: argparse.Namespace) -> int:
-    manifest = load_manifest(args.manifest)
     run_dir, report = _new_run("flash")
-    _initialize_device_report(run_dir, report, args.manifest, manifest, args)
     try:
+        manifest = load_manifest(args.manifest)
+        _initialize_device_report(run_dir, report, args.manifest, manifest, args)
         device = _select(manifest, args, run_dir)
         _stage(run_dir, report, "device-selection", board_version=manifest["board_version"])
         with _probe_lock(device["serialNumber"], "flash"):
@@ -337,10 +337,10 @@ def command_flash(args: argparse.Namespace) -> int:
 
 
 def command_reset(args: argparse.Namespace) -> int:
-    manifest = load_manifest(args.manifest)
     run_dir, report = _new_run("reset")
-    _initialize_device_report(run_dir, report, args.manifest, manifest, args)
     try:
+        manifest = load_manifest(args.manifest)
+        _initialize_device_report(run_dir, report, args.manifest, manifest, args)
         device = _select(manifest, args, run_dir)
         _stage(run_dir, report, "device-selection", board_version=manifest["board_version"])
         with _probe_lock(device["serialNumber"], "reset"):
@@ -519,13 +519,13 @@ def command_run(args: argparse.Namespace) -> int:
 
 
 def command_gdb_smoke(args: argparse.Namespace) -> int:
-    manifest = load_manifest(args.manifest)
     run_dir, report = _new_run("gdb-smoke")
-    _initialize_device_report(run_dir, report, args.manifest, manifest, args)
     server: subprocess.Popen[bytes] | None = None
     serial_descriptor: int | None = None
     serial_reader: tuple[threading.Event, threading.Thread, bytearray, list[OSError]] | None = None
     try:
+        manifest = load_manifest(args.manifest)
+        _initialize_device_report(run_dir, report, args.manifest, manifest, args)
         device = _select(manifest, args, run_dir)
         _stage(run_dir, report, "device-selection", board_version=manifest["board_version"])
         gdb = executable(args.gdb, "arm-none-eabi-gdb")
