@@ -110,10 +110,11 @@ def _initialize_device_report(
         "source_receipt_sha256": manifest["source_receipt_sha256"],
         "timeout_seconds": args.timeout,
         "tools": {
+            **report.get("tools", {}),
             "nrfutil": _run_version([args.nrfutil, "--log-output", "stdout", "--version"]),
         },
-        "stages": [{"name": "manifest-audit", "status": "ok"}],
     })
+    report.setdefault("stages", []).append({"name": "manifest-audit", "status": "ok"})
     atomic_json(run_dir / "run.json", report)
 
 
@@ -132,7 +133,7 @@ def _run_version(argv: list[str]) -> dict[str, Any]:
         return {"argv": argv, "returncode": None, "error": str(error)}
 
 
-def command_doctor(args: argparse.Namespace) -> int:
+def _doctor(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
     tools = {
         "cmake": _run_version([args.cmake, "--version"]),
         "ninja": _run_version([args.ninja, "--version"]),
@@ -155,31 +156,66 @@ def command_doctor(args: argparse.Namespace) -> int:
             tools["gdb"].update({"sha256": gdb_hash, "locked": gdb_hash in locked_hashes})
         except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
             tools["gdb"].update({"locked": False, "lock_error": str(error)})
-    print(json.dumps({"schema": "nrf-cmake-sdk-doctor/v1", "tools": tools}, indent=2, sort_keys=True))
+    payload = {"schema": "nrf-cmake-sdk-doctor/v1", "tools": tools}
     required = ("cmake", "ninja", "west", "nrfutil", "jlink_gdb_server", "gdb")
     healthy = all(tools[name].get("returncode") == 0 for name in required)
-    return 0 if healthy and tools["gdb"].get("locked") is True else 1
+    return payload, healthy and tools["gdb"].get("locked") is True
+
+
+def command_doctor(args: argparse.Namespace) -> int:
+    run_dir, report = _new_run("doctor")
+    payload, healthy = _doctor(args)
+    report.update({"status": "ok" if healthy else "failed", "tools": payload["tools"]})
+    atomic_json(run_dir / "run.json", report)
+    payload["run_report"] = str((run_dir / "run.json").resolve())
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0 if healthy else 1
 
 
 def command_prepare(args: argparse.Namespace) -> int:
-    output = prepare(project_root(), args.oracle, args.root, args.toolchain)
+    run_dir, report = _new_run("reference-prepare")
+    report.update({
+        "oracle": args.oracle, "source_root": str(args.root.resolve()),
+        "toolchain": str(args.toolchain.resolve()),
+    })
+    try:
+        output = prepare(project_root(), args.oracle, args.root, args.toolchain)
+        report.update({"status": "ok", "source_receipt": str(output.resolve())})
+    except BaseException as error:
+        report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
+        atomic_json(run_dir / "run.json", report)
+        raise
+    atomic_json(run_dir / "run.json", report)
     print(output)
     return 0
 
 
 def command_build(args: argparse.Namespace) -> int:
-    output = build(project_root(), args.oracle, args.timeout)
+    output = build(project_root(), args.oracle, args.timeout, args.west)
     print(output)
     return 0
 
 
 def command_inspect(args: argparse.Namespace) -> int:
-    manifest = load_manifest(args.manifest)
-    print(json.dumps({
+    run_dir, report = _new_run("inspect")
+    try:
+        manifest = load_manifest(args.manifest)
+        payload = {
         "status": "ok", "oracle": manifest["oracle"],
         "elf_ranges": manifest["debug_elf"]["ranges"],
         "images": [{"domain": item["domain"], "ranges": item["ranges"]} for item in manifest["images"]],
-    }, indent=2, sort_keys=True))
+        "run_report": str((run_dir / "run.json").resolve()),
+        }
+        report.update({
+            "status": "ok", "oracle": manifest["oracle"],
+            "manifest": str(args.manifest.resolve()), "audit": payload,
+        })
+    except BaseException as error:
+        report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
+        atomic_json(run_dir / "run.json", report)
+        raise
+    atomic_json(run_dir / "run.json", report)
+    print(json.dumps(payload, indent=2, sort_keys=True))
     return 0
 
 
@@ -371,15 +407,31 @@ def _serial_reader_stop(
 
 
 def command_run(args: argparse.Namespace) -> int:
-    manifest = load_manifest(args.manifest)
     run_dir, report = _new_run("run")
-    _initialize_device_report(run_dir, report, args.manifest, manifest, args)
-    report["token_timeout_seconds"] = args.token_timeout
-    report["serial_ready_delay_seconds"] = args.serial_ready_delay
-    atomic_json(run_dir / "run.json", report)
     descriptor: int | None = None
     reader: tuple[threading.Event, threading.Thread, bytearray, list[OSError]] | None = None
     try:
+        manifest_path = getattr(args, "manifest", None)
+        if getattr(args, "oracle", None):
+            doctor_payload, healthy = _doctor(args)
+            report["tools"] = doctor_payload["tools"]
+            report["stages"] = []
+            if not healthy:
+                raise ToolError("doctor preflight failed")
+            _stage(run_dir, report, "doctor")
+            manifest_path = build(
+                project_root(), args.oracle, args.build_timeout, args.west
+            )
+            _stage(
+                run_dir, report, "reference-build",
+                oracle=args.oracle, manifest=str(manifest_path.resolve()),
+            )
+        assert manifest_path is not None
+        manifest = load_manifest(manifest_path)
+        _initialize_device_report(run_dir, report, manifest_path, manifest, args)
+        report["token_timeout_seconds"] = args.token_timeout
+        report["serial_ready_delay_seconds"] = args.serial_ready_delay
+        atomic_json(run_dir / "run.json", report)
         device = _select(manifest, args, run_dir)
         _stage(run_dir, report, "device-selection", board_version=manifest["board_version"])
         with _probe_lock(device["serialNumber"], "run"):
@@ -595,18 +647,34 @@ def main(argv: list[str] | None = None) -> int:
     reference_build = reference_commands.add_parser("build")
     reference_build.add_argument("oracle", choices=("ncs-hello-world", "nrf-bm-leds-s115"))
     reference_build.add_argument("--timeout", type=float, default=900)
+    reference_build.add_argument("--west", default=shutil.which("west") or "west")
     reference_build.set_defaults(handler=command_build)
 
     inspect = subparsers.add_parser("inspect")
     inspect.add_argument("--manifest", type=Path, required=True)
     inspect.set_defaults(handler=command_inspect)
-    for name, handler in (("flash", command_flash), ("reset", command_reset), ("run", command_run)):
+    for name, handler in (("flash", command_flash), ("reset", command_reset)):
         command = subparsers.add_parser(name)
         add_device_arguments(command)
-        if name == "run":
-            command.add_argument("--token-timeout", type=float, default=10)
-            command.add_argument("--serial-ready-delay", type=float, default=0.5)
         command.set_defaults(handler=handler)
+    run = subparsers.add_parser("run")
+    run_input = run.add_mutually_exclusive_group(required=True)
+    run_input.add_argument("--manifest", type=Path)
+    run_input.add_argument("--oracle", choices=("ncs-hello-world", "nrf-bm-leds-s115"))
+    run.add_argument("--probe-serial", default=os.environ.get("NRF_PROBE_SERIAL"))
+    run.add_argument("--nrfutil", default=shutil.which("nrfutil") or "nrfutil")
+    run.add_argument("--timeout", type=float, default=90)
+    run.add_argument("--build-timeout", type=float, default=900)
+    run.add_argument("--token-timeout", type=float, default=10)
+    run.add_argument("--serial-ready-delay", type=float, default=0.5)
+    run.add_argument("--cmake", default=shutil.which("cmake") or "cmake")
+    run.add_argument("--ninja", default=shutil.which("ninja") or "ninja")
+    run.add_argument("--west", default=shutil.which("west") or "west")
+    run.add_argument(
+        "--jlink", default=shutil.which("JLinkGDBServerCLExe") or "JLinkGDBServerCLExe"
+    )
+    run.add_argument("--gdb")
+    run.set_defaults(handler=command_run)
     gdb = subparsers.add_parser("gdb-smoke")
     add_device_arguments(gdb)
     gdb.add_argument("--gdb")

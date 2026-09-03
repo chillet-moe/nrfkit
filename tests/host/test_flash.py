@@ -2,12 +2,15 @@
 
 import argparse
 import os
+from pathlib import Path
+import tempfile
 import time
 import unittest
 from unittest import mock
 
 from nrf_cmake_tools.cli import (
     ToolError, _probe_lock, _serial_reader, _serial_reader_stop, command_flash,
+    command_run,
 )
 from nrf_cmake_tools.device import program_argv
 from nrf_cmake_tools.image import ImageContractError
@@ -59,6 +62,41 @@ class FlashCommandTests(unittest.TestCase):
                     self.fail("contended lock was acquired")
         with _probe_lock(identity, "third"):
             pass
+
+    def test_oracle_run_orchestrates_doctor_build_and_manifest_audit(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory)
+            report = {"schema": "nrf-cmake-sdk-run/v1", "status": "running"}
+            args = argparse.Namespace(
+                manifest=None, oracle="ncs-hello-world", build_timeout=900,
+                west="west", timeout=90, token_timeout=10,
+                serial_ready_delay=0.5,
+            )
+            manifest = {
+                "oracle": "ncs-hello-world", "board_version": "PCA10184",
+            }
+            with (
+                mock.patch("nrf_cmake_tools.cli._new_run", return_value=(run_dir, report)),
+                mock.patch(
+                    "nrf_cmake_tools.cli._doctor",
+                    return_value=({"tools": {"all": {"returncode": 0}}}, True),
+                ) as doctor,
+                mock.patch(
+                    "nrf_cmake_tools.cli.build", return_value=run_dir / "image-manifest.json"
+                ) as reference_build,
+                mock.patch("nrf_cmake_tools.cli.load_manifest", return_value=manifest) as audit,
+                mock.patch("nrf_cmake_tools.cli._initialize_device_report"),
+                mock.patch(
+                    "nrf_cmake_tools.cli._select", side_effect=ToolError("stop before hardware")
+                ),
+            ):
+                with self.assertRaisesRegex(ToolError, "before hardware"):
+                    command_run(args)
+            doctor.assert_called_once_with(args)
+            reference_build.assert_called_once_with(
+                mock.ANY, "ncs-hello-world", 900, "west"
+            )
+            audit.assert_called_once_with(run_dir / "image-manifest.json")
 
 
 if __name__ == "__main__":

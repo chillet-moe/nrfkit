@@ -19,6 +19,15 @@ tools/nrf-cmake-sdk inspect \
   --manifest .work/reference/build/ncs-hello-world/image-manifest.json
 ```
 
+After the one-time `reference prepare`, the complete daily oracle path is one command. It reruns the tool doctor, pristine official build, manifest/ELF/HEX audit, guarded programming, serial-ready/reset sequence, and exact-token check:
+
+```sh
+tools/nrf-cmake-sdk run --oracle ncs-hello-world \
+  --gdb /path/to/locked/arm-none-eabi-gdb
+```
+
+`run --manifest` remains available when the firmware was produced separately; that form starts at manifest audit and does not claim to have rebuilt an official oracle.
+
 Hardware commands use the generated manifest and the same public entry point. USB, serial, probes, programming, and GDB require Codex tool escalation; see [`docs/hardware-workflow.md`](docs/hardware-workflow.md). Programming remains fail-closed and uses `ERASE_NONE`, read-back verification, immutable snapshots, and address allowlists.
 
 ## Host tests

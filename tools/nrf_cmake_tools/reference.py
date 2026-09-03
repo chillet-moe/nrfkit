@@ -242,14 +242,14 @@ def _build_manifest(
     return manifest_path
 
 
-def build(project: Path, oracle_id: str, timeout: float) -> Path:
+def build(project: Path, oracle_id: str, timeout: float, west: str = "west") -> Path:
     root, toolchain, receipt = load_receipt(project, oracle_id)
     contract = oracle(project, oracle_id)
     build_dir = project / ".work/reference/build" / oracle_id
-    run_dir = project / ".work/reference/runs" / f"{time.strftime('%Y%m%d-%H%M%S')}-{oracle_id}-{os.getpid()}"
+    run_dir = project / ".work/runs" / f"{time.strftime('%Y%m%d-%H%M%S')}-reference-build-{oracle_id}-{os.getpid()}"
     run_dir.mkdir(parents=True, exist_ok=False)
     argv = [
-        "west", "-z", str(root / "zephyr"), "build",
+        west, "-z", str(root / "zephyr"), "build",
         "--build-dir", str(build_dir), str(root / contract["sample"]),
         "--board", contract["board"], "--pristine=always",
     ]

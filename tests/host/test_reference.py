@@ -37,7 +37,7 @@ class ReferenceBuildTests(unittest.TestCase):
             ):
                 with self.assertRaisesRegex(ReferenceContractError, "runner metadata"):
                     build(project, "oracle", 10)
-            reports = list((project / ".work/reference/runs").glob("*/run.json"))
+            reports = list((project / ".work/runs").glob("*/run.json"))
             self.assertEqual(len(reports), 1)
             report = json.loads(reports[0].read_text(encoding="utf-8"))
             self.assertEqual(report["status"], "failed")
