@@ -6,7 +6,9 @@ import time
 import unittest
 from unittest import mock
 
-from nrf_cmake_tools.cli import _serial_reader, _serial_reader_stop, command_flash
+from nrf_cmake_tools.cli import (
+    ToolError, _probe_lock, _serial_reader, _serial_reader_stop, command_flash,
+)
 from nrf_cmake_tools.device import program_argv
 from nrf_cmake_tools.image import ImageContractError
 
@@ -48,6 +50,15 @@ class FlashCommandTests(unittest.TestCase):
         while b"startup token" not in reader[2] and time.monotonic() < deadline:
             time.sleep(0.01)
         self.assertEqual(_serial_reader_stop(reader), b"startup token")
+
+    def test_probe_lock_rejects_contention_and_can_be_reacquired(self) -> None:
+        identity = f"host-test-{os.getpid()}"
+        with _probe_lock(identity, "first"):
+            with self.assertRaisesRegex(ToolError, "locked"):
+                with _probe_lock(identity, "second"):
+                    self.fail("contended lock was acquired")
+        with _probe_lock(identity, "third"):
+            pass
 
 
 if __name__ == "__main__":

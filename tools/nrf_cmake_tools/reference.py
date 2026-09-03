@@ -194,6 +194,54 @@ def load_receipt(project: Path, oracle_id: str) -> tuple[Path, Path, dict[str, A
     return root, toolchain, receipt
 
 
+def _build_manifest(
+    oracle_id: str,
+    root: Path,
+    build_dir: Path,
+    contract: dict[str, Any],
+    source_receipt_sha256: str,
+) -> Path:
+    default_domain, domain_builds, flash_order = _build_domains(build_dir)
+    elf = _runner_artifact(domain_builds[default_domain], "elf_file", root)
+    if not elf.is_file():
+        raise ReferenceContractError("official build did not produce its declared debug ELF")
+    elf_image = parse_elf(elf)
+    try:
+        debug_allowlist = contract["image_allowlists"][default_domain]
+    except KeyError as error:
+        raise ReferenceContractError("source lock has no allowlist for the default domain") from error
+    require_allowed(elf_image.ranges, tuple(tuple(item) for item in debug_allowlist))
+    images: list[dict[str, Any]] = []
+    for order, domain in enumerate(flash_order):
+        ihex = _runner_artifact(domain_builds[domain], "hex_file", root)
+        if not ihex.is_file():
+            raise ReferenceContractError(f"official build did not produce the declared HEX for {domain}")
+        hex_image = parse_ihex(ihex)
+        try:
+            image_allowlist = contract["image_allowlists"][domain]
+        except KeyError as error:
+            raise ReferenceContractError(f"source lock has no allowlist for {domain}") from error
+        require_allowed(hex_image.ranges, tuple(tuple(item) for item in image_allowlist))
+        images.append({
+            "domain": domain, "order": order, "path": str(ihex),
+            "sha256": sha256(ihex), "ranges": hex_image.ranges,
+            "allowlist": image_allowlist,
+        })
+    manifest = {
+        "schema": "nrf-cmake-sdk-image/v1", "oracle": oracle_id,
+        "source_receipt_sha256": source_receipt_sha256,
+        "soc": contract["soc"], "core": contract["core"], "board": contract["board"],
+        "board_version": contract["board_version"], "device_family": contract["device_family"],
+        "expected_token": contract["expected_token"], "vcom": contract["vcom"],
+        "debug_allowlist": debug_allowlist,
+        "debug_elf": {"path": str(elf.resolve()), "sha256": sha256(elf), "ranges": elf_image.ranges},
+        "images": images,
+    }
+    manifest_path = build_dir / "image-manifest.json"
+    atomic_json(manifest_path, manifest)
+    return manifest_path
+
+
 def build(project: Path, oracle_id: str, timeout: float) -> Path:
     root, toolchain, receipt = load_receipt(project, oracle_id)
     contract = oracle(project, oracle_id)
@@ -230,44 +278,14 @@ def build(project: Path, oracle_id: str, timeout: float) -> Path:
         report["status"] = "failed"
         atomic_json(run_dir / "run.json", report)
         raise ReferenceContractError(f"official reference build failed; see {run_dir / 'build.log'}")
-    default_domain, domain_builds, flash_order = _build_domains(build_dir)
-    elf = _runner_artifact(domain_builds[default_domain], "elf_file", root)
-    if not elf.is_file():
-        raise ReferenceContractError("official build did not produce its declared debug ELF")
-    elf_image = parse_elf(elf)
     try:
-        debug_allowlist = contract["image_allowlists"][default_domain]
-    except KeyError as error:
-        raise ReferenceContractError("source lock has no allowlist for the default domain") from error
-    require_allowed(elf_image.ranges, tuple(tuple(item) for item in debug_allowlist))
-    images: list[dict[str, Any]] = []
-    for order, domain in enumerate(flash_order):
-        ihex = _runner_artifact(domain_builds[domain], "hex_file", root)
-        if not ihex.is_file():
-            raise ReferenceContractError(f"official build did not produce the declared HEX for {domain}")
-        hex_image = parse_ihex(ihex)
-        try:
-            image_allowlist = contract["image_allowlists"][domain]
-        except KeyError as error:
-            raise ReferenceContractError(f"source lock has no allowlist for {domain}") from error
-        require_allowed(hex_image.ranges, tuple(tuple(item) for item in image_allowlist))
-        images.append({
-            "domain": domain, "order": order, "path": str(ihex),
-            "sha256": sha256(ihex), "ranges": hex_image.ranges,
-            "allowlist": image_allowlist,
-        })
-    manifest = {
-        "schema": "nrf-cmake-sdk-image/v1", "oracle": oracle_id,
-        "source_receipt_sha256": report["source_receipt_sha256"],
-        "soc": contract["soc"], "core": contract["core"], "board": contract["board"],
-        "board_version": contract["board_version"], "device_family": contract["device_family"],
-        "expected_token": contract["expected_token"], "vcom": contract["vcom"],
-        "debug_allowlist": debug_allowlist,
-        "debug_elf": {"path": str(elf.resolve()), "sha256": sha256(elf), "ranges": elf_image.ranges},
-        "images": images,
-    }
-    manifest_path = build_dir / "image-manifest.json"
-    atomic_json(manifest_path, manifest)
+        manifest_path = _build_manifest(
+            oracle_id, root, build_dir, contract, report["source_receipt_sha256"]
+        )
+    except BaseException as error:
+        report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
+        atomic_json(run_dir / "run.json", report)
+        raise
     report["status"] = "ok"
     report["manifest"] = str(manifest_path)
     atomic_json(run_dir / "run.json", report)

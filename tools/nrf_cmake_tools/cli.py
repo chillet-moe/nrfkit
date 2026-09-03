@@ -97,6 +97,31 @@ def _new_run(operation: str) -> tuple[Path, dict[str, Any]]:
     return run_dir, report
 
 
+def _initialize_device_report(
+    run_dir: Path,
+    report: dict[str, Any],
+    manifest_path: Path,
+    manifest: dict[str, Any],
+    args: argparse.Namespace,
+) -> None:
+    report.update({
+        "manifest": str(manifest_path.resolve()),
+        "oracle": manifest["oracle"],
+        "source_receipt_sha256": manifest["source_receipt_sha256"],
+        "timeout_seconds": args.timeout,
+        "tools": {
+            "nrfutil": _run_version([args.nrfutil, "--log-output", "stdout", "--version"]),
+        },
+        "stages": [{"name": "manifest-audit", "status": "ok"}],
+    })
+    atomic_json(run_dir / "run.json", report)
+
+
+def _stage(run_dir: Path, report: dict[str, Any], name: str, **details: Any) -> None:
+    report["stages"].append({"name": name, "status": "ok", **details})
+    atomic_json(run_dir / "run.json", report)
+
+
 def _run_version(argv: list[str]) -> dict[str, Any]:
     try:
         completed = subprocess.run(
@@ -224,14 +249,22 @@ def _program(
 def command_flash(args: argparse.Namespace) -> int:
     manifest = load_manifest(args.manifest)
     run_dir, report = _new_run("flash")
+    _initialize_device_report(run_dir, report, args.manifest, manifest, args)
     try:
         device = _select(manifest, args, run_dir)
+        _stage(run_dir, report, "device-selection", board_version=manifest["board_version"])
         with _probe_lock(device["serialNumber"], "flash"):
+            _stage(run_dir, report, "probe-lock")
             snapshots = _snapshot_hexes(manifest, run_dir)
+            _stage(
+                run_dir, report, "image-snapshot",
+                sha256=[sha256(snapshot) for snapshot in snapshots],
+            )
             for snapshot in snapshots:
                 _program(manifest, device, snapshot, args, run_dir)
+                _stage(run_dir, report, "program", image_sha256=sha256(snapshot))
         report.update({
-            "status": "ok", "manifest": str(args.manifest.resolve()),
+            "status": "ok",
             "image_sha256": [sha256(snapshot) for snapshot in snapshots],
         })
     except BaseException as error:
@@ -246,9 +279,12 @@ def command_flash(args: argparse.Namespace) -> int:
 def command_reset(args: argparse.Namespace) -> int:
     manifest = load_manifest(args.manifest)
     run_dir, report = _new_run("reset")
+    _initialize_device_report(run_dir, report, args.manifest, manifest, args)
     try:
         device = _select(manifest, args, run_dir)
+        _stage(run_dir, report, "device-selection", board_version=manifest["board_version"])
         with _probe_lock(device["serialNumber"], "reset"):
+            _stage(run_dir, report, "probe-lock")
             result = run_logged(
                 reset_argv(
                     args.nrfutil, device["serialNumber"],
@@ -258,6 +294,10 @@ def command_reset(args: argparse.Namespace) -> int:
             )
             if result.returncode:
                 raise ToolError("device reset failed")
+            _stage(
+                run_dir, report, "reset", returncode=result.returncode,
+                duration_seconds=result.duration_seconds,
+            )
         report["status"] = "ok"
     except BaseException as error:
         report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
@@ -333,17 +373,29 @@ def _serial_reader_stop(
 def command_run(args: argparse.Namespace) -> int:
     manifest = load_manifest(args.manifest)
     run_dir, report = _new_run("run")
+    _initialize_device_report(run_dir, report, args.manifest, manifest, args)
+    report["token_timeout_seconds"] = args.token_timeout
+    report["serial_ready_delay_seconds"] = args.serial_ready_delay
+    atomic_json(run_dir / "run.json", report)
     descriptor: int | None = None
     reader: tuple[threading.Event, threading.Thread, bytearray, list[OSError]] | None = None
     try:
         device = _select(manifest, args, run_dir)
+        _stage(run_dir, report, "device-selection", board_version=manifest["board_version"])
         with _probe_lock(device["serialNumber"], "run"):
+            _stage(run_dir, report, "probe-lock")
             snapshots = _snapshot_hexes(manifest, run_dir)
+            _stage(
+                run_dir, report, "image-snapshot",
+                sha256=[sha256(snapshot) for snapshot in snapshots],
+            )
             for snapshot in snapshots:
                 _program(manifest, device, snapshot, args, run_dir)
+                _stage(run_dir, report, "program", image_sha256=sha256(snapshot))
             descriptor = _serial_open(_serial_port(device, manifest["vcom"]))
             time.sleep(args.serial_ready_delay)
             reader = _serial_reader(descriptor)
+            _stage(run_dir, report, "serial-ready", vcom=manifest["vcom"])
             reset = run_logged(
                 reset_argv(
                     args.nrfutil, device["serialNumber"],
@@ -353,6 +405,10 @@ def command_run(args: argparse.Namespace) -> int:
             )
             if reset.returncode:
                 raise ToolError("device reset failed")
+            _stage(
+                run_dir, report, "reset", returncode=reset.returncode,
+                duration_seconds=reset.duration_seconds,
+            )
             deadline = time.monotonic() + args.token_timeout
             token = manifest["expected_token"].encode()
             while time.monotonic() < deadline and token not in reader[2]:
@@ -362,6 +418,7 @@ def command_run(args: argparse.Namespace) -> int:
             (run_dir / "serial.log").write_bytes(transcript)
             if token not in transcript:
                 raise ToolError("expected serial token was not observed before timeout")
+            _stage(run_dir, report, "wait-token", bytes_received=len(transcript))
         report.update({
             "status": "ok", "token_observed": True,
             "image_sha256": [sha256(snapshot) for snapshot in snapshots],
@@ -372,9 +429,12 @@ def command_run(args: argparse.Namespace) -> int:
         raise
     finally:
         if reader is not None:
-            _serial_reader_stop(reader)
+            transcript = _serial_reader_stop(reader)
+            (run_dir / "serial.log").write_bytes(transcript)
         if descriptor is not None:
             os.close(descriptor)
+        report["cleanup"] = {"serial_reader_stopped": True, "serial_closed": True}
+        atomic_json(run_dir / "run.json", report)
     atomic_json(run_dir / "run.json", report)
     print(run_dir / "run.json")
     return 0
@@ -383,14 +443,22 @@ def command_run(args: argparse.Namespace) -> int:
 def command_gdb_smoke(args: argparse.Namespace) -> int:
     manifest = load_manifest(args.manifest)
     run_dir, report = _new_run("gdb-smoke")
+    _initialize_device_report(run_dir, report, args.manifest, manifest, args)
     server: subprocess.Popen[bytes] | None = None
     serial_descriptor: int | None = None
     serial_reader: tuple[threading.Event, threading.Thread, bytearray, list[OSError]] | None = None
     try:
         device = _select(manifest, args, run_dir)
+        _stage(run_dir, report, "device-selection", board_version=manifest["board_version"])
         gdb = executable(args.gdb, "arm-none-eabi-gdb")
         jlink = executable(args.jlink, "JLinkGDBServerCLExe")
+        report["tools"].update({
+            "gdb": _run_version([gdb, "--version"]),
+            "jlink_gdb_server": _run_version([jlink, "-version"]),
+        })
+        atomic_json(run_dir / "run.json", report)
         with _probe_lock(device["serialNumber"], "gdb-smoke"):
+            _stage(run_dir, report, "probe-lock")
             if args.verify_token:
                 serial_descriptor = _serial_open(_serial_port(device, manifest["vcom"]))
                 time.sleep(args.serial_ready_delay)
@@ -420,6 +488,7 @@ def command_gdb_smoke(args: argparse.Namespace) -> int:
                         time.sleep(0.1)
                     else:
                         connection.close()
+                        _stage(run_dir, report, "gdb-server-ready", port=port)
                         break
                 else:
                     raise ToolError("J-Link GDB server did not open its port before timeout")
@@ -446,6 +515,10 @@ def command_gdb_smoke(args: argparse.Namespace) -> int:
                     markers += ("P0_POST_MAIN_BREAK_REACHED",)
                 if result.returncode or any(marker not in result.stdout for marker in markers):
                     raise ToolError("GDB smoke contract failed")
+                _stage(
+                    run_dir, report, "gdb-contract", returncode=result.returncode,
+                    duration_seconds=result.duration_seconds,
+                )
                 if serial_descriptor is not None:
                     deadline = time.monotonic() + args.token_timeout
                     token = manifest["expected_token"].encode()
@@ -457,6 +530,7 @@ def command_gdb_smoke(args: argparse.Namespace) -> int:
                     (run_dir / "serial.log").write_bytes(transcript)
                     if token not in transcript:
                         raise ToolError("GDB smoke reached main but its serial token was not observed")
+                    _stage(run_dir, report, "wait-token", bytes_received=len(transcript))
             finally:
                 server_log.close()
                 if server is not None and server.poll() is None:
@@ -466,6 +540,10 @@ def command_gdb_smoke(args: argparse.Namespace) -> int:
                     except subprocess.TimeoutExpired:
                         os.killpg(server.pid, signal.SIGKILL)
                         server.wait()
+                _stage(
+                    run_dir, report, "gdb-server-cleanup",
+                    server_running=server is not None and server.poll() is None,
+                )
         report.update({"status": "ok", "gdb": gdb, "jlink": jlink})
     except BaseException as error:
         report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
@@ -473,9 +551,16 @@ def command_gdb_smoke(args: argparse.Namespace) -> int:
         raise
     finally:
         if serial_reader is not None:
-            _serial_reader_stop(serial_reader)
+            transcript = _serial_reader_stop(serial_reader)
+            (run_dir / "serial.log").write_bytes(transcript)
         if serial_descriptor is not None:
             os.close(serial_descriptor)
+        report["cleanup"] = {
+            "serial_reader_stopped": True,
+            "serial_closed": True,
+            "gdb_server_running": server is not None and server.poll() is None,
+        }
+        atomic_json(run_dir / "run.json", report)
     atomic_json(run_dir / "run.json", report)
     print(run_dir / "run.json")
     return 0
