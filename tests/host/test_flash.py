@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import argparse
+import os
+import time
 import unittest
 from unittest import mock
 
-from nrf_cmake_tools.cli import command_flash
+from nrf_cmake_tools.cli import _serial_reader, _serial_reader_stop, command_flash
 from nrf_cmake_tools.device import program_argv
 from nrf_cmake_tools.image import ImageContractError
 
@@ -35,6 +37,17 @@ class FlashCommandTests(unittest.TestCase):
         new_run.assert_not_called()
         enumerate_devices.assert_not_called()
         program.assert_not_called()
+
+    def test_serial_reader_drains_while_an_operation_is_running(self) -> None:
+        read_descriptor, write_descriptor = os.pipe()
+        self.addCleanup(os.close, read_descriptor)
+        self.addCleanup(os.close, write_descriptor)
+        reader = _serial_reader(read_descriptor)
+        os.write(write_descriptor, b"startup token")
+        deadline = time.monotonic() + 1
+        while b"startup token" not in reader[2] and time.monotonic() < deadline:
+            time.sleep(0.01)
+        self.assertEqual(_serial_reader_stop(reader), b"startup token")
 
 
 if __name__ == "__main__":

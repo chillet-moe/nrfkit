@@ -18,6 +18,7 @@ import subprocess
 import sys
 import tempfile
 import termios
+import threading
 import time
 import tty
 from typing import Any, Iterator
@@ -297,10 +298,43 @@ def _serial_open(path: Path) -> int:
     return descriptor
 
 
+def _serial_reader(descriptor: int) -> tuple[threading.Event, threading.Thread, bytearray, list[OSError]]:
+    stop = threading.Event()
+    transcript = bytearray()
+    failures: list[OSError] = []
+
+    def drain() -> None:
+        try:
+            while not stop.is_set():
+                readable, _, _ = select.select([descriptor], [], [], 0.05)
+                if readable:
+                    transcript.extend(os.read(descriptor, 65536))
+        except OSError as error:
+            failures.append(error)
+
+    thread = threading.Thread(target=drain, name="nrf-vcom-reader", daemon=True)
+    thread.start()
+    return stop, thread, transcript, failures
+
+
+def _serial_reader_stop(
+    reader: tuple[threading.Event, threading.Thread, bytearray, list[OSError]],
+) -> bytearray:
+    stop, thread, transcript, failures = reader
+    stop.set()
+    thread.join(timeout=1)
+    if thread.is_alive():
+        raise ToolError("serial reader did not stop")
+    if failures:
+        raise ToolError(f"serial reader failed: {failures[0]}")
+    return transcript
+
+
 def command_run(args: argparse.Namespace) -> int:
     manifest = load_manifest(args.manifest)
     run_dir, report = _new_run("run")
     descriptor: int | None = None
+    reader: tuple[threading.Event, threading.Thread, bytearray, list[OSError]] | None = None
     try:
         device = _select(manifest, args, run_dir)
         with _probe_lock(device["serialNumber"], "run"):
@@ -309,6 +343,7 @@ def command_run(args: argparse.Namespace) -> int:
                 _program(manifest, device, snapshot, args, run_dir)
             descriptor = _serial_open(_serial_port(device, manifest["vcom"]))
             time.sleep(args.serial_ready_delay)
+            reader = _serial_reader(descriptor)
             reset = run_logged(
                 reset_argv(
                     args.nrfutil, device["serialNumber"],
@@ -319,12 +354,11 @@ def command_run(args: argparse.Namespace) -> int:
             if reset.returncode:
                 raise ToolError("device reset failed")
             deadline = time.monotonic() + args.token_timeout
-            transcript = bytearray()
             token = manifest["expected_token"].encode()
-            while time.monotonic() < deadline and token not in transcript:
-                readable, _, _ = select.select([descriptor], [], [], min(0.25, deadline - time.monotonic()))
-                if readable:
-                    transcript.extend(os.read(descriptor, 65536))
+            while time.monotonic() < deadline and token not in reader[2]:
+                time.sleep(0.05)
+            transcript = _serial_reader_stop(reader)
+            reader = None
             (run_dir / "serial.log").write_bytes(transcript)
             if token not in transcript:
                 raise ToolError("expected serial token was not observed before timeout")
@@ -337,6 +371,8 @@ def command_run(args: argparse.Namespace) -> int:
         atomic_json(run_dir / "run.json", report)
         raise
     finally:
+        if reader is not None:
+            _serial_reader_stop(reader)
         if descriptor is not None:
             os.close(descriptor)
     atomic_json(run_dir / "run.json", report)
@@ -349,6 +385,7 @@ def command_gdb_smoke(args: argparse.Namespace) -> int:
     run_dir, report = _new_run("gdb-smoke")
     server: subprocess.Popen[bytes] | None = None
     serial_descriptor: int | None = None
+    serial_reader: tuple[threading.Event, threading.Thread, bytearray, list[OSError]] | None = None
     try:
         device = _select(manifest, args, run_dir)
         gdb = executable(args.gdb, "arm-none-eabi-gdb")
@@ -357,6 +394,7 @@ def command_gdb_smoke(args: argparse.Namespace) -> int:
             if args.verify_token:
                 serial_descriptor = _serial_open(_serial_port(device, manifest["vcom"]))
                 time.sleep(args.serial_ready_delay)
+                serial_reader = _serial_reader(serial_descriptor)
             listener = socket.socket()
             listener.bind(("127.0.0.1", 0))
             port = listener.getsockname()[1]
@@ -410,15 +448,12 @@ def command_gdb_smoke(args: argparse.Namespace) -> int:
                     raise ToolError("GDB smoke contract failed")
                 if serial_descriptor is not None:
                     deadline = time.monotonic() + args.token_timeout
-                    transcript = bytearray()
                     token = manifest["expected_token"].encode()
-                    while time.monotonic() < deadline and token not in transcript:
-                        readable, _, _ = select.select(
-                            [serial_descriptor], [], [],
-                            min(0.25, deadline - time.monotonic()),
-                        )
-                        if readable:
-                            transcript.extend(os.read(serial_descriptor, 65536))
+                    assert serial_reader is not None
+                    while time.monotonic() < deadline and token not in serial_reader[2]:
+                        time.sleep(0.05)
+                    transcript = _serial_reader_stop(serial_reader)
+                    serial_reader = None
                     (run_dir / "serial.log").write_bytes(transcript)
                     if token not in transcript:
                         raise ToolError("GDB smoke reached main but its serial token was not observed")
@@ -437,6 +472,8 @@ def command_gdb_smoke(args: argparse.Namespace) -> int:
         atomic_json(run_dir / "run.json", report)
         raise
     finally:
+        if serial_reader is not None:
+            _serial_reader_stop(serial_reader)
         if serial_descriptor is not None:
             os.close(serial_descriptor)
     atomic_json(run_dir / "run.json", report)
