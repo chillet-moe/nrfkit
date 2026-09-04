@@ -93,6 +93,19 @@ foreach(role IN ITEMS tx rx)
   nrfkit_finalize_target("${target}")
 endforeach()
 
+if(NRF_SOFTDEVICE_ROOT AND NRF_OBERON_ROOT)
+  if(NRF_BM_ROOT)
+    add_executable(m6_ble_official_baseline m6-official-baseline/main.c)
+    nrfkit_configure_target(m6_ble_official_baseline
+      SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding)
+    _nrfkit_enable_s115_baseline(m6_ble_official_baseline VERSION 10.0.1
+      SOURCE_DIR "${NRF_SOFTDEVICE_ROOT}"
+      OBERON_DIR "${NRF_OBERON_ROOT}"
+      NRF_BM_DIR "${NRF_BM_ROOT}")
+    nrfkit_finalize_target(m6_ble_official_baseline)
+  endif()
+endif()
+
 set(NRFKIT_BUILD_ID "development" CACHE STRING
   "Build identifier emitted by the hardware-validation firmware"
 )
@@ -181,6 +194,15 @@ if(NRFKIT_ENABLE_HARDWARE_TESTS)
       VERBATIM
     )
   endforeach()
+  if(TARGET m6_ble_official_baseline)
+    add_custom_command(TARGET m6_ble_official_baseline POST_BUILD
+      COMMAND "${NRFKIT_TOOL}" sdk manifest
+        --build-dir "$<TARGET_FILE_DIR:m6_ble_official_baseline>"
+        --target m6_ble_official_baseline
+        --expected-token "NRFKIT_M6_OFFICIAL READY"
+      VERBATIM
+    )
+  endif()
   enable_testing()
   add_test(NAME m2_hardware_gate
     COMMAND "${NRFKIT_TOOL}" m2-gate

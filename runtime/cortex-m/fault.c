@@ -37,7 +37,7 @@ void nrfkit_assert_fail(void)
     __builtin_unreachable();
 }
 
-__attribute__((naked)) void HardFault_Handler(void)
+__attribute__((naked)) void nrfkit_hardfault_entry(void)
 {
     __asm volatile (
         "tst lr, #4\n"
@@ -47,3 +47,8 @@ __attribute__((naked)) void HardFault_Handler(void)
         "mov r1, lr\n"
         "b nrfkit_capture_fault\n");
 }
+
+#if !defined(NRFKIT_S115_10_0_1)
+void HardFault_Handler(void)
+    __attribute__((alias("nrfkit_hardfault_entry")));
+#endif

@@ -12,6 +12,7 @@ extern init_function __fini_array_start[];
 extern init_function __fini_array_end[];
 
 extern int main(void);
+extern void SystemCoreClockUpdate(void);
 
 void *memcpy(void *restrict destination, const void *restrict source, size_t count)
 {
@@ -48,6 +49,20 @@ void *memset(void *destination, int value, size_t count)
         *to++ = (unsigned char)value;
     }
     return destination;
+}
+
+int memcmp(const void *left, const void *right, size_t count)
+{
+    const unsigned char *left_bytes = left;
+    const unsigned char *right_bytes = right;
+    while (count-- != 0U) {
+        if (*left_bytes != *right_bytes) {
+            return (int)*left_bytes - (int)*right_bytes;
+        }
+        ++left_bytes;
+        ++right_bytes;
+    }
+    return 0;
 }
 
 size_t strlen(const char *string)
@@ -103,6 +118,8 @@ static void call_forward(init_function *begin, init_function *end)
 
 void nrfkit_start(void)
 {
+    /* SystemInit selects the boot-time PLL frequency before entering here. */
+    SystemCoreClockUpdate();
     call_forward(__preinit_array_start, __preinit_array_end);
     call_forward(__init_array_start, __init_array_end);
     (void)main();

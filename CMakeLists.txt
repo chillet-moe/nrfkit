@@ -24,6 +24,7 @@ install(DIRECTORY
   patches
   radio
   runtime
+  softdevice
   third_party
   usb
   DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit

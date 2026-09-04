@@ -423,7 +423,25 @@ def run_ble_validation(
                 f"BlueZ did not retain the required bond for phase {phase}"
             )
     if not bool(device_properties.Get(DEVICE, "Connected")):
-        device.Connect(timeout=timeout)
+        try:
+            device.Connect(timeout=timeout)
+        except dbus.DBusException as error:
+            try:
+                state: dict[str, Any] = device_state()
+            except dbus.DBusException as state_error:
+                state = {"error": str(state_error)}
+            cleanup = cleanup_failed_pairing()
+            raise BleValidationError(
+                f"BLE connection failed: {error}",
+                details={
+                    "failure_stage": "ble-connect",
+                    "phase": phase,
+                    "device_name": device_name,
+                    "dbus_error": error.get_dbus_name(),
+                    "state_before_cleanup": state,
+                    "cleanup": cleanup,
+                },
+            ) from error
     _wait_until(
         lambda: bool(device_properties.Get(DEVICE, "ServicesResolved")),
         timeout,
@@ -457,12 +475,12 @@ def run_ble_validation(
             readable[uuid] = [int(byte) for byte in value]
         return readable
 
-    selected = {BATTERY_LEVEL}
+    selected = set() if phase == "plaintext" else {BATTERY_LEVEL}
     if requires_hid:
         selected.update(REQUIRED_HID_CHARACTERISTICS)
     readable = read_values(selected)
 
-    required_reads = {BATTERY_LEVEL}
+    required_reads = set() if phase == "plaintext" else {BATTERY_LEVEL}
     if requires_hid:
         required_reads.add(HID_REPORT_MAP)
     for required in required_reads:
@@ -475,7 +493,9 @@ def run_ble_validation(
         timeout,
         "BLE disconnect",
     )
-    protected_uuid = HID_REPORT_MAP if requires_hid else BATTERY_LEVEL
+    protected_uuid = HID_REPORT_MAP if requires_hid else (
+        BATTERY_LEVEL if requires_pairing else None
+    )
     reconnect_read: dict[str, list[int]] = {}
     if requires_reconnect:
         device.Connect(timeout=timeout)
