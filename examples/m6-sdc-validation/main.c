@@ -29,6 +29,7 @@ static volatile uint8_t tx_done;
 static volatile uint8_t uart_fault;
 static uint8_t *stack_watermark_end;
 static volatile uint8_t acl_submissions;
+static volatile int32_t acl_put_result;
 volatile uint32_t nrfkit_m6_required_memory;
 volatile uint32_t nrfkit_m6_lifecycle_enables;
 
@@ -178,10 +179,10 @@ int main(void)
                 command[index] = receive_byte();
             }
             if (packet_type == 0x02U) {
-                if (nrfkit_sdc_hci_acl_put(command) != 0) {
-                    nrfkit_assert_fail();
+                acl_put_result = nrfkit_sdc_hci_acl_put(command);
+                if (acl_put_result == 0) {
+                    ++acl_submissions;
                 }
-                ++acl_submissions;
                 continue;
             }
             size_t event_size;
@@ -190,7 +191,7 @@ int main(void)
                 command[2] == 0U) {
                 output[1] = 0x0EU;
                 uint32_t const stack_used = stack_watermark_used();
-                output[2] = 16U;
+                output[2] = 20U;
                 output[3] = 1U;
                 output[4] = command[0];
                 output[5] = command[1];
@@ -208,7 +209,11 @@ int main(void)
                     NRFKIT_SDC_FAULT_MAGIC ? 1U : 0U;
                 output[17] = uart_fault;
                 output[18] = acl_submissions;
-                event_size = 18U;
+                output[19] = (uint8_t)acl_put_result;
+                output[20] = (uint8_t)((uint32_t)acl_put_result >> 8U);
+                output[21] = (uint8_t)((uint32_t)acl_put_result >> 16U);
+                output[22] = (uint8_t)((uint32_t)acl_put_result >> 24U);
+                event_size = 22U;
             } else if (nrfkit_sdc_hci_command(
                            command, packet_size - 1U, &output[1],
                            sizeof(output) - 1U, &event_size) != 0) {

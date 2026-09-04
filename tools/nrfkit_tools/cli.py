@@ -1149,7 +1149,7 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
 
             def read_diagnostics() -> dict[str, int | bool]:
                 diagnostics = session.command(0xFC00, timeout=args.hci_timeout)
-                if len(diagnostics) != 12 or diagnostics[8] != 2:
+                if len(diagnostics) != 16 or diagnostics[8] != 2:
                     raise ToolError("Controller returned malformed lifecycle diagnostics")
                 return {
                     "required_memory": int.from_bytes(diagnostics[:4], "little"),
@@ -1160,6 +1160,9 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                     "fault_recorded": bool(diagnostics[9]),
                     "uart_fault": bool(diagnostics[10]),
                     "acl_submissions": diagnostics[11],
+                    "acl_put_result": int.from_bytes(
+                        diagnostics[12:16], "little", signed=True,
+                    ),
                 }
 
             session.command(0x0C03, timeout=args.hci_timeout)
@@ -1273,13 +1276,14 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                         host_connection_cleanup=host_connection,
                     )
                     post_acl_diagnostics = read_diagnostics()
-                    if post_acl_diagnostics["acl_submissions"] < 1:
-                        raise ToolError("Controller did not accept the raw host ACL packet")
                     _stage(
                         run_dir, report, "hci-raw-acl-bidirectional",
                         controller_to_host_packets=len(session.acl_packets),
                         host_to_controller_packets=post_acl_diagnostics["acl_submissions"],
+                        host_to_controller_result=post_acl_diagnostics["acl_put_result"],
                     )
+                    if post_acl_diagnostics["acl_submissions"] < 1:
+                        raise ToolError("Controller did not accept the raw host ACL packet")
                 finally:
                     if advertising_enabled:
                         session.command(0x200A, b"\x00", args.hci_timeout)
