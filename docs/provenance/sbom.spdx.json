@@ -1,0 +1,90 @@
+{
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "name": "nrf-cmake-sdk M0 SBOM draft",
+  "documentNamespace": "https://spdx.org/spdxdocs/nrf-cmake-sdk-0.0.0-20260904",
+  "creationInfo": {
+    "created": "2026-09-04T00:00:00Z",
+    "creators": ["Tool: nrf-cmake-sdk M0 provenance audit"]
+  },
+  "documentDescribes": ["SPDXRef-Package-nrf-cmake-sdk"],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package-nrf-cmake-sdk",
+      "name": "nrf-cmake-sdk",
+      "versionInfo": "0.0.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "BSD-3-Clause",
+      "licenseDeclared": "BSD-3-Clause",
+      "copyrightText": "Copyright (c) 2026, nrf-cmake-sdk contributors"
+    },
+    {
+      "SPDXID": "SPDXRef-Package-nrfx",
+      "name": "nrfx",
+      "versionInfo": "4.5.0",
+      "downloadLocation": "git+https://github.com/NordicSemiconductor/nrfx.git@1b7bedb5c7f379a3ec3ece851796e94d7e5d0b2c",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "BSD-3-Clause AND Apache-2.0 AND LicenseRef-CodeSourcery-Linker-Script",
+      "copyrightText": "NOASSERTION",
+      "comment": "Audited M1 candidate; not imported in M0. Exact candidate file hashes are in sources.lock."
+    },
+    {
+      "SPDXID": "SPDXRef-Package-TFM",
+      "name": "Trusted Firmware-M startup comparison",
+      "versionInfo": "ncs-v3.4.0",
+      "downloadLocation": "git+https://git.trustedfirmware.org/TF-M/trusted-firmware-m.git@c9f73070ad6d9469574fc13a4e297ed33ab7e84a",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "comment": "Audit evidence only; not imported in M0."
+    },
+    {
+      "SPDXID": "SPDXRef-Package-S115",
+      "name": "Nordic S115 SoftDevice",
+      "versionInfo": "10.0.1",
+      "downloadLocation": "git+https://github.com/nrfconnect/sdk-nrf-bm.git@51484143c09199e19bccc16fa3b437f7a502a72b",
+      "filesAnalyzed": false,
+      "licenseConcluded": "LicenseRef-Nordic-5-Clause",
+      "licenseDeclared": "LicenseRef-Nordic-5-Clause",
+      "copyrightText": "Copyright (c) 2025, Nordic Semiconductor ASA",
+      "comment": "Optional external binary/API package; not imported in M0 and restricted to Nordic integrated circuits."
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-Package-nrf-cmake-sdk",
+      "relationshipType": "OTHER",
+      "relatedSpdxElement": "SPDXRef-Package-nrfx",
+      "comment": "Planned source input"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-nrf-cmake-sdk",
+      "relationshipType": "OTHER",
+      "relatedSpdxElement": "SPDXRef-Package-TFM",
+      "comment": "Build and vector-table comparison evidence"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-S115",
+      "relationshipType": "OPTIONAL_COMPONENT_OF",
+      "relatedSpdxElement": "SPDXRef-Package-nrf-cmake-sdk"
+    }
+  ],
+  "hasExtractedLicensingInfos": [
+    {
+      "licenseId": "LicenseRef-CodeSourcery-Linker-Script",
+      "name": "CodeSourcery linker script permissive notice",
+      "extractedText": "Permission is granted to use, copy, modify, distribute, and license the software and documentation for any purpose, provided existing copyright notices are retained and the notice is included verbatim in distributions.",
+      "seeAlsos": ["https://github.com/NordicSemiconductor/nrfx/blob/v4.5.0/bsp/stable/mdk/common/nrf_common.ld"]
+    },
+    {
+      "licenseId": "LicenseRef-Nordic-5-Clause",
+      "name": "Nordic Semiconductor 5-Clause License",
+      "extractedText": "Redistribution and use in source and binary forms, with or without modification, are permitted subject to the five conditions in the license distributed with S115 10.0.1. Those conditions require retention or reproduction of notices in applicable distributions, prohibit endorsement without permission, restrict use to Nordic Semiconductor integrated circuits, and prohibit reverse engineering, decompilation, modification, or disassembly of software supplied in binary form. The software is supplied as-is without warranties and with limitation of liability.",
+      "seeAlsos": ["https://github.com/nrfconnect/sdk-nrf-bm/blob/v2.0.1/components/softdevice/nrf54lm/s115/s115_10.0.1_license-agreement.txt"]
+    }
+  ]
+}

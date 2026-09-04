@@ -1,0 +1,42 @@
+# M0 source and license audit
+
+This audit was performed on 2026-09-04. Exact commits and file hashes are in `sources.lock`. None of the candidates below is imported into the consumer package yet.
+
+## Release baseline
+
+- [nRF Connect SDK v3.4.0](https://github.com/nrfconnect/sdk-nrf/releases/tag/v3.4.0) remains the production reference-oracle release selected for nRF54LM20 revision 1. Its already validated commits are unchanged.
+- nRF Connect SDK Bare Metal v2.0.1 remains the source of the validated S115 10.0.1 binary, headers, license, and release notes.
+- [nrfx v4.5.0](https://github.com/NordicSemiconductor/nrfx/releases/tag/v4.5.0) is newer than the nrfx 4.2.1-derived HAL snapshots in those workspaces. It is the M1 MDK/startup candidate, not a silent replacement for either P0 oracle.
+
+## Startup and linker search
+
+| Source searched | Scope | nRF54LM20A / nRF54L15 result |
+|---|---|---|
+| nrfx v4.5.0 tag `1b7bedb5` | Entire release tree; GNU, Clang, Arm/ArmClang, and IAR filename patterns | Official GNU application and FLPR startup assembly and per-device GNU linker scripts exist for both SoCs. No device-specific Arm/ArmClang scatter file or IAR startup/linker file was found. |
+| nRF Device Family Pack 8.44.1 | Complete public CMSIS pack archive | The pack predates both target SoCs and contains neither target. It is evidence only and is not an import source. |
+| NCS v3.4.0 | Nordic HAL/nrfx, Zephyr SoC/board data, and TF-M module | The bundled nrfx tree has MDK headers, SVDs, memory headers, and `system_nrf54l.c`, but no target-specific standalone startup/linker pair. TF-M contains Apache-2.0 C vector tables for LM20/L15-family targets derived from CMSIS 5.9.0. |
+| NCS Bare Metal v2.0.1 | Manifest repository, Nordic HAL module, board and SoftDevice trees | No independent target startup/linker pair beyond its older nrfx/Zephyr inputs. It supplies the production S115 10.0.1 package and integration evidence. |
+
+The earlier fallback assumption is therefore superseded: M1 should start from the official nrfx v4.5.0 GNU startup, not synthesize a large assembly file from TF-M. The TF-M C implementation remains independent comparison evidence for vector order and reset behavior.
+
+## Planned source and license disposition
+
+| Material | License | M0 disposition |
+|---|---|---|
+| nrfx/MDK device headers, vectors, SVDs, and memory headers | BSD-3-Clause | Permitted candidate; retain notices and exact upstream paths. |
+| nrfx GNU startup and `system_nrf54l.c/.h` | Apache-2.0 | Permitted candidate; import unmodified where practical and record any integration patch separately. |
+| nrfx device linker scripts | BSD-3-Clause at repository scope | Permitted reference/import candidate. |
+| nrfx `nrf_common.ld` | Permissive CodeSourcery notice embedded in the file | Permitted candidate under `LicenseRef-CodeSourcery-Linker-Script`; preserve the notice verbatim. |
+| TF-M Nordic startup comparison files | Apache-2.0 | Audit evidence; not currently planned for import. |
+| S115 binary and API package | LicenseRef-Nordic-5-Clause | Optional Nordic-only component. Distribution and use must retain the supplied license and attribution and obey the Nordic-device and no-reverse-engineering conditions. |
+| Project-owned build/runtime/tool code | BSD-3-Clause | Public repository license. |
+
+## Memory cross-check
+
+Nordic document `4539_001 v1.0`, Figure 3 on PDF page 15, shows RRAM from `0x00000000`, configuration areas at `0x00FFC000` through `0x00FFF000`, and RAM from `0x20000000` with a reserved top tail for VPR saved context and ProtectedRAM. The nrfx v4.5.0 LM20 memory header describes two physical 256 KiB RAM banks, while NCS v3.4.0 exposes a smaller CPU application SRAM range. These facts describe different abstraction levels; the full physical bank size is not by itself permission to allocate the reserved tail.
+
+M1 must therefore use the stricter usable-RAM boundary until the device header IRQ data, SVD, product specification, TF-M/Zephyr platform data, and locked reference ELF/map agree. It must not copy a generated Zephyr linker script or allocate the entire second bank merely because the generic nrfx memory header names it. The same cross-check applies to RRAM, S115 placement, configuration areas, and every linker assertion.
+
+## Reproducibility
+
+The release archive/tag, source URL, commit, per-file SHA-256, SPDX identifier, import date, and patch state are machine-independent entries in `sources.lock`. Local workspaces and downloaded audit archives are discovery inputs only. A future import must verify these hashes before copying files and must change `imported` only in the commit that adds the corresponding source.

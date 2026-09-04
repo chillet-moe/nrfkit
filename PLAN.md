@@ -1,6 +1,6 @@
 # nrf-cmake-sdk：目标与执行计划
 
-> 状态：P0 已完成；M0 仓库、来源与设计冻结进行中<br>
+> 状态：P0、M0 已完成；M1 LM20 freestanding ELF 与链接契约进行中<br>
 > 计划基线：2026-09-04<br>
 > 首要目标：nRF54LM20A / nRF54LM20 DK<br>
 > 次要目标：nRF54L15 / nRF54L15 DK<br>
@@ -575,6 +575,8 @@ P0 于 2026-09-04 完成退出审计。公共 `p0-gate` 从锁定来源连续完
 - `cmake --find-package` 或最小 consumer configure 可运行；
 - configure 不访问网络、不读 NCS、不要求 west；
 - public hygiene test 通过。
+
+M0 于 2026-09-04 完成退出审计。独立检查确认 nrfx v4.5.0 已为 LM20/L15 提供官方 GNU startup 与 per-device linker script，取代了早期“只能采用 TF-M C startup fallback”的假设；精确 tag/commit、MDK 版本、文件 hash、许可证、导入状态和搜索结论已锁定。NCS v3.4.0 与 Bare Metal v2.0.1 继续作为已验证 oracle，不随 nrfx 候选升级。README、贡献约定、support matrix、ADR、SPDX SBOM 初稿和 host doctor 已建立；source-tree 与 installed package consumer 在故意无效的 NCS/Zephyr 环境路径下仍可离线 configure/build。34 个 host tests、SPDX 2.3 validator、JSON 校验、public hygiene 与 diff check 全部通过，两份官方来源 receipt 在扩展后的 `sources.lock` 上重新生成并成功构建。
 
 ### M1：LM20 freestanding ELF 与链接契约
 

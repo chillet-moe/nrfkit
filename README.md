@@ -6,6 +6,8 @@ This project is not affiliated with or endorsed by Nordic Semiconductor. Nordic 
 
 The project is in early bring-up. Completed P0 provides locked official reference builds, ELF and Intel HEX address auditing, guarded programming, reset/run orchestration, the aggregate hardware gate, and J-Link GDB smoke tests. This is not yet a consumer SDK release; see [`PLAN.md`](PLAN.md) for the normative scope and completion gates.
 
+The M0 source decision, current target status, and contribution contract are documented in [`docs/provenance/source-audit.md`](docs/provenance/source-audit.md), [`docs/support-matrix.md`](docs/support-matrix.md), and [`CONTRIBUTING.md`](CONTRIBUTING.md). Exact upstream identities remain machine-independent in `sources.lock`; local source paths and hardware identities never belong in tracked files.
+
 ## Experimental CMake package
 
 M0 provides the initial package-discovery skeleton, not yet a firmware target API. A source checkout can be consumed without consulting NCS or west by pointing CMake directly at its package directory:
@@ -44,8 +46,7 @@ The complete P0 acceptance gate is also a single public command. It performs thr
 
 ```sh
 tools/nrf-cmake-sdk p0-gate \
-  --gdb /path/to/locked/arm-none-eabi-gdb \
-  --authorize-temporary-msd-disable
+  --gdb /path/to/locked/arm-none-eabi-gdb
 ```
 
 Some J-Link OB probes lose VCOM data while their mass-storage interface is enabled. For a probe on which this limitation has been confirmed and drag-and-drop programming is not needed, the preferred local setup is an explicitly authorized one-time persistent disable:
@@ -59,6 +60,16 @@ The command saves the complete enumerated state in the ignored run report, emits
 When MSD is already disabled, `p0-gate` treats that as the normal preferred state and makes no persistent change. Its `--authorize-temporary-msd-disable` option remains as a compatibility path: it disables MSD, runs the gates, and restores MSD in cleanup. Any persistent or temporary configuration change requires separate user authorization in addition to Codex tool escalation; this policy is local and is not imposed on downstream probes.
 
 Hardware commands use the generated manifest and the same public entry point. USB, serial, probes, programming, and GDB require Codex tool escalation; see [`docs/hardware-workflow.md`](docs/hardware-workflow.md). Programming remains fail-closed and uses `ERASE_NONE`, read-back verification, immutable snapshots, and address allowlists.
+
+Maintainers can check required host tools without selecting or recording a probe:
+
+```sh
+tools/nrf-cmake-sdk doctor \
+  --official-toolchain /path/to/official/toolchain \
+  --gdb /path/to/locked/arm-none-eabi-gdb
+```
+
+The ignored report records tool versions and the locked GDB hash, but no probe serial number. This preflight is for reference/hardware maintenance and is never invoked by consumer configure.
 
 ## Host tests
 

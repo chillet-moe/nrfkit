@@ -1,5 +1,76 @@
 {
   "schema": "nrf-cmake-sdk-sources/v1",
+  "audited_sources": {
+    "nrfx-4.5.0": {
+      "release": "nrfx v4.5.0",
+      "repository": "https://github.com/NordicSemiconductor/nrfx",
+      "commit": "1b7bedb5c7f379a3ec3ece851796e94d7e5d0b2c",
+      "mdk_version": "9.0.2-RC-1",
+      "import_date": "2026-09-04",
+      "imported": false,
+      "patches": "none",
+      "files": {
+        "LICENSE": {"sha256": "55e466145d9fbe1ded026036d65abf9c610483cf9042d8689aebe3553984178e", "license": "BSD-3-Clause"},
+        "bsp/stable/mdk/common/nrf_common.ld": {"sha256": "074ab53c80f7e3206c1c686ce0c2d4bf0fadea0ddede4c4eb6f5feb12ad05bbf", "license": "LicenseRef-CodeSourcery-Linker-Script"},
+        "bsp/stable/mdk/nrf54l/system_nrf54l.c": {"sha256": "0d028b02ceec9dfe5d34c5d35bca8c35fe70de89c4a176614b202e20d8722c99", "license": "Apache-2.0"},
+        "bsp/stable/mdk/nrf54l/system_nrf54l.h": {"sha256": "0f1dff09c7fa8174cc916d1d15993d4377bf5aa8ecd641c593340e3e8dd31895", "license": "Apache-2.0"},
+        "bsp/stable/mdk/nrf54l/nrf54lm20a/gcc_startup_nrf54lm20a_application.S": {"sha256": "dc1030b228b8e5552189818aad0cde5344466457985a656cc989d5cc153fc9b2", "license": "Apache-2.0"},
+        "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_xxaa_application.ld": {"sha256": "b735f14c15d3ee987877c96b02127ecef024557c012bd05377b95754292ccc70", "license": "BSD-3-Clause"},
+        "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_xxaa_application_memory.h": {"sha256": "c6a091fe5e8ff67a05f6e0b306ab5ab4efddf37a5a48706fe2616160241563fe", "license": "BSD-3-Clause"},
+        "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_application.h": {"sha256": "161484696a4912ce758e8521f4acbd63a4debd45feb662da0c07bf0cd0825088", "license": "BSD-3-Clause"},
+        "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_application_vectors.h": {"sha256": "bd5f90147e8b9c880cad4200558cea5a4605cd4a61712b2cfd1d8ea7470b0eab", "license": "BSD-3-Clause"},
+        "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_application.svd": {"sha256": "847e2de9bf06a4750620e3d582d680cc390dd58b34af1f874100c872788fd862", "license": "BSD-3-Clause"},
+        "bsp/stable/mdk/nrf54l/nrf54l15/gcc_startup_nrf54l15_application.S": {"sha256": "a97c5c0f12ae1d4d7e8ce4a1f0f67fcb69718cdd8ec6ceae60ce9a369d4ae5e8", "license": "Apache-2.0"},
+        "bsp/stable/mdk/nrf54l/nrf54l15/nrf54l15_xxaa_application.ld": {"sha256": "24ae49a99d667ddc90bc79b79f584f3895c56edf98ce3c257f71c4940013e058", "license": "BSD-3-Clause"},
+        "bsp/stable/mdk/nrf54l/nrf54l15/nrf54l15_xxaa_application_memory.h": {"sha256": "a9796cbc8c770de08181567097c5c645a3b7adb3290ba397a09c79e0b1f992b5", "license": "BSD-3-Clause"},
+        "bsp/stable/mdk/nrf54l/nrf54l15/nrf54l15_application.h": {"sha256": "ed4d5392e0bfdd46fb3d24eb5231cb5701ff084861fdc1c71c78a7f71ea561a7", "license": "BSD-3-Clause"},
+        "bsp/stable/mdk/nrf54l/nrf54l15/nrf54l15_application_vectors.h": {"sha256": "52bd19365b83aaa0f3bb58b89f3e9c575c43dedbde971f2c07c96a20aa096ce5", "license": "BSD-3-Clause"},
+        "bsp/stable/mdk/nrf54l/nrf54l15/nrf54l15_application.svd": {"sha256": "b4787bb032b71c00341d5e00ad4ee64bb23bc3762879335570278a4e641ed44b", "license": "BSD-3-Clause"}
+      }
+    },
+    "nrf-device-family-pack-8.44.1": {
+      "release": "NordicSemiconductor.nRF_DeviceFamilyPack 8.44.1",
+      "url": "https://developer.nordicsemi.com/nRF5_SDK/pieces/nRF_DeviceFamilyPack/NordicSemiconductor.nRF_DeviceFamilyPack.8.44.1.pack",
+      "sha256": "95136b57a8310ba367aa46cb66c8d149561fc7876c5f3736f323a9dbfb8f559e",
+      "license": "BSD-3-Clause",
+      "import_date": "2026-09-04",
+      "imported": false,
+      "patches": "none"
+    },
+    "trusted-firmware-m-ncs-3.4.0": {
+      "release": "Trusted Firmware-M in nRF Connect SDK v3.4.0",
+      "repository": "https://git.trustedfirmware.org/TF-M/trusted-firmware-m.git",
+      "commit": "c9f73070ad6d9469574fc13a4e297ed33ab7e84a",
+      "import_date": "2026-09-04",
+      "imported": false,
+      "patches": "none",
+      "files": {
+        "license.rst": {"sha256": "3a2106e9cca6a3bc3f1afaa300c36c7ba7d425691b10e75b23f2bea19e94f16e", "license": "Apache-2.0"},
+        "platform/ext/target/nordic_nrf/common/core/startup_nrf54lm.c": {"sha256": "43719e167f2bfb75186e7cc95824670b3d148ad20d13ec09a56bfe9683040aff", "license": "Apache-2.0"},
+        "platform/ext/target/nordic_nrf/common/core/startup_nrf54lx.c": {"sha256": "fa5d7bee2df1ede4c450eaf9d2f0296f9a5b275419df267e55218e95f3fcdadf", "license": "Apache-2.0"},
+        "platform/ext/target/nordic_nrf/common/core/startup_nrf54l_common.c": {"sha256": "9d01ab1345f7ff39e870389fecbe442d3af9f26055f67f87386bf03597008093", "license": "Apache-2.0"}
+      }
+    },
+    "s115-10.0.1": {
+      "release": "S115 10.0.1 from nRF Connect SDK Bare Metal v2.0.1",
+      "repository": "https://github.com/nrfconnect/sdk-nrf-bm",
+      "commit": "51484143c09199e19bccc16fa3b437f7a502a72b",
+      "license": "LicenseRef-Nordic-5-Clause",
+      "import_date": "2026-09-04",
+      "imported": false,
+      "patches": "none",
+      "files": {
+        "components/softdevice/nrf54lm/s115/s115_nrf54lm20_10.0.1_softdevice.hex": "c2b5bcf2b436e11daa9a85e9dca12060052244c2eec50032bf54d87a4a77c3a2",
+        "components/softdevice/nrf54lm/s115/s115_10.0.1_license-agreement.txt": "7954ebb6167400e1b4232a513ed7cf8a9e3dcddf68297ca5f2d979f48afed382",
+        "components/softdevice/nrf54lm/s115/s115_10.0.1_license-attribution.txt": "7f1899283abee89a08981a079782eefe7de928cca4df743f6731d818bfdca614",
+        "components/softdevice/nrf54lm/s115/doc/s115_10.0.1_release-notes.rst": "075ff3728b70a066f26ac0877b9ae151dfedc51209824918a17e0260f3eb9444",
+        "components/softdevice/nrf54lm/s115/s115_API/include/nrf_sdm.h": "1e051c429caf1673132c61570976c30b832bce98170b4dd610f39e4929320e0e",
+        "components/softdevice/nrf54l/s115/s115_nrf54l15_10.0.1_softdevice.hex": "10659531dccd384f49495407d8764cd392be7a40a427a622b83ce26afac2e0fa",
+        "components/softdevice/nrf54l/s115/s115_10.0.1_license-agreement.txt": "7954ebb6167400e1b4232a513ed7cf8a9e3dcddf68297ca5f2d979f48afed382",
+        "components/softdevice/nrf54l/s115/doc/s115_10.0.1_release-notes.rst": "00a99e1d01807eb9415f5852ca8f62919ef4df0cda6ff59c128a9c5bb0730de1"
+      }
+    }
+  },
   "oracles": {
     "ncs-hello-world": {
       "release": "nRF Connect SDK v3.4.0",
