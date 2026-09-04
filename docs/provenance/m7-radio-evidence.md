@@ -102,6 +102,15 @@ evidence, but it does not yet claim measured amperes, watts, or joules. Closing 
 PLAN power exit condition requires an instrumented baseline/4/2/1/Timeslot run using
 the same packet and timing method.
 
+`tools/nrfkit m7-power-audit` is the instrument-independent final reducer. It requires
+seven normalized captures named `idle`, `direct-1m`, `direct-2m`, `direct-4m`,
+`timeslot-retry-4m`, `ble`, and `ble-timeslot-4m`. Each CSV contains exactly
+`time_s,current_a`, spans at least one second, and has no sample gap above five
+microseconds by default. The command records capture hashes rather than paths and
+integrates average/peak current, charge, energy, the three direct-PHY increments,
+Timeslot retry increment, and active-BLE Timeslot increment. The supply voltage and
+instrument identity are explicit arguments; neither is guessed from board defaults.
+
 Official board measurement instructions:
 
 - [nRF54LM20 DK current measurements](https://docs.nordicsemi.com/r/bundle/ug_nrf54lm20_dk/)

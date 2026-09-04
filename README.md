@@ -62,6 +62,8 @@ then accessible only inside a granted Timeslot. The public dual-board gates cove
 comparison, and active-BLE coexistence. See
 [`docs/provenance/radio.md`](docs/provenance/radio.md) and
 [`docs/provenance/m7-radio-evidence.md`](docs/provenance/m7-radio-evidence.md).
+The latter also defines `m7-power-audit`, the normalized capture reducer required to
+close the remaining external-instrument power gate.
 
 The experimental SoftDevice Controller integration is also target-scoped and selects
 exactly one locked archive variant:

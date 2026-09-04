@@ -55,7 +55,11 @@ teardown behavior with SDC-disabled lifecycle, advertising, and a connection.
 the SDC oracle. Its PASS requires both raw ACL and a peer-received private packet
 from the connected-stage burst. Both commands reject a shared probe and clean up the
 receiver process group on failure. Electrical power is a separate instrumented gate;
-firmware duty counters are not accepted as current or energy measurements.
+firmware duty counters are not accepted as current or energy measurements. Export
+instrument captures to normalized `time_s,current_a` CSV and run
+`tools/nrfkit m7-power-audit` with all seven required profiles, the measured supply
+voltage, and the instrument identity. Raw captures and their local paths remain
+outside Git; the ignored report retains only their hashes and integrated results.
 
 The M4 USB device gate is `tools/nrfkit m4-usb-gate`. Its default contract performs
 100 controlled reconnects, transfer/HID stress, and Linux runtime-PM suspend plus
