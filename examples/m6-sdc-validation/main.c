@@ -14,12 +14,17 @@
 #define CONTROLLER_MEMORY_SIZE (8U * 1024U)
 #define STACK_WATERMARK_PATTERN UINT8_C(0xA5)
 #define STACK_WATERMARK_GUARD 128U
+#define CONTROLLER_CANARY UINT64_C(0x5344434D454D4F52)
 
 extern uint8_t __StackLimit[];
 extern uint8_t __StackTop[];
 
 static nrfx_uarte_t hci_uart = NRFX_UARTE_INSTANCE(NRF_UARTE20);
-static uint8_t controller_memory[CONTROLLER_MEMORY_SIZE] __attribute__((aligned(8)));
+static struct {
+    uint64_t before;
+    uint8_t memory[CONTROLLER_MEMORY_SIZE];
+    uint64_t after;
+} controller_region __attribute__((aligned(8)));
 static uint8_t rx_dma[2];
 static uint8_t rx_dma_index;
 static volatile uint16_t rx_read;
@@ -126,14 +131,16 @@ int main(void)
         .lfclk_accuracy_ppm = 20U,
         .hfclk_startup_time_us = 1400U,
     };
+    controller_region.before = CONTROLLER_CANARY;
+    controller_region.after = CONTROLLER_CANARY;
     size_t required_memory;
     if (nrfkit_sdc_required_memory(&controller, &required_memory) != 0 ||
-        required_memory > sizeof(controller_memory) ||
-        nrfkit_sdc_enable(&controller, controller_memory,
-                          sizeof(controller_memory)) != 0 ||
+        required_memory > sizeof(controller_region.memory) ||
+        nrfkit_sdc_enable(&controller, controller_region.memory,
+                          sizeof(controller_region.memory)) != 0 ||
         nrfkit_sdc_disable() != 0 ||
-        nrfkit_sdc_enable(&controller, controller_memory,
-                          sizeof(controller_memory)) != 0) {
+        nrfkit_sdc_enable(&controller, controller_region.memory,
+                          sizeof(controller_region.memory)) != 0) {
         nrfkit_assert_fail();
     }
     nrfkit_m6_required_memory = (uint32_t)required_memory;
@@ -191,7 +198,7 @@ int main(void)
                 command[2] == 0U) {
                 output[1] = 0x0EU;
                 uint32_t const stack_used = stack_watermark_used();
-                output[2] = 20U;
+                output[2] = 21U;
                 output[3] = 1U;
                 output[4] = command[0];
                 output[5] = command[1];
@@ -213,7 +220,9 @@ int main(void)
                 output[20] = (uint8_t)((uint32_t)acl_put_result >> 8U);
                 output[21] = (uint8_t)((uint32_t)acl_put_result >> 16U);
                 output[22] = (uint8_t)((uint32_t)acl_put_result >> 24U);
-                event_size = 22U;
+                output[23] = controller_region.before == CONTROLLER_CANARY &&
+                    controller_region.after == CONTROLLER_CANARY ? 1U : 0U;
+                event_size = 23U;
             } else if (nrfkit_sdc_hci_command(
                            command, packet_size - 1U, &output[1],
                            sizeof(output) - 1U, &event_size) != 0) {

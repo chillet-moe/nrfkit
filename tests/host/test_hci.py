@@ -103,6 +103,7 @@ class HciTests(unittest.TestCase):
                         0x00, 0x04, 0x00, 0x00,
                         0x02, 0x00, 0x00, 0x01,
                         0x00, 0x00, 0x00, 0x00,
+                        0x01,
                     )),
                 }.get(opcode, b"")
 

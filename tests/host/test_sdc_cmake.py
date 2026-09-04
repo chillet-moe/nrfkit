@@ -175,6 +175,8 @@ class SdcCmakeTests(unittest.TestCase):
                 "TIMER10_IRQHandler", "GRTC_3_IRQHandler", "SWI00_IRQHandler",
                 "mpsl_low_latency_acquire_callback",
                 "mpsl_low_latency_release_callback",
+                "mpsl_assert", "controller_fault", "nrfkit_sdc_last_fault",
+                "controller_region",
             ):
                 self.assertIn(symbol, link_map)
 

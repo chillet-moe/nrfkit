@@ -1149,7 +1149,7 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
 
             def read_diagnostics() -> dict[str, int | bool]:
                 diagnostics = session.command(0xFC00, timeout=args.hci_timeout)
-                if len(diagnostics) != 16 or diagnostics[8] != 2:
+                if len(diagnostics) != 17 or diagnostics[8] != 2:
                     raise ToolError("Controller returned malformed lifecycle diagnostics")
                 return {
                     "required_memory": int.from_bytes(diagnostics[:4], "little"),
@@ -1163,6 +1163,7 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                     "acl_put_result": int.from_bytes(
                         diagnostics[12:16], "little", signed=True,
                     ),
+                    "memory_canaries_intact": bool(diagnostics[16]),
                 }
 
             session.command(0x0C03, timeout=args.hci_timeout)
@@ -1182,7 +1183,10 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
             }
             _stage(run_dir, report, "hci-reset-version-features", **version_evidence)
             diagnostics = read_diagnostics()
-            if diagnostics["fault_recorded"] or diagnostics["uart_fault"]:
+            if (
+                diagnostics["fault_recorded"] or diagnostics["uart_fault"]
+                or not diagnostics["memory_canaries_intact"]
+            ):
                 raise ToolError("Controller diagnostics reported a platform fault")
             _stage(
                 run_dir, report, "sdc-lifecycle-memory-stack", **diagnostics,
@@ -1277,6 +1281,8 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                         host_connection_cleanup=host_connection,
                     )
                     post_acl_diagnostics = read_diagnostics()
+                    if not post_acl_diagnostics["memory_canaries_intact"]:
+                        raise ToolError("Controller memory canary changed during ACL traffic")
                     _stage(
                         run_dir, report, "hci-raw-acl-bidirectional",
                         controller_to_host_packets=len(session.acl_packets),
