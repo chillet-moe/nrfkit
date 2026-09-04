@@ -174,15 +174,16 @@ def create_device_manifest(
             link_map = map_path.read_text(encoding="utf-8")
         except (OSError, json.JSONDecodeError) as error:
             raise SdkContractError(f"invalid SDC build evidence: {error}") from error
+        variant = sdc_target.get("variant")
         required_archives = {
             "libmpsl.a", "libmpsl_fem_common.a",
-            "libsoftdevice_controller_multirole.a",
+            f"libsoftdevice_controller_{variant}.a",
         }
         archive_names = {Path(value).name for value in sdc_target.get("archives", [])}
         if (
             sdc_target.get("schema") != "nrfkit-sdc-target/v1"
             or sdc_target.get("target") != target
-            or sdc_target.get("variant") != "multirole"
+            or variant not in {"multirole", "peripheral", "central"}
             or sdc_target.get("security_domain") != "secure"
             or sdc_target.get("float_abi") != "hard-float"
             or archive_names != required_archives
@@ -193,7 +194,7 @@ def create_device_manifest(
             "type": "H4", "baud": 1000000, "hardware_flow_control": True,
         }
         manifest["build_evidence"] = {
-            "status": "ok", "variant": "multirole",
+            "status": "ok", "variant": variant,
             "security_domain": "secure", "float_abi": "hard-float",
             "archives": sorted(required_archives),
         }

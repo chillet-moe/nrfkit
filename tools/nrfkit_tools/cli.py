@@ -1108,6 +1108,10 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
             raise ToolError("SDC oracle manifest has no successful build evidence")
         _initialize_device_report(run_dir, report, args.manifest, manifest, args)
         report["hci_transport"] = transport
+        variant = manifest["build_evidence"].get("variant", "multirole")
+        if variant not in {"multirole", "peripheral", "central"}:
+            raise ToolError("SDC manifest has an unsupported controller variant")
+        report["controller_variant"] = variant
         device = _select(manifest, args, run_dir)
         _stage(run_dir, report, "device-selection", board_version=manifest["board_version"])
         with _probe_lock(device["serialNumber"], "m6-sdc-oracle"):
@@ -1171,10 +1175,6 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                 args.hci_timeout,
             )
 
-            device_name = args.device_name.encode("ascii")
-            advertising_data = bytes((2, 0x01, 0x06, len(device_name) + 1, 0x09)) + device_name
-            if len(advertising_data) > 31:
-                raise ToolError("SDC oracle device name does not fit legacy advertising data")
             # The HCI-only sample has no Host to initialize an identity address, and
             # this LM20 oracle reports no public address. Use a fixed static random
             # test address before any command whose Own_Address_Type refers to it.
@@ -1183,68 +1183,81 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                 bytes((0x02, 0x00, 0x00, 0x00, 0x00, 0xC0)),
                 args.hci_timeout,
             )
-            advertising_parameters = struct.pack(
-                "<HHBBB6sBB", 0x00A0, 0x00A0, 0x03, 0x01, 0x00,
-                bytes(6), 0x07, 0x00,
-            )
-            session.command(0x2006, advertising_parameters, args.hci_timeout)
-            session.command(
-                0x2008,
-                bytes((len(advertising_data),)) + advertising_data.ljust(31, b"\0"),
-                args.hci_timeout,
-            )
-            advertising_enabled = False
-            try:
-                session.command(0x200A, b"\x01", args.hci_timeout)
-                advertising_enabled = True
-                observation = scan_ble_advertisement(
-                    device_name=args.device_name, timeout=args.advertising_timeout,
+            if variant in {"multirole", "peripheral"}:
+                device_name = args.device_name.encode("ascii")
+                advertising_data = (
+                    bytes((2, 0x01, 0x06, len(device_name) + 1, 0x09)) + device_name
                 )
-                _stage(
-                    run_dir, report, "hci-advertising-on-air",
-                    device_name=args.device_name,
-                    rssi_observed=observation["rssi_observed"],
-                    cleanup=observation["cleanup"],
+                if len(advertising_data) > 31:
+                    raise ToolError(
+                        "SDC oracle device name does not fit legacy advertising data"
+                    )
+                advertising_parameters = struct.pack(
+                    "<HHBBB6sBB", 0x00A0, 0x00A0, 0x03, 0x01, 0x00,
+                    bytes(6), 0x07, 0x00,
                 )
-            finally:
-                if advertising_enabled:
-                    session.command(0x200A, b"\x00", args.hci_timeout)
-
-            session.command(
-                0x200B,
-                struct.pack("<BHHBB", 0x01, 0x0060, 0x0030, 0x01, 0x00),
-                args.hci_timeout,
-            )
-            scan_enabled = False
-            reports_seen = 0
-            peer_observed = False
-            with host_le_advertisement(
-                bluetoothctl=args.bluetoothctl,
-                device_name=args.scan_peer_name,
-                log=run_dir / "host-advertisement.log",
-                timeout=args.hci_timeout,
-            ) as host_advertisement:
+                session.command(0x2006, advertising_parameters, args.hci_timeout)
+                session.command(
+                    0x2008,
+                    bytes((len(advertising_data),)) + advertising_data.ljust(31, b"\0"),
+                    args.hci_timeout,
+                )
+                advertising_enabled = False
                 try:
-                    session.command(0x200C, b"\x01\x01", args.hci_timeout)
-                    scan_enabled = True
-                    deadline = time.monotonic() + args.scan_timeout
-                    while time.monotonic() < deadline and not peer_observed:
-                        event = session.next_event(deadline)
-                        for item in advertising_reports(event):
-                            reports_seen += 1
-                            if advertising_name(item["data"]) == args.scan_peer_name:
-                                peer_observed = True
+                    session.command(0x200A, b"\x01", args.hci_timeout)
+                    advertising_enabled = True
+                    observation = scan_ble_advertisement(
+                        device_name=args.device_name, timeout=args.advertising_timeout,
+                    )
+                    _stage(
+                        run_dir, report, "hci-advertising-on-air",
+                        device_name=args.device_name,
+                        rssi_observed=observation["rssi_observed"],
+                        cleanup=observation["cleanup"],
+                    )
                 finally:
-                    if scan_enabled:
-                        session.command(0x200C, b"\x00\x01", args.hci_timeout)
-            if not peer_observed:
-                raise ToolError("Controller did not observe the bounded host advertising peer")
-            _stage(
-                run_dir, report, "hci-scanning-on-air",
-                reports_seen=reports_seen,
-                peer_name=args.scan_peer_name,
-                host_advertisement_cleanup=host_advertisement,
-            )
+                    if advertising_enabled:
+                        session.command(0x200A, b"\x00", args.hci_timeout)
+
+            if variant in {"multirole", "central"}:
+                session.command(
+                    0x200B,
+                    struct.pack("<BHHBB", 0x01, 0x0060, 0x0030, 0x01, 0x00),
+                    args.hci_timeout,
+                )
+                scan_enabled = False
+                reports_seen = 0
+                peer_observed = False
+                with host_le_advertisement(
+                    bluetoothctl=args.bluetoothctl,
+                    device_name=args.scan_peer_name,
+                    log=run_dir / "host-advertisement.log",
+                    timeout=args.hci_timeout,
+                ) as host_advertisement:
+                    try:
+                        session.command(0x200C, b"\x01\x01", args.hci_timeout)
+                        scan_enabled = True
+                        deadline = time.monotonic() + args.scan_timeout
+                        while time.monotonic() < deadline and not peer_observed:
+                            event = session.next_event(deadline)
+                            for item in advertising_reports(event):
+                                reports_seen += 1
+                                if advertising_name(item["data"]) == args.scan_peer_name:
+                                    peer_observed = True
+                    finally:
+                        if scan_enabled:
+                            session.command(0x200C, b"\x00\x01", args.hci_timeout)
+                if not peer_observed:
+                    raise ToolError(
+                        "Controller did not observe the bounded host advertising peer"
+                    )
+                _stage(
+                    run_dir, report, "hci-scanning-on-air",
+                    reports_seen=reports_seen,
+                    peer_name=args.scan_peer_name,
+                    host_advertisement_cleanup=host_advertisement,
+                )
+
         report.update({
             "status": "ok",
             "image_sha256": [sha256(snapshot) for snapshot in snapshots],
