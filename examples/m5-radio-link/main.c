@@ -72,7 +72,15 @@ static void radio_prepare(void)
         fail();
     }
     struct nrfkit_radio_packet_config const config = {
-#if defined(NRFKIT_M5_PHY_1MBIT)
+#if defined(NRFKIT_M7_PHY_4MBIT)
+        .phy = NRFKIT_RADIO_PHY_4MBIT,
+        .mode_4mbit =
+#if defined(NRFKIT_M7_4MBIT_BT_0_4)
+            NRFKIT_RADIO_4MBIT_BT_0_4,
+#else
+            NRFKIT_RADIO_4MBIT_BT_0_6,
+#endif
+#elif defined(NRFKIT_M5_PHY_1MBIT)
         .phy = NRFKIT_RADIO_PHY_1MBIT,
 #else
         .phy = NRFKIT_RADIO_PHY_2MBIT,
@@ -134,7 +142,11 @@ int main(void)
             fail();
         }
     }
+#if defined(NRFKIT_M7_PHY_4MBIT)
+    static uint8_t const pass[] = "NRFKIT_M7_TX PASS\r\n";
+#else
     static uint8_t const pass[] = "NRFKIT_M5_TX PASS\r\n";
+#endif
     uart_write(pass, sizeof(pass) - 1U);
 #elif defined(NRFKIT_M5_LINK_RX)
     uint32_t received = 0U;
@@ -179,8 +191,13 @@ int main(void)
         ++received;
     }
     int const passed = received >= 10U && crc_errors == 0U && invalid == 0U;
+#if defined(NRFKIT_M7_PHY_4MBIT)
+    static char const pass_prefix[] = "NRFKIT_M7_RX PASS received=";
+    static char const fail_prefix[] = "NRFKIT_M7_RX FAIL received=";
+#else
     static char const pass_prefix[] = "NRFKIT_M5_RX PASS received=";
     static char const fail_prefix[] = "NRFKIT_M5_RX FAIL received=";
+#endif
     char const *prefix = passed ? pass_prefix : fail_prefix;
     size_t const prefix_length = passed ? sizeof(pass_prefix) - 1U : sizeof(fail_prefix) - 1U;
     size_t position = 0U;

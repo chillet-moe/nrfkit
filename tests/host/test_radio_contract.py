@@ -21,6 +21,8 @@ class RadioContractTests(unittest.TestCase):
             "nrfkit_radio_configure_packet",
             "NRFKIT_RADIO_PHY_2MBIT",
             "NRFKIT_RADIO_PHY_4MBIT",
+            "NRFKIT_RADIO_4MBIT_BT_0_6",
+            "NRFKIT_RADIO_4MBIT_BT_0_4",
             "nrfkit_radio_configure_1mbit",
         ):
             self.assertIn(token, header)
@@ -64,10 +66,26 @@ class RadioContractTests(unittest.TestCase):
         self.assertIn("config->access_address & UINT32_C(0x00FFFFFF)", source)
         self.assertIn("config->access_address >> 24U", source)
         self.assertIn("NRF_RADIO_PREAMBLE_LENGTH_16BIT", source)
+        self.assertIn("NRF_RADIO_MODE_NRF_4MBIT_BT_0_6", source)
+        self.assertIn("NRF_RADIO_MODE_NRF_4MBIT_BT_0_4", source)
+
+    def test_both_primary_4mbit_modes_have_lm20_and_peer_profiles(self) -> None:
+        cmake = (ROOT / "examples/CMakeLists.txt").read_text(encoding="utf-8")
+        peer = (ROOT / "tests/hardware/m5-radio-peer/src/main.c").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("m7_radio_${role}_4m_${mode}", cmake)
+        for mode in ("bt-0-6", "bt-0-4"):
+            for role in ("tx", "rx"):
+                self.assertTrue((
+                    ROOT / f"tests/hardware/m5-radio-peer/configs/{role}-4m-{mode}.conf"
+                ).is_file())
+        self.assertIn("CONFIG_NRFKIT_M7_PEER_PHY_4M", peer)
 
     def test_dual_board_harness_rejects_a_single_probe(self) -> None:
         cli = (ROOT / "tools/nrfkit_tools/cli.py").read_text(encoding="utf-8")
         self.assertIn('subparsers.add_parser("m5-radio-dual")', cli)
+        self.assertIn('subparsers.add_parser("m7-radio-dual")', cli)
         self.assertIn("requires two distinct probes", cli)
         self.assertIn('receiver_running', cli)
         self.assertIn('args.rounds', cli)

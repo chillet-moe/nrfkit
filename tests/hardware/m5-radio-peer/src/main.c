@@ -51,7 +51,13 @@ static void radio_prepare(void)
     config.big_endian = false;
     config.whiteen = true;
 
-#if defined(CONFIG_NRFKIT_M5_PEER_PHY_1M) && CONFIG_NRFKIT_M5_PEER_PHY_1M
+#if defined(CONFIG_NRFKIT_M7_PEER_PHY_4M) && CONFIG_NRFKIT_M7_PEER_PHY_4M
+#if defined(CONFIG_NRFKIT_M7_PEER_4M_BT_0_4) && CONFIG_NRFKIT_M7_PEER_4M_BT_0_4
+    nrf_radio_mode_set(NRF_RADIO, NRF_RADIO_MODE_NRF_4MBIT_BT_0_4);
+#else
+    nrf_radio_mode_set(NRF_RADIO, NRF_RADIO_MODE_NRF_4MBIT_BT_0_6);
+#endif
+#elif defined(CONFIG_NRFKIT_M5_PEER_PHY_1M) && CONFIG_NRFKIT_M5_PEER_PHY_1M
     nrf_radio_mode_set(NRF_RADIO, NRF_RADIO_MODE_NRF_1MBIT);
 #else
     nrf_radio_mode_set(NRF_RADIO, NRF_RADIO_MODE_NRF_2MBIT);
@@ -117,7 +123,11 @@ int main(void)
             return 1;
         }
     }
+#if defined(CONFIG_NRFKIT_M7_PEER_PHY_4M) && CONFIG_NRFKIT_M7_PEER_PHY_4M
+    printk("NRFKIT_M7_PEER_TX PASS\n");
+#else
     printk("NRFKIT_M5_PEER_TX PASS\n");
+#endif
 #elif defined(CONFIG_NRFKIT_M5_PEER_RX) && CONFIG_NRFKIT_M5_PEER_RX
     uint32_t received = 0U;
     uint32_t expected = 0U;
@@ -162,7 +172,11 @@ int main(void)
         printk("NRFKIT_M5_PEER FAIL rx=%u invalid=%u\n", received, invalid);
         return 1;
     }
+#if defined(CONFIG_NRFKIT_M7_PEER_PHY_4M) && CONFIG_NRFKIT_M7_PEER_PHY_4M
+    printk("NRFKIT_M7_PEER_RX PASS received=%u lost=%u invalid=0\n", received, lost);
+#else
     printk("NRFKIT_M5_PEER_RX PASS received=%u lost=%u invalid=0\n", received, lost);
+#endif
 #else
 #error "Select exactly one M5 peer role"
 #endif

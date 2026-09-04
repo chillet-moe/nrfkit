@@ -27,6 +27,7 @@ int nrfkit_radio_configure_packet(
         (config->phy != NRFKIT_RADIO_PHY_1MBIT &&
          config->phy != NRFKIT_RADIO_PHY_2MBIT &&
          config->phy != NRFKIT_RADIO_PHY_4MBIT) ||
+        config->mode_4mbit > NRFKIT_RADIO_4MBIT_BT_0_4 ||
         config->channel > 100U || config->maximum_payload == 0U ||
         config->whitening_iv > 0x1FFU || config->whitening_polynomial > 0x3FFU ||
         config->crc_initial > 0xFFFFFFU || config->crc_polynomial > 0xFFFFFFU) {
@@ -43,7 +44,8 @@ int nrfkit_radio_configure_packet(
         mode = NRF_RADIO_MODE_NRF_2MBIT;
         preamble = NRF_RADIO_PREAMBLE_LENGTH_16BIT;
     } else if (config->phy == NRFKIT_RADIO_PHY_4MBIT) {
-        mode = NRF_RADIO_MODE_NRF_4MBIT_BT_0_6;
+        mode = config->mode_4mbit == NRFKIT_RADIO_4MBIT_BT_0_4 ?
+            NRF_RADIO_MODE_NRF_4MBIT_BT_0_4 : NRF_RADIO_MODE_NRF_4MBIT_BT_0_6;
         preamble = NRF_RADIO_PREAMBLE_LENGTH_16BIT;
     }
 

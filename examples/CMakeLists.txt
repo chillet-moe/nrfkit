@@ -108,6 +108,24 @@ foreach(role IN ITEMS tx rx)
   nrfkit_finalize_target("${target}")
 endforeach()
 
+foreach(mode IN ITEMS bt_0_6 bt_0_4)
+  foreach(role IN ITEMS tx rx)
+    set(target "m7_radio_${role}_4m_${mode}")
+    add_executable("${target}" m5-radio-link/main.c)
+    nrfkit_configure_target("${target}"
+      SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
+    )
+    string(TOUPPER "${role}" role_upper)
+    target_compile_definitions("${target}" PRIVATE
+      "NRFKIT_M5_LINK_${role_upper}=1" NRFKIT_M7_PHY_4MBIT=1)
+    if(mode STREQUAL "bt_0_4")
+      target_compile_definitions("${target}" PRIVATE NRFKIT_M7_4MBIT_BT_0_4=1)
+    endif()
+    nrfkit_enable_radio("${target}")
+    nrfkit_finalize_target("${target}")
+  endforeach()
+endforeach()
+
 foreach(role IN ITEMS tx rx)
   set(target "m5_radio_${role}_1m")
   add_executable("${target}" m5-radio-link/main.c)
@@ -245,6 +263,19 @@ if(NRFKIT_ENABLE_HARDWARE_TESTS)
         --expected-token "NRFKIT_M5_${role_upper} PASS"
       VERBATIM
     )
+  endforeach()
+  foreach(mode IN ITEMS bt_0_6 bt_0_4)
+    foreach(role IN ITEMS tx rx)
+      set(target "m7_radio_${role}_4m_${mode}")
+      string(TOUPPER "${role}" role_upper)
+      add_custom_command(TARGET "${target}" POST_BUILD
+        COMMAND "${NRFKIT_TOOL}" sdk manifest
+          --build-dir "$<TARGET_FILE_DIR:${target}>"
+          --target "${target}"
+          --expected-token "NRFKIT_M7_${role_upper} PASS"
+        VERBATIM
+      )
+    endforeach()
   endforeach()
   if(TARGET m6_ble_official_baseline)
     add_custom_command(TARGET m6_ble_official_baseline POST_BUILD

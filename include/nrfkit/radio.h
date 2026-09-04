@@ -29,8 +29,14 @@ enum nrfkit_radio_phy {
     NRFKIT_RADIO_PHY_4MBIT = 4,
 };
 
+enum nrfkit_radio_4mbit_mode {
+    NRFKIT_RADIO_4MBIT_BT_0_6 = 0,
+    NRFKIT_RADIO_4MBIT_BT_0_4 = 1,
+};
+
 struct nrfkit_radio_packet_config {
     enum nrfkit_radio_phy phy;
+    enum nrfkit_radio_4mbit_mode mode_4mbit;
     /* Datasheet FREQUENCY offset: carrier is 2400 MHz + channel. */
     uint8_t channel;
     uint8_t maximum_payload;

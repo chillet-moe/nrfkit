@@ -891,19 +891,21 @@ def command_m4_usb_power(args: argparse.Namespace) -> int:
 
 
 def command_m5_radio_dual(args: argparse.Namespace) -> int:
+    milestone = getattr(args, "milestone", "M5")
     if args.tx_probe == args.rx_probe:
-        raise ToolError("M5 dual-board validation requires two distinct probes")
+        raise ToolError(f"{milestone} dual-board validation requires two distinct probes")
     tx_manifest = load_manifest(args.tx_manifest)
     rx_manifest = load_manifest(args.rx_manifest)
-    if not tx_manifest["expected_token"].endswith("TX PASS"):
-        raise ToolError("M5 transmitter manifest must declare a TX PASS token")
-    if not rx_manifest["expected_token"].startswith("NRFKIT_M5_") or \
+    if not tx_manifest["expected_token"].startswith(f"NRFKIT_{milestone}_") or \
+            not tx_manifest["expected_token"].endswith("TX PASS"):
+        raise ToolError(f"{milestone} transmitter manifest must declare a TX PASS token")
+    if not rx_manifest["expected_token"].startswith(f"NRFKIT_{milestone}_") or \
             "RX PASS" not in rx_manifest["expected_token"]:
-        raise ToolError("M5 receiver manifest must declare an M5 RX PASS token")
+        raise ToolError(f"{milestone} receiver manifest must declare an RX PASS token")
     if args.rounds < 1 or args.rounds > 100:
-        raise ToolError("M5 rounds must be between 1 and 100")
+        raise ToolError(f"{milestone} rounds must be between 1 and 100")
 
-    run_dir, report = _new_run("m5-radio-dual")
+    run_dir, report = _new_run(f"{milestone.lower()}-radio-dual")
     report.update({"status": "running", "stages": [], "child_reports": []})
     atomic_json(run_dir / "run.json", report)
     receiver: subprocess.Popen[str] | None = None
@@ -2168,7 +2170,18 @@ def main(argv: list[str] | None = None) -> int:
     m5_dual.add_argument("--token-timeout", type=float, default=30)
     m5_dual.add_argument("--gate-timeout", type=float, default=120)
     m5_dual.add_argument("--rounds", type=int, default=3)
-    m5_dual.set_defaults(handler=command_m5_radio_dual)
+    m5_dual.set_defaults(handler=command_m5_radio_dual, milestone="M5")
+    m7_dual = subparsers.add_parser("m7-radio-dual")
+    m7_dual.add_argument("--tx-manifest", type=Path, required=True)
+    m7_dual.add_argument("--rx-manifest", type=Path, required=True)
+    m7_dual.add_argument("--tx-probe", required=True)
+    m7_dual.add_argument("--rx-probe", required=True)
+    m7_dual.add_argument("--nrfutil", default=shutil.which("nrfutil") or "nrfutil")
+    m7_dual.add_argument("--timeout", type=float, default=90)
+    m7_dual.add_argument("--token-timeout", type=float, default=30)
+    m7_dual.add_argument("--gate-timeout", type=float, default=120)
+    m7_dual.add_argument("--rounds", type=int, default=3)
+    m7_dual.set_defaults(handler=command_m5_radio_dual, milestone="M7")
     m6_ble = subparsers.add_parser("m6-ble-gate")
     m6_ble.add_argument("--device-name", default="nrfkit-m6")
     m6_ble.add_argument("--timeout", type=float, default=60.0)
