@@ -137,7 +137,10 @@ function(nrfkit_enable_radio target)
   if(NOT soc STREQUAL "nrf54lm20a")
     message(FATAL_ERROR "nrfkit_enable_radio: '${soc}' is not supported")
   endif()
-  target_sources("${target}" PRIVATE "${NrfKit_ROOT}/radio/nrf54l/radio.c")
+  target_sources("${target}" PRIVATE
+    "${NrfKit_ROOT}/radio/ownership.c"
+    "${NrfKit_ROOT}/radio/nrf54l/radio.c"
+  )
   nrfkit_enable_nrfx("${target}" DRIVERS clock)
   set_target_properties("${target}" PROPERTIES NRFKIT_RADIO_ENABLED TRUE)
 endfunction()
