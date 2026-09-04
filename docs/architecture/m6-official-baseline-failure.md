@@ -1,4 +1,4 @@
-# M6 strict official-application equivalence checkpoint: stopped failure
+# M6 strict official-application equivalence checkpoint: platform-shim localization
 
 This note records the bounded nRF Bare Metal v2.0.1 `ble_hids_mouse` portability
 experiment requested for LM20 and S115 10.0.1. It contains no probe identity,
@@ -7,8 +7,11 @@ structured, sanitized result is
 `docs/provenance/m6-s115-equivalence-checkpoint.json`.
 
 The result does **not** show that S115 cannot run outside the official build
-system. The pure CMake image stopped in a repository compatibility shim before
-the first S115 API call, so the version-locked ABI question remains unresolved.
+system. The first bounded run stopped in the repository log shim before the
+first S115 API call. A single-variable correction made that first log call
+return, but the next bounded run still stopped before the next observable
+initialization message. The version-locked ABI question therefore remains
+unresolved.
 
 ## Locked official truth
 
@@ -67,6 +70,10 @@ startup; the one timer used by BM buttons; freestanding atomics/ring buffers and
 CRC helpers; the Cracen entropy entry point and existing Oberon-backed LESC
 adapter; and literal UART logging. These are the non-upstream units that cannot
 be removed while retaining the official application on the repository runtime.
+The log shim now follows the LM20 datasheet UARTE transaction contract: one
+literal line is copied to aligned RAM, one EasyDMA transaction is issued, END
+triggers STOP, and completion is bounded by TXSTOPPED/BUSERROR polling. It does
+not add formatting or replace any official application handler.
 
 ## Reproduction and first divergence
 
@@ -81,37 +88,51 @@ tools/nrfkit reference equivalence-audit \
 
 tools/nrfkit run \
   --manifest BUILD/m6_ble_official_baseline.device-manifest.json \
-  --probe-serial LM20 --timeout 120 --token-timeout 15
+  --probe-serial LM20 --timeout 120 --token-timeout 20
 
 tools/nrfkit m6-ble-gate \
   --device-name nRF_BM_HIDS_MOUSE --phase oracle \
-  --fresh-pairing --timeout 120
+  --fresh-pairing --timeout 60
 ```
 
 The consumer builds and links, passes the image range audit, and is programmed
 with `ERASE_NONE`, read-back verification, explicit device selection, and a
-per-probe lock. Its application ELF SHA-256 is
-`89659e4fdf1f24dfe08b0e5c58ff779042ec10d255502569674f046173d6a3e6`;
+per-probe lock. Its corrected-log application ELF SHA-256 is
+`fb7250a1b022eb2594674a6af87b509198fc9b99684bda4b78989474a138a260`;
 its application HEX SHA-256 is
-`4c5cce5bbb200e879544a732f7de3bd36646dca9ee63b4a7d6c1391b85662521`.
+`ccf549e5ce9e0c2e139d7719cc9d82bf489ff785616113ceaa7e20514675a4cb`.
 
-After reset it emits exactly the first byte, `B`, of the first official
-`LOG_INF("BLE HIDS Mouse sample started.")` call and then produces no further
-serial output. The initialization token is not reached. The same bounded BlueZ
-gate subsequently finds no `nRF_BM_HIDS_MOUSE` advertisement before its
-120-second deadline and completes cleanup.
+The first image emitted exactly the first byte, `B`, of the first official
+`LOG_INF("BLE HIDS Mouse sample started.")` call. Its shim started a new UARTE
+DMA transaction for every byte and then used `WFE` without enabling a UARTE
+interrupt. This contradicted the nRF54LM20 datasheet requirements that the DMA
+reader use RAM and that transaction completion and transmitter stop be observed
+through the UARTE event/state machine.
 
-This locates the first behavioral divergence in the repository UART/log shim:
-the official application reaches `main`, but the first log call does not return.
-Button initialization and `nrf_sdh_enable_request()` occur later, so this run
-does not exercise S115 and cannot support a conclusion about its ABI, IRQ,
-LESC, Peer Manager, HIDS, or persistence behavior.
+After the one-layer correction, one guarded run emitted the complete first line,
+including CRLF, proving that the first log call returned. It did not emit the
+next success or error message, did not reach the initialization token, and a
+60-second bounded BlueZ gate did not find `nRF_BM_HIDS_MOUSE`. Discovery was
+stopped on the timeout path.
 
-## Stop decision
+The intervening unmodified official sequence is LED GPIO setup,
+`bm_buttons_init()`, `bm_buttons_enable()`, the button-state read, and
+`nrf_sdh_enable_request()`. This run therefore moves the first observable
+divergence past logging, but cannot yet distinguish the button/GPIOTE platform
+boundary from entry into the first S115 API. It must not be used as evidence
+that the S115 ABI, IRQ forwarding, LESC, Peer Manager, HIDS, or persistence is
+broken.
 
-No GDB comparison, local object substitution, repeated flash, or simultaneous
-BLE-layer change was performed after this failure. The S115 adaptation branch
-stops at this reproducible checkpoint. Resume it only with new non-sensitive
-evidence and a single-variable replacement or elimination of the blocking
-log/platform shim. Until then, follow the LM20-only staged lower-layer route in
-`PLAN.md`; do not mark M6 complete.
+## Current decision boundary
+
+No GDB comparison, local object substitution, or simultaneous BLE-layer change
+was performed. The corrected image was programmed exactly once with explicit
+LM20 selection, per-probe locking, `ERASE_NONE`, read-back verification, reset,
+and hard timeouts. The official source/config equivalence audit remained green.
+
+The next checkpoint must first audit the button/GPIOTE platform boundary and
+must change at most that one shim before another bounded run. Do not modify
+S115, IRQ forwarding, Peer Manager, LESC, HIDS, or the locked configuration at
+the same time. Only a demonstrated indispensable dependency may end this
+strict-baseline localization and select the PLAN's LM20-only lower-layer route.
+M6 remains incomplete.

@@ -1,5 +1,5 @@
 {
-  "schema": "nrfkit-m6-s115-equivalence-checkpoint/v1",
+  "schema": "nrfkit-m6-s115-equivalence-checkpoint/v2",
   "date": "2026-09-05",
   "scope": "nRF Connect SDK Bare Metal v2.0.1 ble_hids_mouse on nRF54LM20 with S115 10.0.1",
   "official_input": {
@@ -32,8 +32,8 @@
   "pure_cmake_consumer": {
     "oracle": "sdk-m6_ble_official_baseline",
     "source_receipt_sha256": "5f51a436b09bef862961b8e39ae18cfb72f10ddd4f5876eb785ce03ceebfe4cd",
-    "elf_sha256": "89659e4fdf1f24dfe08b0e5c58ff779042ec10d255502569674f046173d6a3e6",
-    "application_hex_sha256": "4c5cce5bbb200e879544a732f7de3bd36646dca9ee63b4a7d6c1391b85662521",
+    "elf_sha256": "fb7250a1b022eb2594674a6af87b509198fc9b99684bda4b78989474a138a260",
+    "application_hex_sha256": "ccf549e5ce9e0c2e139d7719cc9d82bf489ff785616113ceaa7e20514675a4cb",
     "softdevice_hex_sha256": "c2b5bcf2b436e11daa9a85e9dca12060052244c2eec50032bf54d87a4a77c3a2",
     "adapter_inputs": {
       "cmake/modules/NrfKitFirmware.cmake": "0d12afc02d35d2058b36664bf625209154e7212b91834f81abbf17d495eadda6",
@@ -41,30 +41,42 @@
       "include/cracen_psa.h": "47da77ba26227b131a647864f25f8adf439edfdf24ebad13f3b14599ab5b710f",
       "include/nrfkit/bm_port.h": "c6c252504dcc627092f5e7c012df65503ec81532ef7e6cb5a262ecf11a28bd48",
       "softdevice/nrf54l/bm_crypto.c": "8b6e7dfb5e71d0308af83e8e9a6ca10d0141b5b45ffb7ba9ad53f88c3ca398c0",
-      "softdevice/nrf54l/bm_port.c": "f31be7625e1ee9a7ea66c8077d2471549334baf6f40cd70a4f58863f94b9d704"
+      "softdevice/nrf54l/bm_port.c": "7dd97ccfb3561606350420a05bd4bdae3028e0f73333bbc18b84ee381a543d86"
     },
     "configure_without_official_build_system": true,
     "build": "pass",
     "image_range_audit": "pass",
     "guarded_program_and_verify": "pass",
     "serial_initialization_token": false,
-    "serial_bytes_before_timeout": "B",
+    "serial_bytes_before_timeout": "BLE HIDS Mouse sample started.\r\n",
     "bluez_oracle_gate": {
       "status": "fail",
-      "failure": "advertising target not discovered before the 120 second hard timeout",
+      "failure": "advertising target not discovered before the 60 second hard timeout",
       "cleanup_complete": true
+    },
+    "previous_log_shim_image": {
+      "elf_sha256": "89659e4fdf1f24dfe08b0e5c58ff779042ec10d255502569674f046173d6a3e6",
+      "application_hex_sha256": "4c5cce5bbb200e879544a732f7de3bd36646dca9ee63b4a7d6c1391b85662521",
+      "serial_bytes_before_timeout": "B"
     }
   },
-  "first_behavioral_divergence": {
+  "resolved_behavioral_divergence": {
     "stage": "first application log call, before button initialization and before nrf_sdh_enable_request",
     "observation": "the consumer emitted only the first byte of the first official log message and made no further visible progress",
-    "boundary": "repository UART/log compatibility shim and its platform runtime prerequisites",
-    "s115_abi_exercised": false
+    "root_cause": "the shim issued one DMA START per byte and entered WFE without enabling a UARTE interrupt; it did not follow the LM20 RAM-buffered UARTE transaction and STOP/TXSTOPPED state machine",
+    "correction": "copy one literal log line plus CRLF to an aligned RAM buffer, issue one EasyDMA transaction, use END-to-STOP, and bound polling for TXSTOPPED or BUSERROR"
+  },
+  "current_behavioral_divergence": {
+    "stage": "after the first application log returns and before the next observable initialization or error log",
+    "observation": "the complete first official log line is emitted, but the initialization token is absent and the BlueZ gate observes no advertisement",
+    "intervening_official_sequence": "LED GPIO setup; bm_buttons_init; bm_buttons_enable; button state read; nrf_sdh_enable_request",
+    "boundary": "the single run does not distinguish the button/GPIOTE platform path from entry into the first S115 API call",
+    "s115_abi_exercised": "not proven"
   },
   "stopping_decision": {
     "m6_complete": false,
-    "s115_portability_conclusion": "unresolved because the failure precedes the first S115 API call",
-    "resume_condition": "replace or eliminate the blocking log/platform shim using new non-sensitive evidence; do not resume with repeated flashing or GDB object substitution",
-    "next_route": "PLAN.md LM20-only staged lower-layer route"
+    "s115_portability_conclusion": "unresolved because the next observable boundary spans the final button-platform calls and the first S115 API call",
+    "resume_condition": "audit the button/GPIOTE platform shim as one boundary before changing it; use one bounded, explicit-target run for the next single-variable checkpoint",
+    "next_route": "continue one-platform-shim-at-a-time strict-baseline localization; use the LM20-only lower-layer route only after an indispensable dependency is demonstrated"
   }
 }

@@ -767,19 +767,28 @@ configure/build 未调用 west、sysbuild、Kconfig、Devicetree 或 Zephyr。
 2026-09-05 在同一 LM20、BlueZ adapter 和 host 上重新运行官方 oracle：官方初始化
 token、fresh pairing、bond、受保护 HID Report Map 读取、断开和 bonded reconnect
 全部通过。随后严格官方应用 consumer 通过 Clang/LLD 构建、镜像范围审计以及显式
-目标、逐探针锁、`ERASE_NONE` 和 read-back verify 的烧写，但复位后只输出官方第一条
-日志的首字节 `B`，没有到达初始化 token；同一 BlueZ oracle 门禁在 120 秒硬超时内
-未发现广播并完成清理。官方 `main.c` 的第一条日志发生在 button 初始化和
-`nrf_sdh_enable_request()` 之前，因此首个行为分歧已定位到项目 UART/log platform
-shim，当前运行尚未执行任何 S115 API，不能据此判断 S115 ABI、IRQ、LESC、Peer
-Manager、HIDS 或持久化。
+目标、逐探针锁、`ERASE_NONE` 和 read-back verify 的烧写。首轮复位后只输出官方
+第一条日志的首字节 `B`；审计确认 UART shim 对每个字节重复发起 DMA START，并在
+未启用 UARTE interrupt 时进入 `WFE`。依据 LM20 datasheet 的 RAM EasyDMA、END、STOP
+和 TXSTOPPED 状态机，将一条 literal log 合并为一次有界 DMA 事务后，只重跑一次
+严格基线：完整的 `BLE HIDS Mouse sample started.` 与 CRLF 已输出，证明首条日志返回，
+但没有到达下一条初始化或错误日志。随后 60 秒 BlueZ oracle 门禁仍未发现广播，并在
+超时路径停止 discovery。
+
+新的可观察分歧位于首条日志返回之后、下一条日志之前；中间的未修改官方顺序是 LED
+GPIO、`bm_buttons_init()`、`bm_buttons_enable()`、button 状态读取及
+`nrf_sdh_enable_request()`。单次结果尚不能区分 button/GPIOTE platform boundary 与
+首次 S115 API 入口，因此仍不能判断 S115 ABI、IRQ、LESC、Peer Manager、HIDS 或
+持久化。此次改动没有修改 S115、IRQ forwarding、Peer Manager、LESC、HIDS 或锁定
+配置，官方 273-source/43-nRF-BM-source/681-config equivalence audit 保持通过。
 
 精确源码/config receipt、consumer ELF/HEX hash、最小 patch/shim 清单和结构化门禁
 结果记录在 `docs/provenance/nrf-bm-hids-s115-equivalence.json`、
 `docs/provenance/m6-s115-equivalence-checkpoint.json` 与
-`docs/architecture/m6-official-baseline-failure.md`。按本轮停止条件，不再围绕该镜像
-进行重复刷写、GDB 差分或局部对象替换；只有取得能以单变量替换或消除阻塞
-log/platform shim 的新非敏感证据后才可重新进入 S115 适配。
+`docs/architecture/m6-official-baseline-failure.md`。当前检查点不再刷写或进行随机 GDB
+差分、局部对象替换；下一步只审计 button/GPIOTE platform boundary，且下一次运行前
+最多修改这一层。后续继续按单一 platform shim 逐层定位；只有证明存在不可剥离依赖
+时才转入完整 LM20-only 底层路线。
 
 当前检查点不自行实现 BLE Link Layer、L2CAP、ATT、GATT、SMP、LESC 或 HOGP。
 一次受限的 LM20 RADIO 广播诊断曾用规范固定的 advertising access address、CRC、
@@ -792,9 +801,10 @@ S115 不可用。
 通用 `m6-ble-scan` 门禁保留，用于有硬超时地验证广播，并在所有退出路径停止由其
 启动的 discovery、删除或确认 BlueZ 已自行删除临时设备对象。
 
-严格等价官方应用检查点已按上述顺序执行并停止。后续按广播、明文单连接、Link
-Layer 控制过程、链路加密、L2CAP/ATT/GATT/SMP/LESC/HOGP、BlueZ/功耗/soak 的固定
-顺序进入 LM20-only 底层路线。
+严格等价官方应用检查点当前停在 button/GPIOTE 与首次 S115 API 入口之间。应先完成
+上述单层差分；仅在证明存在不可剥离依赖后，才按广播、明文单连接、Link Layer 控制
+过程、链路加密、L2CAP/ATT/GATT/SMP/LESC/HOGP、BlueZ/功耗/soak 的固定顺序进入
+LM20-only 底层路线。
 每一阶段仍必须有 LM20 实板和可靠空口证据，且不得臆测寄存器或协议行为。
 只有项目固件再通过正常 BlueZ bonding、HID、持久化重连和连接 soak 后才可标记
 M6 完成。随后再运行 LM20+L15 的 M5 双板门禁。

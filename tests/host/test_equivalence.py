@@ -10,6 +10,20 @@ from nrfkit_tools.equivalence import EquivalenceContractError, audit_equivalence
 
 
 class EquivalenceTests(unittest.TestCase):
+    def test_bm_log_uses_one_ram_backed_uarte_transaction_per_line(self) -> None:
+        project_root = Path(__file__).resolve().parents[2]
+        source = (project_root / "softdevice/nrf54l/bm_port.c").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("static uint8_t log_buffer", source)
+        self.assertEqual(source.count("TASKS_DMA.TX.START"), 1)
+        self.assertNotIn("for (const char *cursor", source)
+        self.assertNotIn("__WFE();", source)
+        self.assertIn("UARTE_SHORTS_DMA_TX_END_DMA_TX_STOP_Msk", source)
+        self.assertIn("EVENTS_TXSTOPPED", source)
+        self.assertIn("EVENTS_DMA.TX.BUSERROR", source)
+
     def test_stopped_checkpoint_keeps_exact_adapter_inputs(self) -> None:
         project_root = Path(__file__).resolve().parents[2]
         checkpoint = json.loads(

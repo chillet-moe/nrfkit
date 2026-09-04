@@ -32,6 +32,12 @@ __attribute__((interrupt("IRQ"))) void GPIOTE30_1_IRQHandler(void)
 
 static struct k_timer *active_timer;
 
+#define NRFKIT_BM_LOG_BUFFER_SIZE 256U
+#define NRFKIT_BM_LOG_DMA_POLL_LIMIT 10000000U
+
+static atomic_t log_busy;
+static uint8_t log_buffer[NRFKIT_BM_LOG_BUFFER_SIZE] __attribute__((aligned(4)));
+
 static void nrfkit_bm_platform_init(void) __attribute__((constructor));
 
 static void nrfkit_bm_platform_init(void)
@@ -42,39 +48,61 @@ static void nrfkit_bm_platform_init(void)
 	}
 }
 
-static void serial_write(const char *text)
+static void serial_write_line(const char *text)
 {
-	if (text == NULL) {
+	if (text == NULL || !atomic_cas(&log_busy, 0U, 1U)) {
 		return;
 	}
+
+	size_t length = 0U;
+	while (text[length] != '\0' && length < sizeof(log_buffer) - 2U) {
+		log_buffer[length] = (uint8_t)text[length];
+		++length;
+	}
+	log_buffer[length++] = '\r';
+	log_buffer[length++] = '\n';
+
 	NRFKIT_VCOM_TX_GPIO->OUTSET = BIT(NRFKIT_VCOM_TX_PIN);
 	NRFKIT_VCOM_TX_GPIO->PIN_CNF[NRFKIT_VCOM_TX_PIN] =
 		(GPIO_PIN_CNF_DIR_Output << GPIO_PIN_CNF_DIR_Pos) |
-		(GPIO_PIN_CNF_INPUT_Disconnect << GPIO_PIN_CNF_INPUT_Pos);
+		(GPIO_PIN_CNF_INPUT_Disconnect << GPIO_PIN_CNF_INPUT_Pos) |
+		(GPIO_PIN_CNF_PULL_Disabled << GPIO_PIN_CNF_PULL_Pos) |
+		(GPIO_PIN_CNF_DRIVE0_S0 << GPIO_PIN_CNF_DRIVE0_Pos) |
+		(GPIO_PIN_CNF_DRIVE1_S1 << GPIO_PIN_CNF_DRIVE1_Pos) |
+		(GPIO_PIN_CNF_SENSE_Disabled << GPIO_PIN_CNF_SENSE_Pos);
 	NRFKIT_VCOM_UARTE->PSEL.TXD =
 		(NRFKIT_VCOM_TX_PIN << UARTE_PSEL_TXD_PIN_Pos) |
-		(NRFKIT_VCOM_TX_PORT << UARTE_PSEL_TXD_PORT_Pos);
+		(NRFKIT_VCOM_TX_PORT << UARTE_PSEL_TXD_PORT_Pos) |
+		(UARTE_PSEL_TXD_CONNECT_Connected << UARTE_PSEL_TXD_CONNECT_Pos);
 	NRFKIT_VCOM_UARTE->BAUDRATE = NRFKIT_VCOM_BAUDRATE;
+	NRFKIT_VCOM_UARTE->CONFIG = 0U;
 	NRFKIT_VCOM_UARTE->ENABLE = UARTE_ENABLE_ENABLE_Enabled;
-	for (const char *cursor = text; *cursor != '\0'; ++cursor) {
-		uint8_t byte __attribute__((aligned(4))) = (uint8_t)*cursor;
-		NRFKIT_VCOM_UARTE->EVENTS_DMA.TX.END = 0U;
-		NRFKIT_VCOM_UARTE->DMA.TX.PTR = (uint32_t)(uintptr_t)&byte;
-		NRFKIT_VCOM_UARTE->DMA.TX.MAXCNT = 1U;
-		NRFKIT_VCOM_UARTE->TASKS_DMA.TX.START =
-			UARTE_TASKS_DMA_TX_START_START_Trigger;
-		while (NRFKIT_VCOM_UARTE->EVENTS_DMA.TX.END == 0U) {
-			__WFE();
-		}
+	NRFKIT_VCOM_UARTE->SHORTS |= UARTE_SHORTS_DMA_TX_END_DMA_TX_STOP_Msk;
+	NRFKIT_VCOM_UARTE->EVENTS_DMA.TX.END = 0U;
+	NRFKIT_VCOM_UARTE->EVENTS_DMA.TX.BUSERROR = 0U;
+	NRFKIT_VCOM_UARTE->EVENTS_TXSTOPPED = 0U;
+	NRFKIT_VCOM_UARTE->DMA.TX.PTR = (uint32_t)(uintptr_t)log_buffer;
+	NRFKIT_VCOM_UARTE->DMA.TX.MAXCNT = (uint32_t)length;
+	NRFKIT_VCOM_UARTE->TASKS_DMA.TX.START =
+		UARTE_TASKS_DMA_TX_START_START_Trigger;
+
+	uint32_t remaining = NRFKIT_BM_LOG_DMA_POLL_LIMIT;
+	while (NRFKIT_VCOM_UARTE->EVENTS_TXSTOPPED == 0U &&
+	       NRFKIT_VCOM_UARTE->EVENTS_DMA.TX.BUSERROR == 0U && remaining-- != 0U) {
+		__NOP();
 	}
+	if (NRFKIT_VCOM_UARTE->EVENTS_TXSTOPPED == 0U) {
+		NRFKIT_VCOM_UARTE->TASKS_DMA.TX.STOP =
+			UARTE_TASKS_DMA_TX_STOP_STOP_Trigger;
+	}
+	(void)atomic_set(&log_busy, 0U);
 }
 
 void nrfkit_bm_log(const char *format, ...)
 {
 	/* The platform shim preserves literal messages used by the oracle gate.
 	 * Formatting is intentionally not reimplemented as part of BLE adaptation. */
-	serial_write(format);
-	serial_write("\r\n");
+	serial_write_line(format);
 }
 
 static uint64_t grtc_counter(void)
