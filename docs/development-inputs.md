@@ -17,9 +17,10 @@ The local inventory is useful context, not authority. Every path, source identit
 |---|---|---:|---|
 | Nordic nRF Connect SDK workspace | Official build/run oracle and implementation evidence | No | Release plus exact module commits |
 | nRF Connect SDK Bare Metal workspace | Bare-metal, SoftDevice, startup, linker, and integration evidence | No | Release plus exact module commits |
+| Version-locked Nordic sdk-nrfxlib | First-class MPSL and SoftDevice Controller runtime input | Yes, when wireless is selected | Repository tag/commit, component manifest revision, selected header/archive/license hashes, security domain, float ABI, documented resource contract |
 | Nordic product documentation | Memory, reset, security, power, peripheral, and errata facts | No | Document title, revision, URL or file hash |
 | Version-locked upstream submodules and selected snapshots | Inputs shipped by this SDK | Yes | Upstream path, commit, selected-file hashes, license, patches |
-| Wireless binary packages | Optional runtime components | Yes, when selected | Exact version, binary/header/spec hashes, license, ABI checks |
+| Legacy SoftDevice binary packages | Historical or optional runtime components | Yes, when explicitly selected | Exact version, binary/header/spec hashes, license, ABI checks |
 | Local read-only implementation references | General tooling and architecture patterns | No | Local-only identity; never publish its name or path |
 | External reference peer and private reference implementation | Proprietary-radio interoperability oracle only | No | Local source/image/version receipt and bounded run evidence below ignored storage |
 | Development kits and probes | Hardware validation | No | Dynamically detected family, board type, capabilities, and local-only identity |
@@ -51,6 +52,34 @@ The active reference versions, samples, board targets, and expected runtime obse
 - never silently switch to a newer installed release.
 
 If an official input is absent, a maintainer workflow may download the exact public release after recording its origin and checksum. Downloads must never occur during ordinary CMake configure or build.
+
+## sdk-nrfxlib input contract
+
+The immutable `external/sdk-nrfxlib` submodule locked in
+`docs/provenance/sources.lock` is the only accepted default for the current wireless
+milestone. An explicit override or installed NCS workspace may supply the same bytes
+for maintainer/oracle work, but its directory name is not proof of identity. Preparation
+must validate the repository tag and commit, the SDC and MPSL component manifest
+revision, every selected public header and archive, the supplied license and
+attribution, the `nrf54lm` target, security domain, and hard-float ABI before CMake
+creates imported targets. Multirole, Peripheral-only, Central-only, and MPSL must be
+an atomic selection from one compatible release; mixing variants or releases fails
+closed.
+
+The locked package documentation is part of the input, not optional background
+reading. Before adapting code or running hardware, maintainers and autonomous agents
+must read its SDC/MPSL README, API documentation, integration notes, release notes,
+component manifests, and stated peripheral/IRQ/priority/clock/memory/link/lifecycle
+requirements. Those facts must first become a source-located, machine-checkable
+resource and ABI contract. Repeated board experiments must not be used to guess
+requirements that the package already documents.
+
+The first consumer surface is raw Controller HCI plus lifecycle control. A minimal
+MPSL platform layer is a technical prerequisite for SDC even though MPSL Timeslot
+and proprietary-radio features are the following milestone. Open BLE Host, ATT,
+GATT, HID profile, and product pairing policy are not current inputs or completion
+gates. Normal consumer configure must never search an NCS installation or run west,
+sysbuild, Kconfig, Devicetree, or Zephyr to resolve nrfxlib.
 
 ## Hardware inputs
 

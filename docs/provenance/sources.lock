@@ -31,6 +31,112 @@
         }
       }
     },
+    "sdk-nrfxlib-3.4.0": {
+      "release": "sdk-nrfxlib v3.4.0",
+      "repository": "https://github.com/nrfconnect/sdk-nrfxlib",
+      "commit": "d4ce5fe1a7d8af29bc01a4e1ddf5540ef65b6a3b",
+      "binary_manifest_revision": "c8da3098f9f034a44b6ebad30819cc0cea51da47",
+      "target": "nrf54lm",
+      "security_domain": "secure",
+      "float_abi": "hard-float",
+      "import_date": "2026-09-05",
+      "imported": true,
+      "patches": "none",
+      "files": {
+        "LICENSE": {
+          "sha256": "47d92141c69e74a0166c319a41e5005ce2b87f0498e5dbd5a0c5a34f9ef63954",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "softdevice_controller/README.rst": {
+          "sha256": "187a6489e9c871e1c06cc9f6ea33fb24f00527fa6709094072b23c4d21b3b470",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "softdevice_controller/CHANGELOG.rst": {
+          "sha256": "65668e3ec0a1929b2d63c586b4d913174e5531de1a44023ccb2942da96f7a440",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "softdevice_controller/doc/softdevice_controller.rst": {
+          "sha256": "4af75d37cbee20dd570e80c5c8f41f039043dcfafa815f86a25f6165d5b31cb3",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "softdevice_controller/doc/scheduling.rst": {
+          "sha256": "d9fe2d4999603641f46cda7f1121c5c4ff471593275fa342bc3de7c937ad34e6",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "softdevice_controller/license.txt": {
+          "sha256": "62d705f6425c1816dfbd92e348fd8c2387355fc1f2ec2661ab4508512b922478",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "softdevice_controller/include/sdc.h": {
+          "sha256": "f5ef17d405a07000cc969617c808c465af5cba5044ab9cb48c69742e8d5a3e58",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "softdevice_controller/include/sdc_hci.h": {
+          "sha256": "eb1a3b2b4892a21a569704943b037bf52dccab8c08aca0ce8bcfa8a9e6be284d",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "softdevice_controller/lib/nrf54lm/manifest.yaml": {
+          "sha256": "49263225476c30ede292ad5d0965427f2a7da8b222c0bb41d129a66d6a9fb24b",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_multirole.a": {
+          "sha256": "74b04b594ae5593e3b1e8eb4f2408c4ae9c6d96b1e1ff64abfd3e5d1010ead52",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_peripheral.a": {
+          "sha256": "4ba73318343946c3e2d46825888e09fabce4a11e249905e373ec4cbb802bb3e3",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_central.a": {
+          "sha256": "f499ee6db94d45be6c8a1c83d8aa7157632b445c1d4fffd59946d49925a1186b",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/README.rst": {
+          "sha256": "59efd71fc1a75c8057a72f630b19125e34805b7bde911cdebdd671b4a34db019",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/CHANGELOG.rst": {
+          "sha256": "61c7619eac8e3152bfb6ba058352ee6578d0de2a1934978c9fd82c6591125244",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/doc/clock.rst": {
+          "sha256": "7b92e7571d3309025026362e079898c593ea32cf4a9520460545a52978f07357",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/doc/pm.rst": {
+          "sha256": "d728422ef40a9e958602fec7bbd789f596f3de83cbe9d2f6fb8a4884ba94f7ee",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/doc/timeslot.rst": {
+          "sha256": "372ffed3108e5649aac2965b716470e241bfcf7b7ea1a2dfe22700c84a653876",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/license.txt": {
+          "sha256": "4d672c178104f0ecdd99523637c14def88f1a6d118bde38ed452618eb5a26ad9",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/LICENSE-ATTRIBUTION.txt": {
+          "sha256": "7f1899283abee89a08981a079782eefe7de928cca4df743f6731d818bfdca614",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/include/mpsl.h": {
+          "sha256": "2eeb4fee3a5d0b94f5767345a03cdcf79b18fff21cc150a1696812b65f0403d9",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/include/mpsl_timeslot.h": {
+          "sha256": "7d587cf89315cbf779b572258672edcc649de4d0bb715bb7c3216559c68dad93",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/lib/nrf54lm/manifest.yaml": {
+          "sha256": "2cd5b95867d1e525d18e2661868e73d188fa44218d7592e3274ce9736a913d2c",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/lib/nrf54lm/hard-float/libmpsl.a": {
+          "sha256": "5d6ec178b731b721d519089fa9f2c9adf4fba37e3d77387c8a9c4133752fdb7e",
+          "license": "LicenseRef-Nordic-5-Clause"
+        }
+      }
+    },
     "nrfx-4.5.0": {
       "release": "nrfx v4.5.0",
       "repository": "https://github.com/NordicSemiconductor/nrfx",

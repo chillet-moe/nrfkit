@@ -23,15 +23,30 @@ For the standalone SDK, `sdk manifest` accepts only the versioned LM20 applicati
 
 Local reports may contain probe identities and device paths. They remain below gitignored `.work/` and must not be copied into tracked documentation, commits, issues, or public artifacts.
 
-The current M5 radio route uses two explicitly selected devices. The public workflow
-must resolve the LM20 and laboratory peer independently, validate each chip and image
-range, acquire a separate lock for each probe, start the receiver before the
-transmitter, apply a hard timeout to both processes, and terminate both process
-groups on every exit. Reports use only the neutral roles `lm20` and
-`external-reference-peer`; any private peer name, local source path, probe identity,
-or raw transcript stays in ignored local storage. The first gate exchanges one fixed
-known payload in both directions and repeats three times before CRC/whitening
-negative cases, loss/retry, soak, or wake behavior are added.
+The M5 direct-radio work left a reusable two-device executor. M7 must resolve the
+LM20 and laboratory peer independently, validate each chip and image range, acquire
+a separate lock for each probe, start the receiver before the transmitter, apply a
+hard timeout to both processes, and terminate both process groups on every exit.
+Reports use only neutral roles; any private peer name, local source path, probe
+identity, or raw transcript stays in ignored local storage. The first new PHY gate
+is 4 Mbit/s in both directions for three rounds. The existing 2 and 1 Mbit/s profiles
+are compatibility and diagnostic baselines, not substitutes for that gate.
+
+Before the current M6 performs any SDC/MPSL hardware operation, its locked nrfxlib
+README, API documentation, integration notes, release notes, component manifests,
+license, attribution, and documented resource requirements must be read and reduced
+to a source-located resource/ABI contract. The host gate must check archive/header
+identity, target, security domain, float ABI, ELF attributes, unresolved symbols,
+alignment, final memory map, and every documented peripheral/IRQ/priority/clock/
+lifecycle constraint. Do not use repeated flashes to discover a documented rule.
+
+The SDC oracle and consumer lifecycle must reuse the same public manifest, inspect,
+safe-flash, serial/HCI, GDB, timeout, lock, process cleanup, and structured-report
+machinery. Multirole is tested first; Peripheral-only and Central-only then repeat
+their valid HCI subsets. A minimal MPSL substrate is necessarily active before SDC,
+but direct RADIO access is forbidden outside an MPSL-granted Timeslot whenever MPSL
+owns the documented resources. M7 must exercise Timeslot grant, blocked, cancel,
+extend, deadline, and teardown behavior with SDC disabled, advertising, and connected.
 
 The M4 USB device gate is `tools/nrfkit m4-usb-gate`. Its default contract performs
 100 controlled reconnects, transfer/HID stress, and Linux runtime-PM suspend plus
@@ -49,7 +64,7 @@ from a remote-wake signal or USB-topology failure. The root environment must pro
 PyUSB; do not copy credentials or machine-specific Python paths into repository
 documentation.
 
-The deferred BLE checkpoint retains `tools/nrfkit m6-ble-gate`. It uses the BlueZ D-Bus API
+The historical S115 checkpoint retains `tools/nrfkit m6-ble-gate`. It uses the BlueZ D-Bus API
 directly and never starts an interactive `bluetoothctl` session. Every D-Bus
 operation has a finite timeout, failed pairing is cancelled, the exact test
 device is disconnected and removed, and an optional `btmon` process is wrapped
@@ -60,7 +75,8 @@ runs `timeout`, `btmon`, or `btmgmt` as root.
 
 BlueZ `Pairable=false` and privileged controller-bondable helpers are retired.
 They remain historical infrastructure evidence only and must not be retried or
-treated as a completion gate. None of the BLE tools is part of current M5 acceptance.
+treated as a completion gate. These Host-oriented tools are not the raw-HCI SDC M6
+gate and must not be reused as if they were.
 
 `tools/nrfkit m6-ble-scan` is the bounded advertising-only host gate. It uses
 the BlueZ system D-Bus API, requires exactly one powered adapter, and accepts a
@@ -80,8 +96,8 @@ LESC, encryption, and negotiated-key fields. The reconnect profile additionally
 uses Peer Manager's live connection-security status to distinguish a stored-key
 procedure from fresh pairing.
 
-For any future replay in a multi-probe setup, resolve the local LM20/L15 aliases from the ignored
+For any explicitly requested historical replay in a multi-probe setup, resolve the local LM20/L15 aliases from the ignored
 inventory, then pass both probe identities explicitly. Never rely on enumeration
 order. Each child operation must still validate PCA10184 versus PCA10156, audit
-the SoC-specific image ranges, and acquire its own probe lock. This retained BLE
-route is deferred and must not be run as part of the current goal.
+the SoC-specific image ranges, and acquire its own probe lock. This retained S115
+route is stopped and must not run as part of the current goal.

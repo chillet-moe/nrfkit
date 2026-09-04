@@ -1,10 +1,11 @@
-# Deferred BLE research checkpoint: strict official-application equivalence
+# Historical S115 checkpoint: strict official-application equivalence
 
-This checkpoint is retained as diagnostic evidence. BLE is no longer part of the
-current PLAN goal or completion definition, and no further S115 compatibility-layer
-flashing, GDB differencing, or implementation expansion is authorized by the active
-route. The next core task is LM20 proprietary-radio interoperability with an
-external reference peer.
+This checkpoint is retained as diagnostic evidence. It applies only to the stopped
+S115/nRF-BM compatibility route; it is not a general BLE result and does not govern
+the current sdk-nrfxlib SoftDevice Controller/MPSL direction. No further S115
+compatibility-layer flashing, GDB differencing, or implementation expansion is
+authorized by the active route. The current decision is recorded in
+`docs/architecture/0002-sdc-mpsl-wireless-direction.md`.
 
 This note records the bounded nRF Bare Metal v2.0.1 `ble_hids_mouse` portability
 experiment requested for LM20 and S115 10.0.1. It contains no probe identity,
@@ -182,6 +183,6 @@ Separating those cases would require another instrumented/GDB run or importing
 more of the official Zephyr pre-main SoC lifecycle. That is no longer a thin
 source-equivalent platform adapter. Under the experiment's stop condition, the
 S115 adaptation stops at this reproducible checkpoint. The official HIDS image
-remains the behavioral oracle, while implementation proceeds through the
-PLAN-defined proprietary-radio route. The BLE research milestone is deferred rather
-than incomplete within the current goal.
+remains a historical behavioral oracle. Current implementation proceeds through the
+PLAN-defined, version-locked SDC-first route and then MPSL Timeslot proprietary
+radio; this result must not be used to justify importing more S115 glue.

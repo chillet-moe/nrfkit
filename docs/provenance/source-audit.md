@@ -1,6 +1,10 @@
-# M0/M1 source and license audit
+# Source and license audit
 
-This audit was performed on 2026-09-04. Exact commits and file hashes are in `sources.lock`. M1 imports the audited CMSIS Core and nrfx/MDK subset; external oracles and S115 remain outside the consumer package.
+The startup/MDK audit was performed on 2026-09-04 and the first-class nrfxlib
+selection was added on 2026-09-05. Exact commits and file hashes are in
+`sources.lock`. M1 imports the audited CMSIS Core and nrfx/MDK subset; sdk-nrfxlib is
+an immutable upstream submodule, while external oracles and legacy S115 remain
+outside the consumer package.
 
 ## Release baseline
 
@@ -8,6 +12,37 @@ This audit was performed on 2026-09-04. Exact commits and file hashes are in `so
 - nRF Connect SDK Bare Metal v2.0.1 remains the source of the validated S115 10.0.1 binary, headers, license, and release notes.
 - [nrfx v4.5.0](https://github.com/NordicSemiconductor/nrfx/releases/tag/v4.5.0) is newer than the nrfx 4.2.1-derived HAL snapshots in those workspaces. Its audited LM20A MDK/startup subset is the M1 consumer source, not a silent replacement for either P0 oracle.
 - [CMSIS 6.3.0](https://github.com/ARM-software/CMSIS_6/releases/tag/v6.3.0), commit `45dab712`, supplies the Cortex-M33 compiler/core headers used by both Clang and GNU Arm builds.
+- [sdk-nrfxlib v3.4.0](https://github.com/nrfconnect/sdk-nrfxlib/tree/v3.4.0),
+  commit `d4ce5fe1`, is the first-class wireless input. Its nRF54LM SDC and MPSL
+  manifests share binary revision `c8da3098`; the initial atomic selection is
+  secure hard-float MPSL plus Multirole, Peripheral-only, and Central-only SDC.
+
+## SDC/MPSL input and compatibility boundary
+
+The selected archives, principal public headers, component manifests, README and
+CHANGELOG files, and license/attribution texts are hash-locked. Multirole is the
+first functional target, but all three SDC archives and MPSL must remain from the
+same release, target, security domain, float ABI, and binary revision. The current
+non-secure nRF54L SDC is documented as experimental, so it is not the first gate.
+
+The package documentation is executable design input. Before implementation, M6
+must extract every stated peripheral, IRQ, priority, clock, memory/alignment, link,
+initialization, callback-context, and teardown requirement into a source-located
+resource/ABI contract and automated checks. No hardware trial should guess a fact
+already documented by the locked package.
+
+sdk-nrfxlib v3.4.0 was tested by Nordic with the nrfx revision paired with its NCS
+release, while this project uses nrfx v4.5.0. Compatibility is therefore an open
+gate, not an assumption: compare API types and macros, ELF attributes and hard-float
+ABI, archive undefined symbols and link closure, startup/vector bindings, resource
+definitions, final map/RAM usage, and real-board behavior. A mismatch must be
+explained or the route stops; it must not be hidden behind unexplained shims.
+
+SDC depends on MPSL, so the minimal documented MPSL substrate precedes `sdc_init()`.
+The separate MPSL Timeslot/proprietary-radio milestone follows SDC bring-up. Direct
+RADIO access is retained only as an exclusive diagnostic/performance baseline; once
+SDC is active, access to managed RADIO/timer/DPPI resources is restricted to granted
+MPSL Timeslots.
 
 ## Startup and linker search
 
@@ -30,6 +65,7 @@ The earlier fallback assumption is therefore superseded: M1 should start from th
 | nrfx device linker scripts | BSD-3-Clause at repository scope | Permitted reference/import candidate. |
 | nrfx `nrf_common.ld` | Permissive CodeSourcery notice embedded in the file | Permitted candidate under `LicenseRef-CodeSourcery-Linker-Script`; preserve the notice verbatim. |
 | TF-M Nordic startup comparison files | Apache-2.0 | Audit evidence; not currently planned for import. |
+| sdk-nrfxlib v3.4.0 MPSL and SDC | LicenseRef-Nordic-5-Clause | First-class, immutable version-locked submodule; build targets expose only the selected nRF54LM secure hard-float components. Preserve license/attribution. Binary archives must not be modified, disassembled, decompiled, or reverse engineered. |
 | S115 binary and API package | LicenseRef-Nordic-5-Clause | Optional Nordic-only component. Distribution and use must retain the supplied license and attribution and obey the Nordic-device and no-reverse-engineering conditions. |
 | Project-owned build/runtime/tool code | BSD-3-Clause | Public repository license. |
 

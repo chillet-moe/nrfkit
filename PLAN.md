@@ -1,6 +1,6 @@
 # nrfkit：目标与执行计划
 
-> 状态：P0、M0、M1、M2、M3 已完成；M4 部分完成；M5 为当前核心任务；BLE 研究已延期<br>
+> 状态：P0、M0、M1、M2、M3 已完成；M4 部分完成且暂不阻塞无线主线；M5 direct-RADIO 基线已收束；M6 SoftDevice Controller 为当前核心任务；M7 MPSL Timeslot 与 4 Mbit/s 优先私有 2.4 GHz 待执行<br>
 > 计划基线：2026-09-05<br>
 > 唯一 SDK 支持目标：nRF54LM20A / nRF54LM20 DK<br>
 > 实验室夹具：nRF54L15 DK（不属于 SDK 支持目标）<br>
@@ -25,13 +25,14 @@
 - 应用使用标准 CMake、Ninja 和本机 Arm 交叉工具链构建；
 - 最终构建不依赖 west、sysbuild、Devicetree、Kconfig 或 Zephyr；
 - 完整支持 nRF54LM20A；当前阶段不实现 nRF54L15、nRF52、nRF53 或其他 nRF54 器件支持；
-- nRF54L15 DK 仅作为私有 2.4 GHz 对端、未来可选 BLE central 和差分测试夹具，不因此产生 L15 consumer target、公共 API 或完整器件支持工作；
-- 复用官方 CMSIS/MDK、nrfx HAL/driver、适用的官方启动与系统初始化代码，以及许可证允许分发的预编译无线组件；
-- 支持纯裸机 C 和 C++ 应用，尤其是低延迟、低功耗的 HID 类固件；
+- nRF54L15 DK 仅作为 BLE central/peripheral、私有 2.4 GHz 对端和差分测试夹具，不因此产生 L15 consumer target、公共 API 或完整器件支持工作；
+- 将版本锁定的 Nordic `sdk-nrfxlib` 作为一级官方输入，复用其中适用于 LM20 的 MPSL 与 SoftDevice Controller 预编译库，并复用官方 CMSIS/MDK、nrfx HAL/driver、启动与系统初始化代码；
+- 支持纯裸机 C 和 C++ 应用，最终面向同时具备 BLE 与高性能私有 2.4 GHz 能力的低延迟、低功耗无线 HID 类外设；
+- 当前无线阶段先建立可独立验收的 BLE Controller/HCI 与 MPSL Timeslot 能力，开放 Host、ATT/GATT、HID profile 和配对策略不属于本计划；
 - 支持编译、ELF/HEX/BIN 产物、烧写、复位、GDB 调试和无人值守实板验收；
 - SDK 自身保持下游无关，不能泄漏任何未公开的下游项目、产品、品牌、目录、探针序列号或日志内容。
 
-首个可用版本不是“把 NCS 的命令换一层包装”，而是一个在没有 NCS/Zephyr 安装的干净环境里仍能独立构建的 SDK。NCS 只作为权威源码来源、行为对照和回归 oracle。
+首个可用版本不是“把 NCS 的命令换一层包装”，而是一个在没有 NCS/Zephyr 安装的干净环境里仍能独立构建的 SDK。NCS 只作为权威源码来源、行为对照和回归 oracle；无线 target 只消费显式提供且通过版本校验的 `sdk-nrfxlib`，不得搜索已安装的 NCS。
 
 ## 2. 已确定的方案
 
@@ -43,7 +44,7 @@
 
 - nrfx/MDK 通常为 BSD-3-Clause；
 - Arm CMSIS 和 TF-M 文件可能分别为 Apache-2.0 或 BSD-3-Clause；
-- NCS Bare Metal 与 SoftDevice 包含 `LicenseRef-Nordic-5-Clause` 内容，只能按原许可使用和再分发；
+- `sdk-nrfxlib` 中的 MPSL/SoftDevice Controller 以及 NCS Bare Metal/SoftDevice 包含 `LicenseRef-Nordic-5-Clause` 内容，只能按原许可使用和再分发；预编译二进制不得逆向、反汇编或修改；
 - 每次导入都必须记录来源、tag/commit、SHA-256、许可证、是否修改和修改补丁。
 
 若许可证审计尚未完成，相关二进制只能通过用户提供的外部路径使用，不能先复制到仓库再补手续。
@@ -55,11 +56,18 @@
 因此采用以下策略：
 
 1. nrfx 作为 `external/nrfx` 中固定到精确 commit 的只读 Git submodule；本仓库不把完整 nrfx 源码树作为普通文件提交。项目只跟踪逐文件选择清单、自有适配层和 `patches/nrfx/` 下的可审查补丁。需要修改上游时，在 consumer workspace 的 ignored shared cache 中复制被选文件并以普通 `git apply` 应用补丁，绝不直接修改 submodule。
-2. SoftDevice 按 SoC 和版本分别存放，并保留原始 license/attribution；若审计结论不允许仓库分发，则使用 `NRF_SOFTDEVICE_ROOT` 指向官方包并校验版本与 hash。
-3. SDK 构建不能搜索或隐式借用 `$HOME/ncs`。本机 NCS 目录只允许被显式的开发者对照测试使用。缺失或 commit 不匹配的 nrfx submodule 必须给出明确诊断；普通 configure/build 不得自行联网更新它。
-4. Python 可以用于维护者工具、HEX 检查和硬件测试，但不得成为编译一个普通应用的必需依赖。核心构建只要求 CMake、构建器、编译器及 binutils 等效工具。
-5. 不引入 west manifest 的替代品，也不实现 Kconfig 或 Devicetree 的小型克隆。
-6. 官方参考样例允许在 `tools/reference/` 的显式维护者流程中调用其原生 west、sysbuild、Kconfig、Devicetree 和 Zephyr；该例外只能用于建立可运行的官方 oracle，不能进入 SDK consumer 的 configure/build dependency graph。
+2. `sdk-nrfxlib` 是无线功能的一级、不可变、版本锁定输入，以
+   `external/sdk-nrfxlib` Git submodule 固定到 tag `v3.4.0` 的准确 commit。来源锁同时记录
+   SDC/MPSL component manifest revision、所选头文件/静态库 hash、许可证、安全域和
+   float ABI。完整 checkout 随项目取得，但构建只暴露实际选择的 component；release
+   archive 必须包含同一固定 checkout。允许显式 `NRFKIT_NRFXLIB_ROOT` 覆盖，但必须通过
+   同样的 identity/hash 校验；不得从 `$HOME/ncs` 自动发现或拼装库。
+3. SDC 的 Multirole、Peripheral-only、Central-only archive 与 `libmpsl.a` 必须来自同一锁定 release、`nrf54lm` security domain 和 hard-float ABI，不能跨版本混用。submodule 与其二进制保持原样，项目适配只能位于自有 CMake/platform layer；不得修改、反汇编、反编译或逆向预编译 archive。
+4. 旧 S115 输入按 SoC 和版本保留原始 license/attribution 与历史复现能力，但不再是当前无线实现方向；若外部使用则继续由 `NRF_SOFTDEVICE_ROOT` 指向官方包并校验版本与 hash。
+5. SDK 构建不能搜索或隐式借用 `$HOME/ncs`。本机 NCS 目录只允许被显式的开发者对照测试使用。缺失或 commit 不匹配的上游输入必须给出明确诊断；普通 configure/build 不得自行联网更新它。
+6. Python 可以用于维护者工具、HEX 检查和硬件测试，但不得成为编译一个普通应用的必需依赖。核心构建只要求 CMake、构建器、编译器及 binutils 等效工具。
+7. 不引入 west manifest 的替代品，也不实现 Kconfig 或 Devicetree 的小型克隆。
+8. 官方参考样例允许在 `tools/reference/` 的显式维护者流程中调用其原生 west、sysbuild、Kconfig、Devicetree 和 Zephyr；该例外只能用于建立可运行的官方 oracle，不能进入 SDK consumer 的 configure/build dependency graph。
 
 ### 2.3 工具链
 
@@ -141,7 +149,9 @@ nrfkit/
 │   ├── modules/
 │   └── toolchains/
 ├── external/
-│   └── nrfx/                  # immutable, version-locked submodule
+│   ├── cherryusb/             # immutable, version-locked submodule
+│   ├── nrfx/                  # immutable, version-locked submodule
+│   └── sdk-nrfxlib/           # fixed read-only official submodule
 ├── include/nrfkit/
 ├── runtime/
 │   ├── common/
@@ -159,8 +169,10 @@ nrfkit/
 ├── patches/
 │   └── nrfx/                  # project-owned, evidence-backed patches
 ├── wireless/
+│   ├── mpsl/
+│   ├── sdc/
 │   ├── proprietary/
-│   └── softdevice/
+│   └── legacy-s115/
 ├── usb/
 ├── examples/
 ├── tests/
@@ -200,8 +212,8 @@ nrfkit/
 遇到冲突时按以下优先级处理，并记录具体版本，而不是凭经验合并：
 
 1. 与实际 silicon revision 匹配的 Nordic Product Specification、Datasheet 和 Errata；
-2. 同一版本官方 MDK/SVD、SoftDevice specification/release notes；
-3. 精确 tag/commit 的 nrfx、NCS Bare Metal 和 NCS；
+2. 同一版本官方 MDK/SVD、`sdk-nrfxlib` SDC/MPSL README、CHANGELOG、component manifest、API 与旧 SoftDevice specification/release notes；
+3. 精确 tag/commit 的 `sdk-nrfxlib`、nrfx、NCS Bare Metal 和 NCS；
 4. Arm CMSIS、Trusted Firmware-M、MCUboot 的上游实现；
 5. 官方开发板硬件文档；
 6. 社区资料仅作为线索，寄存器、IRQ、内存和安全结论必须回到以上来源验证。
@@ -210,19 +222,29 @@ nrfkit/
 
 ### 3.2 当前可复现的来源基线
 
-开始 M0 时先重新确认是否有更新的 production release；若没有，采用以下已经检查过的基线：
+当前采用以下已经检查并锁定的基线。自动化任务不得只因上游出现新 release 就切换；
+升级必须作为单独的兼容性决定并重新生成来源、ABI 与实板证据：
 
 - NCS `v3.4.0`，本机 checkout commit `99553055607b2e9885fbc80ccd11fa9da81c2df0`；
 - NCS 中 Nordic HAL/nrfx commit `18da0cc9726f8759c627dba3180b3ba9294e433c`；
+- `sdk-nrfxlib` tag `v3.4.0`，仓库 commit `d4ce5fe1a7d8af29bc01a4e1ddf5540ef65b6a3b`，SDC/MPSL `nrf54lm` binary manifest revision `c8da3098f9f034a44b6ebad30819cc0cea51da47`；
 - NCS Bare Metal `v2.0.1`，commit `51484143c09199e19bccc16fa3b437f7a502a72b`；
 - nRF54LM20A/nRF54LM20B Datasheet v1.0；
 - S115 for nRF54LM20 `10.0.1`；
 - S145 for nRF54L15 `10.0.1`，仅用于版本锁定的实验室 central 夹具。
 
+M6 首先使用 `nrf54lm/hard-float` secure MPSL 与 SDC archive，因为当前 LM20
+standalone target 使用 hard-float 且在 secure domain 运行。官方仍将 nRF54L 的
+non-secure SDC 标为 experimental；它不得作为首个实板门禁或 production 能力声明。
+`sdk-nrfxlib` v3.4.0 只声明与对应 NCS 所用 nrfx revision 一起测试过，而本项目核心
+使用较新的 nrfx v4.5.0，因此头文件、ELF attributes、未解析符号、资源定义和实板
+行为兼容性是 M6 的第一道门禁，不能按同一系列名称假设兼容。
+
 本机候选位置仅用于发现，不得成为构建依赖：
 
 ```text
 $HOME/ncs/v3.4.0
+$HOME/ncs/v3.4.0/nrfxlib
 $HOME/ncs/nrf-bm/v2.0.1
 $HOME/Documents/Datasheets/NORDIC/nRF54LM20A_nRF54LM20B_Datasheet_v1.0.pdf
 ```
@@ -264,7 +286,9 @@ $HOME/Documents/Datasheets/NORDIC/nRF54LM20A_nRF54LM20B_Datasheet_v1.0.pdf
 - 对应 SVD 和设备头；
 - Datasheet 的 memory map、RRAMC、MEMCONF、MPC/SPU 与启动章节；
 - 官方 NCS/NCS Bare Metal 构建得到的 ELF、map 和 HEX；
-- S115 release notes 中的固定 NVM/RAM 边界。
+- S115 release notes 中的固定 NVM/RAM 边界（仅用于 legacy S115 layout）；
+- SDC/MPSL resource configuration、最终 link map 和 archive ABI；SDC/MPSL 是链接进
+  应用的静态库，不能沿用 S115 固定镜像基址或 RAM 边界。
 
 链接层分成两部分：
 
@@ -421,11 +445,15 @@ OpenOCD 作为可插拔 backend，而不是 LM20 首个里程碑的阻塞项：
 4. RAM power/retention 与 System ON idle/System OFF 基础；
 5. USBHS device controller 适配；
 6. 私有 2.4 GHz 所需 RADIO/timer/DPPI/CCM 基础；
-7. image layout、bootloader/DFU 和 production support。
+7. 版本锁定的 MPSL 基础平台适配与 SoftDevice Controller；
+8. 受 MPSL 调度的 4 Mbit/s 优先私有 2.4 GHz packet engine；
+9. image layout、bootloader/DFU 和 production support。
 
-BLE peripheral 不属于当前执行目标或首阶段完成定义。S115、SoftDevice
-Controller 加开放 Host、完全自研等路线只作为未来研究候选；没有新的路线决定前，
-不得继续扩充、调试或以 BLE 是否广播阻塞当前工作。
+无线主线固定为：先锁定并审计 `sdk-nrfxlib`，随后以满足 SDC 启动所需的最小 MPSL
+平台层跑通 SoftDevice Controller 三种 archive，最后在 MPSL Timeslot 内实现私有
+2.4 GHz。SDC 的第一个验收对象是 Multirole；Peripheral-only 和 Central-only 在相同
+底座上随后验收。当前阶段只验证 Controller/HCI，不引入开放 Host、ATT/GATT、HID
+profile 或产品配对策略。旧 S115 路线仅保留为历史可复现检查点，GZLL 不在范围内。
 
 SDK 不需要发明通用 driver framework。优先暴露正确的 nrfx/HAL target、IRQ glue 和资源约束；只有确实跨 SoC 重复且 API 稳定的薄层才进入公共 API。
 
@@ -441,16 +469,23 @@ LM20 有 USBHS HAL，但当前 nrfx 基线没有与旧 `nrfx_usbd` 等价的完�
 
 ### 6.3 私有 2.4 GHz
 
-SDK 的职责是提供经实板验证的 RADIO 访问基础、时钟/timer/DPPI 组合、IRQ/resource ownership 和一个最小 packet-radio 示例，不把某个产品协议放入 SDK。
+SDK 的职责是提供经实板验证的 RADIO 访问基础、时钟/timer/DPPI 组合、IRQ/resource
+ownership 和一个最小 packet-radio 示例，不把某个产品协议放入 SDK。现有 direct-RADIO
+实现保留为独占运行时的诊断、互通和性能基线；SDC 启用后，它不构成安全的共存机制，
+应用只能在 MPSL 明确授予的 Timeslot 内直接访问 RADIO/timer/DPPI 等受管资源。
 
-第一阶段只实现私有 2.4 GHz。现有 cooperative RADIO ownership 契约保留，供未来
-无线栈共存研究使用，但当前不实现 S115 Radio Timeslot 或以 BLE 路径作为门禁。
+LM20 和 L15 的锁定 MDK 均公开定义 Nordic proprietary 4 Mbit/s PHY。私有链路必须
+把 4 Mbit/s 作为首要性能目标和独立验收配置；2 Mbit/s、1 Mbit/s 仅作为兼容、回归
+和故障定位基线，不能以它们通过代替 4 Mbit/s 验收。两种公开的 4 Mbit/s mode/调制
+参数都先按匹配 silicon 文档、errata 与空口结果审计，再选出默认配置。
 
 验收按可独立复现的阶段推进：
 
 - 单板：HFCLK、RADIO state、TX READY/END/DISABLED、RX timeout、CRC/packet layout 寄存器和功耗状态可重复；
 - 双板基础：LM20 与 reference peer 均能成功发包和收包，双向交换固定已知载荷，并连续重复运行得到相同判定；
 - 链路行为：按现有协议资料逐项加入包长边界、CRC/白化、序号与丢包、重试、信道切换、睡眠唤醒和延迟统计；
+- 4 Mbit/s 性能：LM20 与 L15 双向运行，量化 payload goodput、端到端延迟、丢包、
+  重试、队列上界、连续稳定性和可测功耗，并与 2 Mbit/s、1 Mbit/s 基线比较；
 - 键盘需求：只实现已由本地参考资料和真实互通证明需要的链路行为，不把私有业务协议或消费者标识固化进公共 SDK。
 
 每个双板阶段都必须通过仓库公共 CLI 重新枚举并显式选择两个目标、校验芯片与镜像
@@ -458,21 +493,34 @@ SDK 的职责是提供经实板验证的 RADIO 访问基础、时钟/timer/DPPI 
 镜像 hash、工具版本、命令、结构化结果和原始本机日志。没有双板空口证据时不得宣称
 互通完成。
 
-### 6.4 未来可选 BLE 研究
+### 6.4 SoftDevice Controller 与 MPSL
 
-BLE 路线尚未决定，也不属于当前 PLAN 的目标、完成条件或阻塞项。已经完成的
-S115/nRF-BM 兼容性审计、官方 HIDS oracle、L15 central、BlueZ 门禁和失败定位作为
-可复现研究资产保留；不得删除有价值的 receipt、测试工具或结构化结论，也不得继续
-围绕当前 compatibility layer 刷写、GDB 差分或扩充实现。
+`sdk-nrfxlib` 是当前无线实现的一级官方输入。SDC 以静态库形式提供 BLE Controller，
+并依赖同一发行版、同一安全域和同一 float ABI 的 MPSL；因此“MPSL 在 SDC 之后”只指
+Timeslot/私有无线功能里程碑，满足 `sdc_init()` 的最小 MPSL 初始化、时钟、IRQ、低优先级
+执行与资源配置必须先完成。
 
-未来若重新立项，至少重新比较以下候选：
+SDC 的公共边界是原始 HCI command/event/ACL transport 和明确的 controller lifecycle。
+首轮无需 Host：使用小型、可审计、确定性的 HCI 测试驱动验证 reset、版本、features、
+advertising、scanning、建连、断连和重复 enable/disable。Multirole 首先同时证明 central
+和 peripheral 能力；随后链接 Peripheral-only 与 Central-only archive，按各自能力子集
+重复门禁。不得因示例依赖 Zephyr 就把其 build-system glue 搬进 consumer SDK。
 
-- 版本锁定的 S115 与官方 nRF-BM 应用/库集合；
-- SoftDevice Controller 加公开、可审计的 Host；
-- 基于公开规范的独立实现。
+MPSL Timeslot 阶段在 SDC 已工作后开始。私有 radio backend 必须正确处理 grant、blocked、
+cancel、extend、deadline、资源清理和时钟生命周期，并分别在 SDC disabled、BLE advertising
+以及活动 BLE connection 下获得实板证据。直接 RADIO backend 与 Timeslot backend 应共享
+packet-format 和计数逻辑，以便做可信差分。
 
-任何候选都必须重新定义独立里程碑、许可证/内存/安全边界和实板验收，不得恢复为
-当前 M5 的隐式依赖。自动 HID 测试仍不得向日常桌面注入危险按键序列。
+### 6.5 明确不在当前范围内
+
+- 开放 BLE Host、ATT/GATT、HID profile、用户态配对/绑定策略和产品协议；
+- 继续扩充 S115/nRF-BM compatibility layer；
+- GZLL；
+- nRF52、nRF53、L15 consumer target 或其他 nRF54 器件支持。
+
+现有 S115/HIDS oracle、L15 central、BlueZ 门禁、receipt、测试工具和结构化失败结论作为
+历史诊断资产保留；不得删除，也不得让它们重新成为当前 SDC/MPSL 路线的隐式前置条件。
+自动 HID 测试仍不得向日常桌面注入危险按键序列。
 
 ## 7. 镜像、A/B 与安全启动的架构预留
 
@@ -674,64 +722,105 @@ API，但 xHCI 随后 reset 并重新枚举设备，固件没有收到 resume �
 resume 路径；仍需在不会重置设备的直连拓扑上得到完整成功报告，不能用
 `--skip-power` 或仅 host-resume 通过的报告替代。
 
-### M5：LM20 私有 2.4 GHz 与 reference peer 互通（当前）
+### M5：direct-RADIO 基线与双板工具（已收束）
+
+此里程碑只建立独占 RADIO 的底层真值与可复用双板执行器，不宣称与 BLE 共存，也不以
+尚未执行的双板空口测试冒充实板互通完成。
+
+已交付：
+
+- RADIO + TIMER10/DPPIC10 packet engine、cooperative ownership 与 1/2 Mbit/s 配置；
+- host packet/config/状态机测试和 LM20 单板定时 TX 实板证据；
+- LM20/L15 TX/RX validation firmware、版本锁定的官方 L15 peer build profile；
+- 公共双板 CLI、独立探针选择、镜像/地址审计、双锁、硬超时、进程组清理、方向/轮次
+  编排、payload/序号/CRC/无效包统计及结构化报告；
+- 对 RX 丢包时 deadline、无符号 timeout 下溢和“等待全部包”死锁风险的修正。
+
+这些资产转为 M7 的 direct-RADIO 差分基线。4 Mbit/s、双向互通、CRC/白化负向、重试、
+soak、睡眠后接收、性能/功耗与 MPSL 共存仍未宣称通过，必须在 M7 产生真实双板证据。
+
+### M6：SoftDevice Controller（当前）
+
+M6 先完成文档与资源契约，再写平台适配或上板。必须完整阅读版本锁定的
+`sdk-nrfxlib` SDC/MPSL README、API 文档、integration notes、release notes、component
+manifest、license/attribution，以及其明确列出的占用外设、IRQ、优先级、时钟、内存、
+链接、初始化顺序和调用上下文。把这些要求固化成带来源定位的机器可检查
+resource/ABI contract；若尚有不确定项，不得用反复烧写猜测。
 
 交付：
 
-- RADIO + timer/DPPI packet engine 示例；
-- resource ownership 接口；
-- CRC、whitening、channel 和 address 的 host/实板测试；
-- 能与 external reference peer 双向交换已知载荷的双板 test harness；
-- 可重复运行的公共 CLI、镜像/地址审计、双探针锁、硬超时、清理和结构化证据；
-- 按已验证需求逐步扩展的丢包、重试、soak 和接收唤醒测试；
-- 在正确性闭环后达到两端共同支持的最高可持续有效速率。
+- 校验 `external/sdk-nrfxlib` submodule，并在 `sources.lock` 锁定 tag、commit、SDC/MPSL binary manifest revision、
+  所选 headers/archives/license/attribution hash、安全域与 float ABI；
+- 对 nrfxlib v3.4.0 与当前 nrfx v4.5.0 执行头文件 API、ELF attributes、undefined symbols、
+  link closure、startup/IRQ、内存对齐和资源占用兼容审计；不按系列名假定兼容；
+- 先用 NCS v3.4.0 `zephyr/samples/bluetooth/hci_uart`、board
+  `nrf54lm20dk/nrf54lm20a/cpuapp` 建立可运行 Controller oracle；配置与 build receipt
+  必须证明实际选择 SDC Multirole archive，而不是另一个 Link Layer。先通过公共工具完成
+  reference build、manifest、guarded flash、H4/HCI 观测和 GDB，再开始纯 CMake 适配；
+- 满足 SDC 所需的最小 MPSL platform substrate，包括文档要求的 IRQ/priority、clock、
+  GRTC/timer、低优先级执行、128 MHz/低延迟请求回调、entropy、assert/fault、8-byte
+  aligned memory 和 resource configuration；
+- 显式 CMake imported targets 与 consumer API，不自动发现 NCS，不引入 west、sysbuild、
+  Kconfig、Devicetree 或 Zephyr；
+- 独立、确定性的 raw-HCI harness；Multirole 第一，随后 Peripheral-only 与 Central-only；
+- map/ELF/resource/ABI host gates，以及 bounded real-board lifecycle 和无线行为报告。
 
 退出条件：
 
-- 单板 gate 全部通过；
-- LM20 与 external reference peer 分别作为 TX 和 RX，双向交换固定已知载荷；
-- 基础互通至少连续重复三轮，报告保存 source/image/tool/command/result 证据；
-- CRC/白化错误能被接收端拒绝，丢包统计和限定重试可自动判定；
-- soak 和睡眠后接收唤醒通过；
-- 最高共同 PHY（优先验证 2 Mbit/s）、最短安全调度间隔、payload goodput、端到端
-  延迟、重试开销和长期稳定性均由结构化实板报告量化；
-- 公共实现与文档不含 reference peer 的私有名称、业务协议或本机标识。
+- 文档中的所有 required/owned peripheral、IRQ、priority、clock、RAM/flash、alignment、
+  callback context 和 teardown 约束均映射到代码与自动检查，不存在未解释的资源借用；
+- 官方 oracle 经统一工具重复构建、地址审计、安全烧写、运行观测和 GDB；
+- oracle 的 HCI transport 通过 Reset/version/features 和至少一次 advertising/scanning
+  行为验证，构建证据明确指向锁定版本的 SDC Multirole 与 MPSL；
+- Multirole 在 LM20 上通过 HCI Reset/version/features、enable/disable/re-enable、advertise、
+  scan、peripheral accept、central initiate、disconnect，以及 raw HCI event/ACL 路径；
+- Peripheral-only 与 Central-only archive 分别在同一底座上通过其适用能力子集；
+- 每种 archive 的最终 map、RAM budget、MPSL/SDC resource config、stack watermark、assert/
+  fault 和重复运行结果可审计；
+- 没有 Host、ATT/GATT/HID profile，也没有 S115 compatibility shim 被偷偷带入。
 
-M5 的单板退出门禁已在 LM20 DK 上通过：TIMER10 经 DPPIC10 定时触发
-RADIO TXEN，1 Mbit、地址、白化和三字节 CRC 配置完成寄存器回读，固件在
-READY/END/PHYEND/DISABLED 状态链结束后由中断唤醒并输出精确 PASS token。
-公开的 cooperative ownership API 已验证 owner 互斥，并且只有同一 owner 在 RADIO
-为 DISABLED 时才能释放。当前立即任务是以公开且可审计的 LM20 RADIO/clock/timer/
-DPPI 实现，与本地 external reference peer 建立真实双向空口互通。L15 DK 可作为
-公开夹具端，也可由本地 reference implementation 驱动；后者的名称、路径、源码、
-业务载荷和原始日志只能存在于 ignored 本地输入与报告中。
+### 历史检查点：S115/nRF-BM（原 M6，已停止）
 
-实施顺序固定为：只读识别两端与锁定 reference input → host packet vectors → 单向
-已知载荷 → 反向已知载荷 → 三轮可重复 gate → CRC/白化负向 → 序号/丢包/限定重试 →
-soak → 睡眠后接收唤醒 → 最高共同 PHY 与调度/goodput 优化。每次只增加一层，先明确
-阶段判定再扩充协议。最高速度指无数据错误、counter 守恒且重试/队列有界时的持续
-有效载荷吞吐和延迟，不是只读回 PHY mode 寄存器。可选 CCM 不在
-基础互通前置条件中，仍须按实际 silicon revision、errata 和经过认证的 packet contract
-单独审计。
-
-### M6：BLE 研究检查点（已延期，不属于当前目标）
-
-该研究路径在可审计检查点停止。官方 nRF-BM v2.0.1 HIDS oracle 已通过配对、加密
-属性读取与 bonded reconnect；L15 S145 central 已验证 legacy/LESC no-bond、bonding
-和持久化重连。纯 CMake strict application 保存了 273-source/43-nRF-BM-source、
-681-config、逐文件/命令/image hash、最小 shim/patch 清单以及唯一实板结果。最终分歧
-定位在官方 `irq_init()` 首日志可见之前或 `CallSoftDeviceResetHandler()` 返回之前；
-继续定位需要扩大 Zephyr pre-main lifecycle，不再属于薄适配。
+官方 nRF-BM v2.0.1 HIDS oracle 已通过配对、加密属性读取与 bonded reconnect；L15 S145
+central 已验证 legacy/LESC no-bond、bonding 和持久化重连。纯 CMake strict application
+保存了 273-source/43-nRF-BM-source、681-config、逐文件/命令/image hash、最小
+shim/patch 清单以及唯一实板结果。最终分歧定位在官方 `irq_init()` 首日志可见之前或
+`CallSoftDeviceResetHandler()` 返回之前；继续定位需要扩大 Zephyr pre-main lifecycle，
+不再属于薄适配。
 
 详细复现、证据边界和失败结果保存在
 `docs/architecture/m6-official-baseline-failure.md`、
 `docs/provenance/nrf-bm-hids-s115-equivalence.json` 和
-`docs/provenance/m6-s115-equivalence-checkpoint.json`。现有 CMake compatibility layer、
-L15 central 和有界 BlueZ 工具作为诊断资产保留，但不继续扩充或刷写，不进入当前
-完成定义。BlueZ `Pairable=false`、sudo/btmgmt helper、对象替换和重复 GDB 差分均已
-停止。该检查点既不证明 S115 不可用，也不授权自行实现 BLE 协议栈。
+`docs/provenance/m6-s115-equivalence-checkpoint.json`。现有 compatibility layer、L15
+central 与有界 BlueZ 工具作为诊断资产保留，但不继续扩充或刷写，不进入当前完成定义。
+历史 JSON 保持不可变；新方向由 ADR 与本 PLAN 覆盖。该检查点既不证明 S115 不可用，
+也不是 SDC/MPSL 路线的失败证据。
 
-### M7：首个私有下游集成与 LM20 release candidate
+### M7：MPSL Timeslot 与 4 Mbit/s 优先私有 2.4 GHz
+
+交付：
+
+- 基于 M6 同一锁定 MPSL 的 Timeslot backend，与 M5 direct-RADIO backend 共享 packet
+  format、vectors、counter 和判断逻辑；
+- grant、blocked、cancel、extend、deadline、HFCLK、IRQ/DPPI 清理和异常 teardown 测试；
+- LM20 与 L15 的 4 Mbit/s TX/RX profile 及双向已知载荷公共 gate；
+- 4 Mbit/s 首要门禁，以及 2 Mbit/s、1 Mbit/s 兼容/差分基线；
+- CRC/白化负向、序号/丢包、限定重试、信道切换、soak、睡眠后接收和功耗测试；
+- SDC disabled、BLE advertising、活动 BLE connection 三种调度场景的结构化证据。
+
+退出条件：
+
+- LM20 与 L15 在 4 Mbit/s 双向交换已知载荷并至少连续重复三轮；两种 4 Mbit/s mode
+  均有审计记录，默认选择有数据支持；
+- CRC/白化错误被拒绝，counter 守恒，重试/队列有界，soak 和睡眠后接收通过；
+- 4/2/1 Mbit/s 的 payload goodput、端到端延迟、丢包、重试开销、最短安全调度间隔、
+  稳定性和可测功耗均由同一方法量化；最终目标以 4 Mbit/s 为首，不以 2 Mbit/s 替代；
+- Timeslot 在 SDC disabled、advertising 和 active connection 下均遵守 grant/deadline，
+  不直接碰触未获授权的 RADIO/timer/DPPI 资源；
+- BLE connection 与私有链路的延迟/吞吐/功耗权衡可审计，无饿死、死锁或资源泄漏；
+- 公共实现和 Git 历史不含 external reference peer 的私有名称、业务协议或本机标识。
+
+### M8：首个私有下游集成与 LM20 release candidate
 
 该里程碑在下游仓库中完成，但公共 SDK 只能记录匿名、通用的验收结果。
 
@@ -739,7 +828,7 @@ L15 central 和有界 BlueZ 工具作为诊断资产保留，但不继续扩充�
 
 - 下游通过 `find_package` 或明确的 source integration 使用 SDK；
 - SDK 不需要下游专属 fork；
-- C++23、USB HID、私有 2.4 GHz、低功耗和普通持久化需求按实际使用范围打通；
+- C++23、USB HID、SDC/MPSL、4 Mbit/s 优先私有 2.4 GHz、低功耗和普通持久化需求按实际使用范围打通；
 - downstream build/test 脚本和日志保留在私有位置；
 - 发布 `0.x` LM20 release candidate。
 
@@ -750,7 +839,7 @@ L15 central 和有界 BlueZ 工具作为诊断资产保留，但不继续扩充�
 - SDK 当前文件、Git history、commit message、issue template、CI artifact 和 release note 均无私有下游标识；
 - 实板主要工作模式通过长时间运行和切换测试。
 
-### M8：boot/DFU 与 production 支持
+### M9：boot/DFU 与 production 支持
 
 交付：
 
@@ -792,8 +881,9 @@ L15 central 和有界 BlueZ 工具作为诊断资产保留，但不继续扩充�
 | H2 | GDB reset/break/step/fault | debug backend 问题 |
 | H3 | nrfx peripheral 与 DMA/IRQ | driver/resource 问题 |
 | H4 | sleep/retention/RRAM scratch | power/storage 问题 |
-| H5 | USB/proprietary radio | 协议和长时稳定性问题 |
-| H6 | 下游端到端 | 公共 API 或产品集成问题 |
+| H5 | USB/direct proprietary RADIO | 协议、PHY 和长时稳定性问题 |
+| H6 | MPSL/SDC lifecycle、HCI 与 Timeslot 共存 | 官方 binary 契约、资源或无线调度问题 |
+| H7 | 下游端到端 | 公共 API 或产品集成问题 |
 
 每个测试必须记录：SDK commit、source lock hash、tool versions、SoC/revision、board type、image hash、backend、耗时和结果。敏感/本地标识只保存在 gitignored 本地结果中。
 
@@ -804,7 +894,8 @@ L15 central 和有界 BlueZ 工具作为诊断资产保留，但不继续扩充�
 - vector table 与 IRQ 索引；
 - loadable segments、内存起止和对齐；
 - SystemInit/errata 选择；
-- 未来 BLE 研究使用的 SoftDevice 地址、forwarding 和 RAM 配置（不属于当前门禁）；
+- SDC/MPSL 官方初始化、resource configuration、IRQ/priority、clock、RAM 和 HCI 行为；
+- 历史 S115 地址、forwarding 和 RAM 配置（仅用于复现停止的检查点）；
 - reset 后关键寄存器；
 - USB/radio/clock 初始化顺序。
 
@@ -816,7 +907,8 @@ L15 central 和有界 BlueZ 工具作为诊断资产保留，但不继续扩充�
 
 1. 开始任何工作前完整阅读本文件和 `AGENTS.md`。
 2. 先运行只读 preflight：Git 状态、工具版本、官方源版本、硬件枚举；不得先烧写。
-3. 只处理当前最早未完成里程碑；除非后续工作能独立进行且不会掩盖当前 blocker。
+3. 处理本 PLAN 顶部明确标记的当前里程碑；已声明暂缓、部分完成或历史停止的较早项
+   不得抢占无线主线。只有后续工作能独立进行且不会掩盖当前 blocker 时才并行推进。
 4. 为每个非显然决定补一条 ADR 或 provenance 记录，特别是 startup、linker、无线 binary、内存和安全行为。
 5. 先写验收检查，再实现；不能用“示例看起来运行”代替可重复测试。
 6. P0 工具完成后，每次板上操作都经过公共 CLI 与 safety guard；只允许在 P0 本身的 bring-up 阶段用一次性手工命令建立已记录的 ground truth，随后必须把命令固化并通过工具重跑。永远不直接运行 mass erase/recover/provision。
@@ -827,6 +919,13 @@ L15 central 和有界 BlueZ 工具作为诊断资产保留，但不继续扩充�
 11. 公开内容提交前运行泄漏扫描。不得出现下游项目名、产品名、私有目录、探针序列号或原始私有日志；发现后必须在首次公开前从 Git history 清除，而不只是删除当前文件。
 12. 不因自动化任务是无人值守就扩大授权。遇到一次性配置、保护位、整片擦除、外部账号发布或其他不可逆操作时停止并请求用户明确许可。
 13. 将工具链故障与 firmware 故障分类。若编译、探针、烧写、串口、GDB server 或报告基础设施失败，先修复并验证工具，不用反复手工命令绕过。
+14. 对 nrfxlib 先读文档、后写代码、再上板：完整审计锁定版本的 README、API、
+    integration notes、release notes、manifest、license 和资源占用说明，先提交带出处的
+    ABI/resource contract 与自动检查。不得靠重复刷写猜测外设、IRQ、优先级、时钟、
+    callback context、内存或初始化顺序。
+15. 某条路径失败时先对照官方文档和同版本 oracle 判断是 source/version、ABI、link
+    closure、资源配置还是 runtime 问题；不得把不同问题叠加在一次试验中，也不得为
+    追求“跑起来”引入无法解释的 shim。
 
 ## 11. 停止条件与风险处理
 
@@ -834,12 +933,16 @@ L15 central 和有界 BlueZ 工具作为诊断资产保留，但不继续扩充�
 
 - 官方 startup/linker 来源互相矛盾或 IRQ table 无法闭环验证；
 - 识别到的 silicon revision 不在锁定的官方支持矩阵中；
-- 未来 BLE 研究中 SoftDevice HEX、headers、release notes 或 ABI 版本不一致；
+- sdk-nrfxlib tag/commit、binary manifest、headers、archives、license、安全域或 float ABI
+  不一致，或者无法证明 SDC 与 MPSL 来自同一兼容集合；
+- SDC/MPSL 文档列出的资源、IRQ、优先级、时钟、内存、初始化或 teardown 要求无法
+  映射到本项目，或者与实际 silicon 行为矛盾且最小复现不能解释；
 - 烧写工具要求 mass erase、recover 或配置区写入；
 - image 包含 allowlist 外地址；
 - OpenOCD 只能 attach、不能安全写 RRAM，却被请求当作 production programmer；
 - 许可证不清楚或 attribution 不完整；
 - 只有编译证据，没有所宣称器件/无线能力的实板证据；
+- 4 Mbit/s 仅有寄存器读回或单向发射，没有 LM20/L15 双向接收与性能证据；
 - 为适配下游而需要把私有名称或业务协议放进公共 SDK；
 - RAM/RRAM 溢出，需要改变产品功能或内存布局而非修复明显错误。
 
@@ -854,18 +957,26 @@ L15 central 和有界 BlueZ 工具作为诊断资产保留，但不继续扩充�
 - 普通 CMake + 本机工具链能离线构建 C/C++ firmware；
 - 不安装 NCS/Zephyr 也能完成 SDK consumer build；
 - nrfx 和 USBHS（LM20）已按各自证据级别实板验证；
-- LM20 私有 2.4 GHz 与 external reference peer 完成双向已知载荷、重复运行、
-  CRC/白化负向、丢包/限定重试、soak 和接收唤醒实板门禁；
+- 锁定的 sdk-nrfxlib SDC/MPSL 已完成来源、许可证、ABI、资源和链接闭环，Multirole、
+  Peripheral-only、Central-only 在 LM20 上通过各自 raw-HCI 与 lifecycle 实板门禁；
+- LM20 与 L15 的 MPSL Timeslot 私有 2.4 GHz 完成 4 Mbit/s 优先的双向已知载荷、
+  重复运行、CRC/白化负向、丢包/限定重试、soak、接收唤醒、性能/功耗以及 BLE
+  advertising/active-connection 共存门禁；
 - safe flash、J-Link GDB 和至少经过评估的 OpenOCD capability matrix 完成；
 - 首个私有下游无需公开专属 patch 即可消费 SDK；
 - 开源仓库及其历史不含任何私有下游信息；
 - 文档足以让另一位开发者在新机器和新开发板上复现；
 - 正常开发和 CI 无法触达一次性/保护配置；
-- 当前完成定义不包含 BLE、S115、nRF52、nRF53、L15 consumer target 或其他 nRF54 支持。
+- 当前完成定义包含 BLE Controller/HCI 与 MPSL Timeslot，但不包含开放 BLE Host、
+  ATT/GATT、HID profile、产品配对策略、S115、GZLL、nRF52、nRF53、L15 consumer
+  target 或其他 nRF54 支持。
 
 ## 13. 权威入口
 
 - [Nordic nrfx](https://github.com/NordicSemiconductor/nrfx)
+- [Nordic sdk-nrfxlib](https://github.com/nrfconnect/sdk-nrfxlib)
+- [SoftDevice Controller](https://github.com/nrfconnect/sdk-nrfxlib/tree/main/softdevice_controller)
+- [Multiprotocol Service Layer](https://github.com/nrfconnect/sdk-nrfxlib/tree/main/mpsl)
 - [NCS Bare Metal repository](https://github.com/nrfconnect/sdk-nrf-bm)
 - [NCS Bare Metal releases](https://github.com/nrfconnect/sdk-nrf-bm/releases)
 - [nRF54LM20 compatibility matrix](https://docs.nordicsemi.com/r/bundle/comp_matrix_nrf54lm20a/page/comp/nrf54lm20a/nrf54lm20a_nrf_connect_sdk.html)

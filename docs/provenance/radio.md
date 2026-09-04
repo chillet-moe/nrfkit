@@ -1,4 +1,4 @@
-# nRF54LM20 proprietary RADIO evidence
+# nRF54LM20 direct proprietary RADIO evidence
 
 The RADIO implementation uses the following authority order:
 
@@ -30,6 +30,12 @@ to the radio-local DPPI domain. TIMER10 compare publishes to RADIO TXEN; RADIO u
 READY-to-START and PHYEND-to-DISABLE shortcuts. The CPU waits for the DISABLED IRQ,
 which proves that a hardware-scheduled packet traversed the transmit state machine.
 
+The locked LM20 and L15 MDK register definitions also expose Nordic proprietary
+4 Mbit/s modes (`Nrf_4Mbit_0BT6` and `Nrf_4Mbit_0BT4`). The current adapter has not
+implemented or validated them yet. M7 treats 4 Mbit/s as the primary PHY target and
+requires a documented mode/errata choice plus real reception in both directions;
+2 Mbit/s and 1 Mbit/s remain compatibility and diagnostic baselines.
+
 ## Clock and errata
 
 The accurate HF clock is a caller-owned prerequisite. The locked nrfx XO start path
@@ -45,39 +51,48 @@ applicable LM20 errata must be selected from the actual silicon revision first, 
 an authenticated configuration must be used because published anomaly 102 affects
 zero-length MAC operation on listed revisions.
 
-## Ownership and evidence boundary
+## Ownership, MPSL, and evidence boundary
 
-The public cooperative lease distinguishes proprietary and BLE owners. Acquisition
-fails while either owner holds the RADIO; release fails unless the same owner calls
-it while hardware state is DISABLED. Each stack remains responsible for stopping
-and removing its own interrupts and DPPI bindings before release. This is deliberate:
-the adapter must not guess how a future SoftDevice revision tears down its resources.
+The public cooperative lease distinguishes logical owners. Acquisition fails while
+another owner holds the RADIO; release fails unless the same owner calls it while
+hardware state is DISABLED. This is useful for exclusive direct-RADIO tests, but it
+is not a valid coexistence contract with SDC/MPSL. MPSL owns documented radio-stack
+resources while enabled, and application code may directly touch managed RADIO,
+timer, DPPI, IRQ, or clock state only inside a granted MPSL Timeslot. Teardown and
+callback-context rules come from the version-locked nrfxlib documentation and must
+be encoded in the M6/M7 resource contract rather than guessed by this adapter.
 
 The single-board test checks ownership transitions, configuration register readback,
 TIMER/DPPI scheduling, RADIO READY/END/PHYEND/DISABLED progression, interrupt wake,
 and one real transmission. Register readback is not evidence that another receiver
 accepted whitening or CRC. End-to-end CRC, whitening, address filtering, loss, soak,
-and receiver wake remain pending. A second laboratory board and a local external
-reference peer are now available, so bidirectional interoperability is the current
-M5 task rather than a hardware-pending item.
+and receiver wake remain pending. The public two-board executor and LM20/L15
+validation images are implemented and build-tested, but have not yet produced a
+dual-board air report. They are retained as M7 inputs rather than claimed evidence.
 
 The public validation sequence is deliberately incremental:
 
-1. lock source/image receipts and host packet vectors;
-2. exchange one fixed known payload in each direction;
-3. repeat the bidirectional gate three times;
-4. prove CRC and whitening mismatch rejection;
-5. add sequence/loss accounting and bounded retry;
-6. run a bounded soak; and
-7. prove receive after sleep wakeup;
-8. select the highest PHY supported by both endpoints, then reduce the scheduled
-   interval while measuring sustained payload goodput, latency, loss, retry cost,
-   queue bounds, and counter conservation.
+1. audit both documented 4 Mbit/s modes and applicable errata, then lock source/image
+   receipts and 4 Mbit/s host packet vectors;
+2. exchange one fixed 4 Mbit/s known payload in each direction and repeat the
+   bidirectional gate three times;
+3. at 4 Mbit/s, prove CRC and whitening mismatch rejection;
+4. at 4 Mbit/s, add sequence/loss accounting, bounded retry, and channel switching;
+5. at 4 Mbit/s, run a bounded soak and prove receive after sleep wakeup;
+6. compare both 4 Mbit/s modes, select the evidenced default, then reduce the
+   scheduled interval while measuring sustained payload goodput, latency, loss,
+   retry cost, queue bounds, counter conservation, stability, and power;
+7. only after the 4 Mbit/s gate, repeat the applicable functional/performance subset
+   at 2 and 1 Mbit/s as compatibility and diagnostic comparisons; and
+8. repeat the 4 Mbit/s-first sequence through the MPSL Timeslot backend with SDC
+   disabled, advertising, and an active BLE connection.
 
-The performance target is the highest repeatable error-free useful rate, not a
-register setting or raw packet-opportunity count. The initial 1 Mbit configuration
-is only a correctness baseline; 2 Mbit/s is evaluated before any final speed claim
-when both endpoints support it.
+The performance target is repeatable error-free useful rate, not a register setting
+or raw packet-opportunity count. The initial 1 Mbit/s and current 2 Mbit/s
+configurations are correctness and comparison baselines. A final LM20/L15 result
+must prioritize 4 Mbit/s and may report a lower sustainable application rate only
+with measured scheduling, packet, retry, and power evidence; a 2 Mbit/s pass cannot
+stand in for the 4 Mbit/s gate.
 
 Each stage records sanitized roles, exact image and source hashes, tool versions,
 bounded commands, result counters, and cleanup status in `.work/`. The external
@@ -100,10 +115,10 @@ The command rejects identical probe identities, starts the receiver first, runs 
 children through the normal manifest/address/program/serial guard, repeats the direction
 three times by default, records every child report, and terminates the receiver process
 group on failure. Run the same gate again with endpoint roles reversed before treating
-the known-payload stage as bidirectional. Before claiming M5,
-the harness must also support the fixed staged sequence above and accept an external
-reference-peer adapter without exposing private details in its public arguments or
-reports.
+the known-payload stage as bidirectional. Before claiming M7, the harness must add
+explicit 4 Mbit/s profiles, support the fixed staged sequence above and the Timeslot
+backend, and accept an external reference-peer adapter without exposing private
+details in its public arguments or reports.
 
 Official documentation used for this audit:
 

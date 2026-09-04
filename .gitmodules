@@ -4,3 +4,6 @@
 [submodule "external/cherryusb"]
 	path = external/cherryusb
 	url = https://github.com/cherry-embedded/CherryUSB.git
+[submodule "external/sdk-nrfxlib"]
+	path = external/sdk-nrfxlib
+	url = https://github.com/nrfconnect/sdk-nrfxlib.git

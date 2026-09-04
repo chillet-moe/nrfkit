@@ -3,10 +3,10 @@
   "spdxVersion": "SPDX-2.3",
   "dataLicense": "CC0-1.0",
   "name": "nrfkit SBOM draft",
-  "documentNamespace": "https://spdx.org/spdxdocs/nrfkit-0.0.0-20260904",
+  "documentNamespace": "https://spdx.org/spdxdocs/nrfkit-0.0.0-20260905",
   "creationInfo": {
-    "created": "2026-09-04T00:00:00Z",
-    "creators": ["Tool: nrfkit M0 provenance audit"]
+    "created": "2026-09-05T00:00:00Z",
+    "creators": ["Tool: nrfkit provenance audit"]
   },
   "documentDescribes": ["SPDXRef-Package-nrfkit"],
   "packages": [
@@ -65,6 +65,17 @@
       "comment": "Audit evidence only; not imported in M0."
     },
     {
+      "SPDXID": "SPDXRef-Package-sdk-nrfxlib",
+      "name": "Nordic sdk-nrfxlib SoftDevice Controller and MPSL",
+      "versionInfo": "3.4.0",
+      "downloadLocation": "git+https://github.com/nrfconnect/sdk-nrfxlib.git@d4ce5fe1a7d8af29bc01a4e1ddf5540ef65b6a3b",
+      "filesAnalyzed": false,
+      "licenseConcluded": "LicenseRef-Nordic-5-Clause",
+      "licenseDeclared": "LicenseRef-Nordic-5-Clause",
+      "copyrightText": "Copyright (c) Nordic Semiconductor ASA",
+      "comment": "First-class immutable upstream submodule. The initial selection is the secure nrf54lm hard-float MPSL plus Multirole, Peripheral-only, and Central-only SDC archives from binary manifest revision c8da3098f9f034a44b6ebad30819cc0cea51da47."
+    },
+    {
       "SPDXID": "SPDXRef-Package-S115",
       "name": "Nordic S115 SoftDevice",
       "versionInfo": "10.0.1",
@@ -102,6 +113,12 @@
       "comment": "Build and vector-table comparison evidence"
     },
     {
+      "spdxElementId": "SPDXRef-Package-nrfkit",
+      "relationshipType": "DEPENDS_ON",
+      "relatedSpdxElement": "SPDXRef-Package-sdk-nrfxlib",
+      "comment": "Version-locked first-class MPSL and SoftDevice Controller submodule for the current wireless direction"
+    },
+    {
       "spdxElementId": "SPDXRef-Package-S115",
       "relationshipType": "OPTIONAL_COMPONENT_OF",
       "relatedSpdxElement": "SPDXRef-Package-nrfkit"
@@ -117,8 +134,12 @@
     {
       "licenseId": "LicenseRef-Nordic-5-Clause",
       "name": "Nordic Semiconductor 5-Clause License",
-      "extractedText": "Redistribution and use in source and binary forms, with or without modification, are permitted subject to the five conditions in the license distributed with S115 10.0.1. Those conditions require retention or reproduction of notices in applicable distributions, prohibit endorsement without permission, restrict use to Nordic Semiconductor integrated circuits, and prohibit reverse engineering, decompilation, modification, or disassembly of software supplied in binary form. The software is supplied as-is without warranties and with limitation of liability.",
-      "seeAlsos": ["https://github.com/nrfconnect/sdk-nrf-bm/blob/v2.0.1/components/softdevice/nrf54lm/s115/s115_10.0.1_license-agreement.txt"]
+      "extractedText": "Redistribution and use in source and binary forms, with or without modification, are permitted subject to the five conditions in the license distributed with the applicable Nordic component. Those conditions require retention or reproduction of notices in applicable distributions, prohibit endorsement without permission, restrict use to Nordic Semiconductor integrated circuits, and prohibit reverse engineering, decompilation, modification, or disassembly of software supplied in binary form. The software is supplied as-is without warranties and with limitation of liability.",
+      "seeAlsos": [
+        "https://github.com/nrfconnect/sdk-nrf-bm/blob/v2.0.1/components/softdevice/nrf54lm/s115/s115_10.0.1_license-agreement.txt",
+        "https://github.com/nrfconnect/sdk-nrfxlib/blob/v3.4.0/softdevice_controller/license.txt",
+        "https://github.com/nrfconnect/sdk-nrfxlib/blob/v3.4.0/mpsl/license.txt"
+      ]
     }
   ]
 }

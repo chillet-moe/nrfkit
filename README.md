@@ -4,9 +4,9 @@
 
 This project is not affiliated with or endorsed by Nordic Semiconductor. Nordic Semiconductor, nRF, and related marks belong to their respective owners.
 
-The project is in early bring-up. P0 through M3 now provide locked official reference builds, a guarded hardware workflow, an experimental nRF54LM20A freestanding runtime, real-board runtime/GDB validation, target-scoped nrfx drivers, DMA/IRQ tests, bounded RRAM scratch writes, and System ON sleep/retention validation. M4 USBHS device support is partially validated, and M5 LM20 proprietary RADIO interoperability is the current core task. BLE is a deferred optional research area and is not a current completion gate. This is not yet a consumer SDK release; see [`PLAN.md`](PLAN.md) for the normative scope and completion gates.
+The project is in early bring-up. P0 through M3 now provide locked official reference builds, a guarded hardware workflow, an experimental nRF54LM20A freestanding runtime, real-board runtime/GDB validation, target-scoped nrfx drivers, DMA/IRQ tests, bounded RRAM scratch writes, and System ON sleep/retention validation. M4 USBHS device support is partially validated. M5 established a direct-RADIO diagnostic baseline and reusable two-board tooling; it did not claim completed over-the-air interoperability. The current M6 task makes version-locked Nordic `sdk-nrfxlib` a first-class input and brings up SoftDevice Controller, Multirole first, on the minimum documented MPSL substrate. M7 then adds MPSL Timeslot proprietary radio with 4 Mbit/s as the primary PHY target. This is not yet a consumer SDK release; see [`PLAN.md`](PLAN.md) for the normative scope and completion gates.
 
-Clone with submodules initialized (`git clone --recurse-submodules`) before building. The complete nrfx and CherryUSB trees remain immutable, version-locked upstream submodules instead of ordinary project-owned source. NrfKit compiles only requested sources and prepares nrfx project patches in an ignored consumer cache; configure never downloads or edits an upstream tree.
+Clone with submodules initialized (`git clone --recurse-submodules`) before building. The complete nrfx, CherryUSB, and Nordic sdk-nrfxlib trees remain immutable, version-locked upstream submodules instead of ordinary project-owned source. NrfKit compiles or links only requested components and prepares nrfx project patches in an ignored consumer cache; configure never downloads or edits an upstream tree. An explicit `NRFKIT_NRFXLIB_ROOT` override may point at the exact same locked checkout after full identity/hash validation; normal builds never discover an installed NCS workspace.
 
 The M0 source decision, current target status, and contribution contract are documented in [`docs/provenance/source-audit.md`](docs/provenance/source-audit.md), [`docs/support-matrix.md`](docs/support-matrix.md), and [`CONTRIBUTING.md`](CONTRIBUTING.md). Exact upstream identities remain machine-independent in `sources.lock`; local source paths and hardware identities never belong in tracked files.
 
@@ -54,14 +54,14 @@ The experimental proprietary RADIO adapter is enabled independently:
 nrfkit_enable_radio(firmware)
 ```
 
-It provides cooperative RADIO ownership and an explicit Nordic 1 Mbit packet
-configuration. The single-board TIMER10/DPPIC10 transmission gate has passed. The
-current M5 work establishes repeatable bidirectional known-payload interoperability
-with an external reference peer, followed by CRC/whitening rejection, loss/retry,
-soak, receiver-wake, and maximum sustainable payload-rate gates. The final speed
-claim measures error-free goodput and latency at the highest PHY shared by both
-ends, not merely a configured PHY register. No complete airborne-link claim is made
-until those reports pass. See
+It provides cooperative RADIO ownership and explicit Nordic 1 and 2 Mbit packet
+configurations. The single-board TIMER10/DPPIC10 transmission gate has passed, and
+the two-board runner and LM20/L15 validation images build and pass host tests. They
+remain an exclusive-RADIO diagnostic baseline, not a coexistence mechanism or a
+completed airborne-link claim. M7 will reuse this packet and evidence machinery in
+MPSL Timeslots, adding 4 Mbit/s first-class LM20/L15 profiles and measuring
+error-free goodput, latency, loss, retries, queue bounds, stability, and power;
+2 and 1 Mbit/s remain compatibility and diagnostic baselines. See
 [`docs/provenance/radio.md`](docs/provenance/radio.md).
 
 The package-discovery skeleton is also usable for ordinary host consumers:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 import json
 from pathlib import Path
 import re
@@ -25,11 +26,12 @@ class ProvenanceTests(unittest.TestCase):
                 "nrfx-4.5.0", "cmsis-6.3.0", "nrf-device-family-pack-8.44.1",
                 "trusted-firmware-m-ncs-3.4.0", "s115-10.0.1",
                 "cherryusb-1.6.1", "nrf54lm20-datasheet-1.0",
-                "ncs-radio-test-3.4.0",
+                "ncs-radio-test-3.4.0", "sdk-nrfxlib-3.4.0",
             },
         )
         for source_id, source in lock["audited_sources"].items():
-            self.assertEqual(source["import_date"], "2026-09-04")
+            imported_on = date.fromisoformat(source["import_date"])
+            self.assertEqual(imported_on.isoformat(), source["import_date"])
             self.assertIsInstance(source["imported"], bool)
             if source_id == "nrfx-4.5.0":
                 self.assertEqual(
@@ -50,6 +52,19 @@ class ProvenanceTests(unittest.TestCase):
                 self.assertRegex(digest, SHA256)
                 if isinstance(file_value, dict):
                     self.assertTrue(file_value["license"])
+
+        nrfxlib = lock["audited_sources"]["sdk-nrfxlib-3.4.0"]
+        self.assertEqual(nrfxlib["target"], "nrf54lm")
+        self.assertEqual(nrfxlib["security_domain"], "secure")
+        self.assertEqual(nrfxlib["float_abi"], "hard-float")
+        self.assertRegex(nrfxlib["binary_manifest_revision"], r"^[0-9a-f]{40}$")
+        for archive in (
+            "softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_multirole.a",
+            "softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_peripheral.a",
+            "softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_central.a",
+            "mpsl/lib/nrf54lm/hard-float/libmpsl.a",
+        ):
+            self.assertIn(archive, nrfxlib["files"])
 
     def test_nrfx_submodule_and_patch_are_locked_and_immutable(self) -> None:
         lock = json.loads(
@@ -83,6 +98,48 @@ class ProvenanceTests(unittest.TestCase):
         )
         self.assertEqual(actual.returncode, 0, actual.stdout)
         self.assertEqual(actual.stdout.strip(), expected)
+
+    def test_sdk_nrfxlib_submodule_and_selected_files_are_locked(self) -> None:
+        import hashlib
+
+        lock = json.loads(
+            (ROOT / "docs/provenance/sources.lock").read_text(encoding="utf-8")
+        )
+        source = lock["audited_sources"]["sdk-nrfxlib-3.4.0"]
+        upstream = ROOT / "external/sdk-nrfxlib"
+        actual = subprocess.run(
+            ["git", "-C", str(upstream), "rev-parse", "HEAD"],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False,
+        )
+        self.assertEqual(actual.returncode, 0, actual.stdout)
+        self.assertEqual(actual.stdout.strip(), source["commit"])
+
+        configured_url = subprocess.run(
+            [
+                "git", "config", "--file", str(ROOT / ".gitmodules"), "--get",
+                "submodule.external/sdk-nrfxlib.url",
+            ],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False,
+        )
+        self.assertEqual(configured_url.returncode, 0, configured_url.stdout)
+        self.assertEqual(
+            configured_url.stdout.strip(),
+            "https://github.com/nrfconnect/sdk-nrfxlib.git",
+        )
+
+        for relative, metadata in source["files"].items():
+            path = upstream / relative
+            self.assertTrue(path.is_file(), relative)
+            expected = metadata["sha256"] if isinstance(metadata, dict) else metadata
+            self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), expected)
+
+        for component in ("softdevice_controller", "mpsl"):
+            manifest = (upstream / component / "lib/nrf54lm/manifest.yaml").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn(
+                f"git_revision: {source['binary_manifest_revision']}", manifest
+            )
 
     def test_vendor_import_manifest_covers_and_hashes_third_party_tree(self) -> None:
         lock = json.loads(
@@ -119,6 +176,7 @@ class ProvenanceTests(unittest.TestCase):
         self.assertIn("SPDXRef-Package-nrfx", package_ids)
         self.assertIn("SPDXRef-Package-CMSIS", package_ids)
         self.assertIn("SPDXRef-Package-S115", package_ids)
+        self.assertIn("SPDXRef-Package-sdk-nrfxlib", package_ids)
         self.assertIn("SPDXRef-Package-CherryUSB", package_ids)
         self.assertEqual(
             {item["licenseId"] for item in sbom["hasExtractedLicensingInfos"]},
