@@ -775,20 +775,25 @@ Zephyr 的 LM20 SoC/platform initialization、system clock/GRTC device initializ
 重新进入 S115 移植必须先取得能够区分这三组依赖的新非敏感证据，而不是继续刷写
 局部实验。
 
-完整官方基线之后允许增加一条 LM20-only、分阶段且可随时停止的底层路线。该路线
-以公开 Bluetooth 规范、LM20 RADIO/CCM/AAR 的文档与实板行为、官方 HAL/nrfx 为
-依据，不为未来器件预建抽象，固定顺序为：
+当前检查点不自行实现 BLE Link Layer、L2CAP、ATT、GATT、SMP、LESC 或 HOGP。
+一次受限的 LM20 RADIO 广播诊断曾用规范固定的 advertising access address、CRC、
+whitening 和三个 primary channel 发射非连接广播，并被同一 BlueZ D-Bus 扫描门禁
+识别；诊断代码未保留为产品实现。它证明 HFCLK、RADIO BLE 1M 发射和主机扫描路径
+可工作，并暴露了 LM20 `DATAWHITE` 初值必须包含固定 bit 6 的寄存器语义，但不能
+证明 SoftDevice 的接收、GRTC 调度或 IRQ 启动链正确。后续产品工作仍须从锁定官方
+`ble_hids_mouse` 的原始 `main.c`、完整 source list 和官方生成配置建立严格等价的
+纯 CMake 基线；应用 handler 不得重写，平台差异只能是逐项说明的最小 shim 或补丁。
+每次只引入并验证一个可追溯的平台初始化层，不得用现有自写 baseline 的失败替代
+严格等价结论。
+通用 `m6-ble-scan` 门禁保留，用于有硬超时地验证广播，并在所有退出路径停止由其
+启动的 discovery、删除或确认 BlueZ 已自行删除临时设备对象。
 
-1. 广播；
-2. 未加密单连接与 notification；
-3. Link Layer 控制过程、确认、重传和超时；
-4. 链路加密；
-5. 最小 L2CAP、ATT、GATT、SMP、LESC 与 HOGP；
-6. BlueZ 互操作、功耗和长时间 soak。
-
-每一阶段都必须有 LM20 实板及可靠空口证据，失败即可停止并保留最小复现。S115
-完整基线现已在上述平台依赖边界停止，下一项产品工作允许按本节固定顺序转入底层
-路线。两条路线都不能自行臆测寄存器或协议行为。
+严格等价基线必须先在同一硬件和主机上重跑官方 oracle，再运行完全相同的 BlueZ
+门禁。若通过，才从外围服务向内逐层裁剪；若仍失败，只提交一次可复现的最小失败，
+记录精确 source/config 哈希、首个行为分歧和不可剥离依赖，随后停止 S115 适配。
+只有完成这个检查点后，才允许按广播、明文单连接、Link Layer 控制过程、链路加密、
+L2CAP/ATT/GATT/SMP/LESC/HOGP、BlueZ/功耗/soak 的固定顺序进入 LM20-only 底层路线。
+每一阶段仍必须有 LM20 实板和可靠空口证据，且不得臆测寄存器或协议行为。
 只有项目固件再通过正常 BlueZ bonding、HID、持久化重连和连接 soak 后才可标记
 M6 完成。随后再运行 LM20+L15 的 M5 双板门禁。
 

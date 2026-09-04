@@ -52,6 +52,14 @@ BlueZ `Pairable=false` and privileged controller-bondable helpers are retired
 from the M6 route. They remain historical infrastructure evidence only and must
 not be retried or treated as a completion gate.
 
+`tools/nrfkit m6-ble-scan` is the bounded advertising-only host gate. It uses
+the BlueZ system D-Bus API, requires exactly one powered adapter, and accepts a
+result only after observing both the requested device name and RSSI. On every
+exit it stops discovery if it started discovery, removes the matching unpaired
+device object, or accepts BlueZ's `DoesNotExist` race only when a final object
+manager read independently confirms absence. It is a host validation tool, not
+a project-owned BLE stack.
+
 P2 and P3 instead use the L15 laboratory central in
 `tests/hardware/m6-s145-central`. It is built only by the explicit official
 reference workflow against the locked nRF-BM release and L15-specific S145; it

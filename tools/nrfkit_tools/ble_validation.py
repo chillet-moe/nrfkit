@@ -191,6 +191,121 @@ def _wait_until(
     raise BleValidationError(f"timed out waiting for {description}")
 
 
+def scan_ble_advertisement(*, device_name: str, timeout: float) -> dict[str, Any]:
+    if timeout <= 0:
+        raise BleValidationError("BLE scan timeout must be positive")
+    try:
+        import dbus
+    except ImportError as error:
+        raise BleValidationError("python3-dbus is required for BLE scanning") from error
+
+    bus = dbus.SystemBus()
+    manager = dbus.Interface(bus.get_object(BLUEZ, "/"), OBJECT_MANAGER)
+
+    def managed_objects() -> dict[Any, Any]:
+        return manager.GetManagedObjects(timeout=10)
+
+    objects = managed_objects()
+    adapters = [
+        (str(path), interfaces[ADAPTER])
+        for path, interfaces in objects.items()
+        if ADAPTER in interfaces and bool(interfaces[ADAPTER].get("Powered", False))
+    ]
+    if len(adapters) != 1:
+        raise BleValidationError(
+            f"expected exactly one powered Bluetooth adapter, found {len(adapters)}"
+        )
+    adapter_path, adapter_properties = adapters[0]
+    adapter = dbus.Interface(bus.get_object(BLUEZ, adapter_path), ADAPTER)
+
+    def matching_device() -> tuple[str, Any] | None:
+        for path, interfaces in managed_objects().items():
+            properties = interfaces.get(DEVICE)
+            if properties is None or str(properties.get("Adapter", "")) != adapter_path:
+                continue
+            names = {str(properties.get("Name", "")), str(properties.get("Alias", ""))}
+            if device_name in names and "RSSI" in properties:
+                return str(path), properties
+        return None
+
+    existing = matching_device()
+    if existing is not None:
+        if bool(existing[1].get("Paired", False)) or bool(existing[1].get("Bonded", False)):
+            raise BleValidationError("advertising scan target unexpectedly has host bond state")
+        adapter.RemoveDevice(dbus.ObjectPath(existing[0]), timeout=10)
+        _wait_until(lambda: matching_device() is None, timeout, "old scan target removal")
+
+    owned_discovery = not bool(adapter_properties.get("Discovering", False))
+    found: tuple[str, Any] | None = None
+    cleanup: dict[str, Any] = {
+        "stop_discovery_attempted": owned_discovery,
+        "remove_device_attempted": False,
+        "errors": [],
+    }
+    result: dict[str, Any] | None = None
+    failure: Exception | None = None
+    try:
+        if owned_discovery:
+            adapter.StartDiscovery(timeout=10)
+        found = _wait_until(matching_device, timeout, device_name)
+        result = {
+            "adapter": adapter_path.rsplit("/", 1)[-1],
+            "device_name": device_name,
+            "rssi_observed": True,
+            "address_type": str(found[1].get("AddressType", "")),
+            "cleanup": cleanup,
+        }
+    except Exception as error:
+        failure = error
+    finally:
+        if owned_discovery:
+            try:
+                adapter.StopDiscovery(timeout=10)
+            except dbus.DBusException as error:
+                cleanup["errors"].append(f"StopDiscovery: {error}")
+        try:
+            current = found or matching_device()
+        except dbus.DBusException as error:
+            cleanup["errors"].append(f"FindForRemoval: {error}")
+            current = None
+        if current is not None:
+            try:
+                cleanup["remove_device_attempted"] = True
+                adapter.RemoveDevice(dbus.ObjectPath(current[0]), timeout=10)
+                _wait_until(
+                    lambda: matching_device() is None,
+                    min(timeout, 10.0), "scan target removal",
+                )
+            except dbus.DBusException as error:
+                # BlueZ may discard an unpaired discovery object as soon as
+                # discovery stops.  DoesNotExist is successful cleanup if the
+                # subsequent object-manager read also confirms absence.
+                if error.get_dbus_name() == "org.bluez.Error.DoesNotExist":
+                    cleanup["remove_device_outcome"] = "already-absent"
+                else:
+                    cleanup["errors"].append(f"RemoveDevice: {error}")
+            except BleValidationError as error:
+                cleanup["errors"].append(f"RemoveDevice: {error}")
+        try:
+            cleanup["verified"] = matching_device() is None
+        except dbus.DBusException as error:
+            cleanup["errors"].append(f"VerifyRemoval: {error}")
+            cleanup["verified"] = False
+        if cleanup["errors"]:
+            cleanup["verified"] = False
+
+    if failure is not None:
+        details: dict[str, Any] = {
+            "failure_stage": "ble-advertisement",
+            "cleanup": cleanup,
+        }
+        if isinstance(failure, dbus.DBusException):
+            details["dbus_error"] = failure.get_dbus_name()
+        raise BleValidationError(str(failure), details=details) from failure
+    assert result is not None
+    return result
+
+
 def run_ble_validation(
     *, device_name: str, timeout: float, fresh_pairing: bool,
     hci_trace_log: Path | None = None, btmon: str = "btmon",

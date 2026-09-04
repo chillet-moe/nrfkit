@@ -24,10 +24,56 @@ from nrfkit_tools.ble_validation import (
     hci_monitor_argv,
     optional_hci_capture,
 )
-from nrfkit_tools.cli import command_m6_ble_gate
+from nrfkit_tools.cli import command_m6_ble_gate, command_m6_ble_scan
 
 
 class BleValidationTests(unittest.TestCase):
+    def test_scan_command_writes_cleanup_evidence(self) -> None:
+        with TemporaryDirectory() as directory:
+            run_dir = Path(directory)
+            report = {"schema": "nrfkit-run/v1", "status": "running"}
+            args = Namespace(device_name="nrfkit-m6-adv", timeout=5.0)
+            result = {
+                "device_name": args.device_name,
+                "rssi_observed": True,
+                "cleanup": {"verified": True},
+            }
+            with patch("nrfkit_tools.cli._new_run", return_value=(run_dir, report)), \
+                 patch("nrfkit_tools.cli.scan_ble_advertisement", return_value=result):
+                self.assertEqual(command_m6_ble_scan(args), 0)
+            written = json.loads((run_dir / "run.json").read_text())
+            self.assertEqual(written["status"], "ok")
+            self.assertTrue(written["stages"][0]["cleanup"]["verified"])
+
+    def test_scan_cleanup_accepts_bluez_already_absent_race(self) -> None:
+        source = (
+            Path(__file__).resolve().parents[2]
+            / "tools/nrfkit_tools/ble_validation.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"org.bluez.Error.DoesNotExist"', source)
+        self.assertIn('"already-absent"', source)
+
+    def test_scan_command_preserves_failure_cleanup_evidence(self) -> None:
+        with TemporaryDirectory() as directory:
+            run_dir = Path(directory)
+            report = {"schema": "nrfkit-run/v1", "status": "running"}
+            args = Namespace(device_name="nrfkit-m6-adv", timeout=5.0)
+            error = BleValidationError(
+                "scan timed out",
+                details={
+                    "failure_stage": "ble-advertisement",
+                    "cleanup": {"verified": True},
+                },
+            )
+            with patch("nrfkit_tools.cli._new_run", return_value=(run_dir, report)), \
+                 patch("nrfkit_tools.cli.scan_ble_advertisement", side_effect=error), \
+                 self.assertRaises(BleValidationError):
+                command_m6_ble_scan(args)
+            written = json.loads((run_dir / "run.json").read_text())
+            self.assertEqual(written["status"], "failed")
+            self.assertEqual(written["stages"][0]["name"], "ble-advertisement")
+            self.assertTrue(written["stages"][0]["cleanup"]["verified"])
+
     def test_validation_error_keeps_structured_failure_details(self) -> None:
         error = BleValidationError(
             "pairing failed", details={"dbus_error": "org.bluez.Error.Failed"}

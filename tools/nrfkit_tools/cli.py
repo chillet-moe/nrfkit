@@ -36,6 +36,7 @@ from .bond import (
 )
 from .ble_validation import (
     BleValidationError, bluetooth_info_argv, run_ble_validation,
+    scan_ble_advertisement,
 )
 from .image import ImageContractError, parse_elf, parse_ihex, require_allowed
 from .process import atomic_json, run_logged
@@ -695,6 +696,40 @@ def command_m6_ble_gate(args: argparse.Namespace) -> int:
         if isinstance(error, BleValidationError) and error.details:
             details = dict(error.details)
             failure_stage = details.pop("failure_stage", "ble-pairing")
+            report["stages"].append({
+                "name": failure_stage,
+                "status": "failed",
+                **details,
+            })
+        report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
+        atomic_json(run_dir / "run.json", report)
+        raise
+    atomic_json(run_dir / "run.json", report)
+    print(run_dir / "run.json")
+    return 0
+
+
+def command_m6_ble_scan(args: argparse.Namespace) -> int:
+    run_dir, report = _new_run("m6-ble-scan")
+    report["stages"] = []
+    try:
+        result = scan_ble_advertisement(
+            device_name=args.device_name, timeout=args.timeout,
+        )
+        if not result["cleanup"]["verified"]:
+            raise BleValidationError(
+                "BLE scan cleanup could not be verified",
+                details={
+                    "failure_stage": "ble-advertisement",
+                    "cleanup": result["cleanup"],
+                },
+            )
+        _stage(run_dir, report, "ble-advertisement", **result)
+        report.update({"status": "ok", "ble": result})
+    except BaseException as error:
+        if isinstance(error, BleValidationError) and error.details:
+            details = dict(error.details)
+            failure_stage = details.pop("failure_stage", "ble-advertisement")
             report["stages"].append({
                 "name": failure_stage,
                 "status": "failed",
@@ -1705,6 +1740,10 @@ def main(argv: list[str] | None = None) -> int:
         default="oracle",
     )
     m6_ble.set_defaults(handler=command_m6_ble_gate)
+    m6_scan = subparsers.add_parser("m6-ble-scan")
+    m6_scan.add_argument("--device-name", default="nrfkit-m6-adv")
+    m6_scan.add_argument("--timeout", type=float, default=30.0)
+    m6_scan.set_defaults(handler=command_m6_ble_scan)
     m6_host = subparsers.add_parser("m6-host-info")
     m6_host.add_argument("--index", type=int, default=0)
     m6_host.add_argument("--timeout", type=float, default=5.0)

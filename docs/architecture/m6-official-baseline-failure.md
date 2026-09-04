@@ -1,6 +1,9 @@
-# M6 official-source pure CMake baseline: stopped failure
+# M6 pre-equivalence pure CMake baseline: stopped failure
 
-This note records the reproducible stopping point for the LM20 S115 integration.
+This note records the reproducible stopping point for the first LM20 S115
+integration attempt. It is not a strict reconstruction of the official
+`ble_hids_mouse` application and therefore is not evidence that the S115 ABI
+cannot run outside the official build system.
 It contains no probe identity, host path, raw log, private key, DHKey, or other
 sensitive pairing intermediate.
 
@@ -77,3 +80,21 @@ is the cause. Importing any of them as an unexplained runtime dependency would
 violate the consumer contract. Resume this branch only when a non-sensitive,
 single-variable test can distinguish those groups; do not continue with
 scattered GDB probes or simultaneous BLE-layer changes.
+
+## Bounded RADIO diagnostic
+
+A temporary advertising-only LM20 diagnostic subsequently transmitted a
+standards-shaped nonconnectable packet on all three primary advertising
+channels. The same bounded BlueZ D-Bus scanner observed its name, RSSI, and
+random address type, then stopped discovery and verified removal of the
+temporary device object. The diagnostic initially traversed READY, END,
+PHYEND, and DISABLED without being received because its whitening initializer
+omitted the fixed bit 6 required by the LM20 `DATAWHITE` layout. Matching the
+datasheet and official nRF54L controller write fixed reception.
+
+This proves the board's HF clock, RADIO BLE 1 Mbit transmit path, and host scan
+path independently of S115. It does not exercise SoftDevice receive events,
+GRTC scheduling, or its IRQ bootstrap, so those remain inside the boundary
+above. The temporary transmitter is intentionally not retained: the project
+route continues with thin, versioned official-source adaptation and does not
+implement its own BLE protocol stack.
