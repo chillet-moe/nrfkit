@@ -210,11 +210,18 @@ int main(void)
     uint32_t invalid = 0U;
     uint32_t attempts = 0U;
     uint32_t idle_attempts = 0U;
-    while (received < PACKET_COUNT && attempts++ < PACKET_COUNT * 4U) {
+    while (received < PACKET_COUNT && attempts++ <
+#if defined(CONFIG_NRFKIT_M7_PEER_COEX_RX) && CONFIG_NRFKIT_M7_PEER_COEX_RX
+           100000U) {
+#else
+           PACKET_COUNT * 4U) {
+#endif
         if (!transfer(NRF_RADIO_TASK_RXEN)) {
+#if !defined(CONFIG_NRFKIT_M7_PEER_COEX_RX) || !CONFIG_NRFKIT_M7_PEER_COEX_RX
             if (received != 0U && ++idle_attempts >= IDLE_ATTEMPT_LIMIT) {
                 break;
             }
+#endif
             continue;
         }
         idle_attempts = 0U;
@@ -242,7 +249,21 @@ int main(void)
         }
         expected = sequence + 1U;
         ++received;
+#if defined(CONFIG_NRFKIT_M7_PEER_COEX_RX) && CONFIG_NRFKIT_M7_PEER_COEX_RX
+        if (sequence >= 15U) {
+            break;
+        }
+#endif
     }
+#if defined(CONFIG_NRFKIT_M7_PEER_COEX_RX) && CONFIG_NRFKIT_M7_PEER_COEX_RX
+    if (expected < 16U || invalid != 0U) {
+        printk("NRFKIT_M7_PEER_COEX FAIL rx=%u last=%u invalid=%u\n",
+               received, expected == 0U ? 0U : expected - 1U, invalid);
+        return 1;
+    }
+    printk("NRFKIT_M7_PEER_COEX PASS received=%u lost=%u last=%u invalid=0\n",
+           received, lost, expected - 1U);
+#else
     if (received < 10U || invalid != 0U) {
         printk("NRFKIT_M5_PEER FAIL rx=%u invalid=%u\n", received, invalid);
         return 1;
@@ -251,6 +272,7 @@ int main(void)
     printk("NRFKIT_M7_PEER_RX PASS received=%u lost=%u invalid=0\n", received, lost);
 #else
     printk("NRFKIT_M5_PEER_RX PASS received=%u lost=%u invalid=0\n", received, lost);
+#endif
 #endif
 #else
 #error "Select exactly one peer role"

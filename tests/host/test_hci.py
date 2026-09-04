@@ -104,13 +104,14 @@ class HciTests(unittest.TestCase):
                         0x02, 0x00, 0x00, 0x01,
                         0x00, 0x00, 0x00, 0x00,
                         0x01,
-                    )),
+                    )) + bytes(8),
                     0xFC01: b"".join(value.to_bytes(4, "little") for value in (
                         4 + 8 * sum(1 for opcode, unused in self.commands if opcode == 0xFC02),
                         4, 0, 0, 1, 1, 0,
                         4 + 8 * sum(1 for opcode, unused in self.commands if opcode == 0xFC02),
                     )),
                     0xFC02: b"",
+                    0xFC03: b"",
                 }.get(opcode, b"")
 
             def command_status(

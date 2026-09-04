@@ -1064,6 +1064,127 @@ def command_m5_radio_dual(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_m7_coexistence(args: argparse.Namespace) -> int:
+    if args.timeslot_probe == args.peer_probe:
+        raise ToolError("M7 coexistence validation requires two distinct probes")
+    timeslot_manifest = load_manifest(args.timeslot_manifest)
+    peer_manifest = load_manifest(args.peer_manifest)
+    if timeslot_manifest.get("hci_transport") != {
+        "type": "H4", "baud": 1000000, "hardware_flow_control": True,
+    } or not timeslot_manifest.get("build_evidence", {}).get("timeslot"):
+        raise ToolError("M7 coexistence requires an HCI Timeslot manifest")
+    if peer_manifest["expected_token"] != "NRFKIT_M7_PEER_COEX PASS":
+        raise ToolError("M7 coexistence requires the sequence-gated peer receiver")
+    if args.rounds < 1 or args.rounds > 20:
+        raise ToolError("M7 coexistence rounds must be between 1 and 20")
+
+    run_dir, report = _new_run("m7-coexistence")
+    report.update({"status": "running", "stages": [], "child_reports": []})
+    atomic_json(run_dir / "run.json", report)
+    receiver: subprocess.Popen[str] | None = None
+    receiver_stream = None
+    ready_file: Path | None = None
+    try:
+        public_cli = str(project_root() / "tools/nrfkit")
+        for round_number in range(1, args.rounds + 1):
+            receiver_log = run_dir / f"round-{round_number:03d}-peer.log"
+            ready_file = run_dir / f"round-{round_number:03d}-peer-ready.json"
+            receiver_stream = receiver_log.open("w", encoding="utf-8")
+            receiver = subprocess.Popen([
+                public_cli, "run", "--manifest", str(args.peer_manifest.resolve()),
+                "--probe-serial", args.peer_probe, "--ready-file", str(ready_file),
+                "--nrfutil", args.nrfutil, "--timeout", str(args.timeout),
+                "--token-timeout", str(args.gate_timeout),
+            ], text=True, stdout=receiver_stream, stderr=subprocess.STDOUT,
+                start_new_session=True)
+            ready_deadline = time.monotonic() + args.gate_timeout
+            while not ready_file.is_file():
+                if receiver.poll() is not None:
+                    raise ToolError(
+                        f"M7 coexistence peer exited before ready in round {round_number}"
+                    )
+                if time.monotonic() >= ready_deadline:
+                    raise ToolError(
+                        f"M7 coexistence peer ready timeout in round {round_number}"
+                    )
+                time.sleep(0.05)
+            _stage(run_dir, report, "peer-ready", round=round_number)
+
+            oracle_report = _run_p0_child([
+                public_cli, "m6-sdc-oracle",
+                "--manifest", str(args.timeslot_manifest.resolve()),
+                "--probe-serial", args.timeslot_probe,
+                "--nrfutil", args.nrfutil, "--timeout", str(args.timeout),
+                "--device-name", args.device_name,
+                "--hci-timeout", str(args.hci_timeout),
+                "--advertising-timeout", str(args.advertising_timeout),
+                "--scan-timeout", str(args.scan_timeout),
+                "--scan-peer-name", args.scan_peer_name,
+                "--bluetoothctl", args.bluetoothctl,
+            ], run_dir / f"round-{round_number:03d}-oracle.log", args.gate_timeout)
+
+            receiver.wait(timeout=args.gate_timeout)
+            receiver_stream.close()
+            receiver_stream = None
+            if receiver.returncode:
+                raise ToolError(
+                    f"M7 coexistence peer failed in round {round_number}; "
+                    f"see {receiver_log.name}"
+                )
+            lines = [line for line in receiver_log.read_text(encoding="utf-8").splitlines()
+                     if line.strip()]
+            if len(lines) != 1 or not Path(lines[0]).is_file():
+                raise ToolError("M7 coexistence peer did not return one run report")
+            peer_report = str(Path(lines[0]).resolve())
+            peer_transcript = Path(peer_report).with_name("serial.log").read_text(
+                encoding="utf-8", errors="replace"
+            )
+            match = re.search(r"\blast=(\d+)\b", peer_transcript)
+            if match is None or int(match.group(1)) < 15:
+                raise ToolError("peer did not receive the active-connection burst")
+
+            oracle_data = json.loads(Path(oracle_report).read_text(encoding="utf-8"))
+            active = next(
+                (stage for stage in oracle_data.get("stages", [])
+                 if stage.get("name") == "timeslot-active-connection"),
+                None,
+            )
+            if active is None or active.get("status") != "ok" or \
+                    active.get("private_packets", 0) < 16:
+                raise ToolError("oracle did not preserve the connected Timeslot burst")
+            report["child_reports"].extend((peer_report, oracle_report))
+            _stage(
+                run_dir, report, "connected-ble-private-air-link",
+                round=round_number, last_sequence=int(match.group(1)),
+                private_packets=active["private_packets"],
+                peer_report=peer_report, oracle_report=oracle_report,
+            )
+            receiver = None
+            ready_file.unlink(missing_ok=True)
+        report["status"] = "ok"
+    except BaseException as error:
+        report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
+        raise
+    finally:
+        if receiver is not None and receiver.poll() is None:
+            os.killpg(receiver.pid, signal.SIGTERM)
+            try:
+                receiver.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                os.killpg(receiver.pid, signal.SIGKILL)
+                receiver.wait()
+        if receiver_stream is not None:
+            receiver_stream.close()
+        if ready_file is not None:
+            ready_file.unlink(missing_ok=True)
+        report["cleanup"] = {
+            "peer_running": receiver is not None and receiver.poll() is None,
+        }
+        atomic_json(run_dir / "run.json", report)
+    print(run_dir / "run.json")
+    return 0
+
+
 def _serial_port(device: dict[str, Any], vcom: int) -> Path:
     matches = [item for item in device.get("serialPorts", []) if item.get("vcom") == vcom]
     if len(matches) != 1:
@@ -1227,7 +1348,7 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
 
             def read_diagnostics() -> dict[str, int | bool]:
                 diagnostics = session.command(0xFC00, timeout=args.hci_timeout)
-                if len(diagnostics) != 17 or diagnostics[8] != 2:
+                if len(diagnostics) != 25 or diagnostics[8] != 2:
                     raise ToolError("Controller returned malformed lifecycle diagnostics")
                 return {
                     "required_memory": int.from_bytes(diagnostics[:4], "little"),
@@ -1242,6 +1363,8 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                         diagnostics[12:16], "little", signed=True,
                     ),
                     "memory_canaries_intact": bool(diagnostics[16]),
+                    "fault_source": int.from_bytes(diagnostics[17:21], "little"),
+                    "fault_line": int.from_bytes(diagnostics[21:25], "little"),
                 }
 
             timeslot_enabled = manifest["build_evidence"].get("timeslot") is True
@@ -1298,7 +1421,11 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                 diagnostics["fault_recorded"] or diagnostics["uart_fault"]
                 or not diagnostics["memory_canaries_intact"]
             ):
-                raise ToolError("Controller diagnostics reported a platform fault")
+                if diagnostics["fault_recorded"]:
+                    session.command(0xFC03, timeout=args.hci_timeout)
+                raise ToolError(
+                    f"Controller diagnostics reported a platform fault: {diagnostics}"
+                )
             _stage(
                 run_dir, report, "sdc-lifecycle-memory-stack", **diagnostics,
             )
@@ -2218,6 +2345,7 @@ def main(argv: list[str] | None = None) -> int:
             "p2", "p3", "bonding", "hid", "product", "reconnect",
             "bluez-kdist", "tx", "rx", "tx-1m", "rx-1m",
             "tx-4m-bt-0-6", "rx-4m-bt-0-6",
+            "rx-timeslot-coexistence",
             "tx-timeslot-4m-bt-0-6",
             "tx-timeslot-4m-bad-crc", "tx-timeslot-4m-bad-whitening",
             "retry-server-4m",
@@ -2334,6 +2462,26 @@ def main(argv: list[str] | None = None) -> int:
     m7_dual.add_argument("--retry-contract", action="store_true")
     m7_dual.add_argument("--performance-rate", type=int, choices=(1, 2, 4))
     m7_dual.set_defaults(handler=command_m5_radio_dual, milestone="M7")
+    m7_coexistence = subparsers.add_parser("m7-coexistence")
+    m7_coexistence.add_argument("--timeslot-manifest", type=Path, required=True)
+    m7_coexistence.add_argument("--peer-manifest", type=Path, required=True)
+    m7_coexistence.add_argument("--timeslot-probe", required=True)
+    m7_coexistence.add_argument("--peer-probe", required=True)
+    m7_coexistence.add_argument(
+        "--nrfutil", default=shutil.which("nrfutil") or "nrfutil"
+    )
+    m7_coexistence.add_argument("--timeout", type=float, default=90)
+    m7_coexistence.add_argument("--gate-timeout", type=float, default=180)
+    m7_coexistence.add_argument("--rounds", type=int, default=3)
+    m7_coexistence.add_argument("--device-name", default="nrfkit-sdc-oracle")
+    m7_coexistence.add_argument("--hci-timeout", type=float, default=10.0)
+    m7_coexistence.add_argument("--advertising-timeout", type=float, default=30.0)
+    m7_coexistence.add_argument("--scan-timeout", type=float, default=10.0)
+    m7_coexistence.add_argument("--scan-peer-name", default="nrfkit-host-peer")
+    m7_coexistence.add_argument(
+        "--bluetoothctl", default=shutil.which("bluetoothctl") or "bluetoothctl"
+    )
+    m7_coexistence.set_defaults(handler=command_m7_coexistence)
     m6_ble = subparsers.add_parser("m6-ble-gate")
     m6_ble.add_argument("--device-name", default="nrfkit-m6")
     m6_ble.add_argument("--timeout", type=float, default=60.0)

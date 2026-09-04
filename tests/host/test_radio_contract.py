@@ -87,6 +87,22 @@ class RadioContractTests(unittest.TestCase):
         self.assertTrue((
             ROOT / "tests/hardware/m5-radio-peer/configs/tx-timeslot-4m-bt-0-6.conf"
         ).is_file())
+        coex = (
+            ROOT / "tests/hardware/m5-radio-peer/configs/rx-timeslot-coexistence.conf"
+        )
+        self.assertTrue(coex.is_file())
+        self.assertIn("CONFIG_NRFKIT_M7_PEER_COEX_RX=y", coex.read_text())
+        self.assertIn("sequence >= 15U", peer)
+
+    def test_coexistence_gate_requires_connected_airborne_packet(self) -> None:
+        cli = (ROOT / "tools/nrfkit_tools/cli.py").read_text(encoding="utf-8")
+        for token in (
+            'subparsers.add_parser("m7-coexistence")',
+            '"timeslot-active-connection"',
+            'active.get("private_packets", 0) < 16',
+            're.search(r"\\blast=(\\d+)\\b", peer_transcript)',
+        ):
+            self.assertIn(token, cli)
 
     def test_timeslot_backend_enforces_grant_and_deadline_contract(self) -> None:
         header = (ROOT / "include/nrfkit/timeslot.h").read_text(encoding="utf-8")

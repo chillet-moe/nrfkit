@@ -525,6 +525,10 @@
           "extra_conf": "tests/hardware/m5-radio-peer/configs/rx-4m-bt-0-6.conf",
           "expected_token": "NRFKIT_M7_PEER_RX PASS"
         },
+        "rx-timeslot-coexistence": {
+          "extra_conf": "tests/hardware/m5-radio-peer/configs/rx-timeslot-coexistence.conf",
+          "expected_token": "NRFKIT_M7_PEER_COEX PASS"
+        },
         "tx-timeslot-4m-bt-0-6": {
           "extra_conf": "tests/hardware/m5-radio-peer/configs/tx-timeslot-4m-bt-0-6.conf",
           "expected_token": "NRFKIT_M7_PEER_TX PASS"
@@ -561,7 +565,7 @@
       },
       "project_files": {
         "tests/hardware/m5-radio-peer/CMakeLists.txt": "42c39479658f4be7695e7e93bbd34f1fa70ad902962ac581082c7851e18ba359",
-        "tests/hardware/m5-radio-peer/Kconfig": "b81683daac46571388aaee73c58c45dfde70198ed0d8b9917b7eadd31795c09e",
+        "tests/hardware/m5-radio-peer/Kconfig": "27ccb5519a64ec6c68ea3a2839bb41e182e7cf0e46f417bd7740e59340c6c6db",
         "tests/hardware/m5-radio-peer/prj.conf": "5a64f7a7c9bbb5f816fd09b70942fad67dc604d99ddabcb9f78a7674fedf2377",
         "tests/hardware/m5-radio-peer/configs/tx.conf": "afc6f26a88dc625ff41e4967434f0ea16043e7a9daf2b3f988aad095fcef5dba",
         "tests/hardware/m5-radio-peer/configs/rx.conf": "b9df538bbd0939cd609aa26a3399aca4b3d4629e2fec1f8aa4f2fbd15f34008c",
@@ -572,10 +576,11 @@
         "tests/hardware/m5-radio-peer/configs/tx-timeslot-4m-bad-crc.conf": "6d2b079f24cabc62248219710cb5edcf2ebe2beb576d0b0b871f28e88c96e187",
         "tests/hardware/m5-radio-peer/configs/tx-timeslot-4m-bad-whitening.conf": "e0b8cff40255b0191f3b7646e147cd4af9f5df8b1e190f4542b084ca101e37db",
         "tests/hardware/m5-radio-peer/configs/rx-4m-bt-0-6.conf": "a02852468ccf69108efde9b19339d91a347e2c4ecce0f23c83da547c6550f1a8",
+        "tests/hardware/m5-radio-peer/configs/rx-timeslot-coexistence.conf": "a29b39fdb0482118576f982e662460f5776e80b99e4a936d4fabbec9e4675d39",
         "tests/hardware/m5-radio-peer/configs/tx-4m-bt-0-4.conf": "9b16dc9101d89970806a787251e3ec11c6de767f826f2910ca792af4a92e0efe",
         "tests/hardware/m5-radio-peer/configs/rx-4m-bt-0-4.conf": "28cf03d97c2720a2eac820e043b44243afacd6f7722a3e29ff6ab1838356846f",
         "tests/hardware/m5-radio-peer/configs/retry-server-4m.conf": "9e3fe085a90894740b1cbcafa778ee009a58750b0c44704fa1b9dd2091a54bc7",
-        "tests/hardware/m5-radio-peer/src/main.c": "4a43fed346db9e2bf22aa65f215bd6440a7837b53b86d487ccf1d6b2d21dd723"
+        "tests/hardware/m5-radio-peer/src/main.c": "2b00f72cf11da725b573c6ffc897021e1bdab5bbf90920f262ab02db7b449855"
       },
       "license": "BSD-3-Clause",
       "imported": false,

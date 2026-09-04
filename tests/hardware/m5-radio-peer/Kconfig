@@ -24,6 +24,11 @@ config NRFKIT_M7_PEER_PHY_4M
 	bool "Use a 4 Mbit primary PHY"
 	default n
 
+config NRFKIT_M7_PEER_COEX_RX
+	bool "Wait for the active-connection coexistence burst"
+	depends on NRFKIT_M5_PEER_RX && NRFKIT_M7_PEER_PHY_4M
+	default n
+
 config NRFKIT_M7_PEER_4M_BT_0_4
 	bool "Use the BT=0.4 4 Mbit mode instead of BT=0.6"
 	depends on NRFKIT_M7_PEER_PHY_4M

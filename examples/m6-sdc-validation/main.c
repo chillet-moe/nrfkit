@@ -58,6 +58,7 @@ static volatile uint8_t timeslot_extension_enabled;
 static volatile uint8_t timeslot_extension_requested;
 static volatile uint8_t timeslot_burst_remaining;
 static volatile uint8_t timeslot_retry_budget;
+static volatile uint8_t timeslot_radio_enabled;
 static volatile uint32_t timeslot_private_packets;
 static uint8_t timeslot_packet[17] __attribute__((aligned(4)));
 
@@ -70,41 +71,43 @@ static struct nrfkit_timeslot_action timeslot_handler(
     };
     if (signal == NRFKIT_TIMESLOT_SIGNAL_START) {
         ++timeslot_grants;
-        uint32_t const sequence = timeslot_private_packets;
-        struct nrfkit_radio_packet_config const config = {
-            .phy = NRFKIT_RADIO_PHY_4MBIT,
-            .mode_4mbit = NRFKIT_RADIO_4MBIT_BT_0_6,
-            .channel = 16U,
-            .maximum_payload = 16U,
-            .whitening_iv = 0x53U,
-            .whitening_polynomial = 0x89U,
-            .access_address = UINT32_C(0x71764567),
-            .crc_initial = UINT32_C(0x555555),
-            .crc_polynomial = UINT32_C(0x00065B),
-        };
-        timeslot_packet[0] = 16U;
-        timeslot_packet[1] = (uint8_t)sequence;
-        timeslot_packet[2] = (uint8_t)(sequence >> 8U);
-        for (size_t index = 3U; index < sizeof(timeslot_packet); ++index) {
-            timeslot_packet[index] = (uint8_t)(sequence + index);
-        }
-        if (nrfkit_radio_configure_packet(
-                NRFKIT_RADIO_OWNER_TIMESLOT, &config) != NRFKIT_RADIO_OK) {
-            action.kind = NRFKIT_TIMESLOT_ACTION_END;
-            return action;
-        }
-        nrf_radio_packetptr_set(NRF_RADIO, timeslot_packet);
-        nrf_radio_shorts_set(NRF_RADIO,
-            NRF_RADIO_SHORT_READY_START_MASK |
-            NRF_RADIO_SHORT_PHYEND_DISABLE_MASK);
-        nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_END);
-        nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_TXEN);
-        while (!nrf_radio_event_check(NRF_RADIO, NRF_RADIO_EVENT_END) &&
-               !nrfkit_timeslot_deadline_pending()) {
-            __NOP();
-        }
-        if (nrf_radio_event_check(NRF_RADIO, NRF_RADIO_EVENT_END)) {
-            ++timeslot_private_packets;
+        if (timeslot_radio_enabled != 0U) {
+            uint32_t const sequence = timeslot_private_packets;
+            struct nrfkit_radio_packet_config const config = {
+                .phy = NRFKIT_RADIO_PHY_4MBIT,
+                .mode_4mbit = NRFKIT_RADIO_4MBIT_BT_0_6,
+                .channel = 16U,
+                .maximum_payload = 16U,
+                .whitening_iv = 0x53U,
+                .whitening_polynomial = 0x89U,
+                .access_address = UINT32_C(0x71764567),
+                .crc_initial = UINT32_C(0x555555),
+                .crc_polynomial = UINT32_C(0x00065B),
+            };
+            timeslot_packet[0] = 16U;
+            timeslot_packet[1] = (uint8_t)sequence;
+            timeslot_packet[2] = (uint8_t)(sequence >> 8U);
+            for (size_t index = 3U; index < sizeof(timeslot_packet); ++index) {
+                timeslot_packet[index] = (uint8_t)(sequence + index);
+            }
+            if (nrfkit_radio_configure_packet(NRFKIT_RADIO_OWNER_TIMESLOT,
+                                              &config) != NRFKIT_RADIO_OK) {
+                action.kind = NRFKIT_TIMESLOT_ACTION_END;
+                return action;
+            }
+            nrf_radio_packetptr_set(NRF_RADIO, timeslot_packet);
+            nrf_radio_shorts_set(NRF_RADIO,
+                                 NRF_RADIO_SHORT_READY_START_MASK |
+                                     NRF_RADIO_SHORT_PHYEND_DISABLE_MASK);
+            nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_END);
+            nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_TXEN);
+            while (!nrf_radio_event_check(NRF_RADIO, NRF_RADIO_EVENT_END) &&
+                   !nrfkit_timeslot_deadline_pending()) {
+                __NOP();
+            }
+            if (nrf_radio_event_check(NRF_RADIO, NRF_RADIO_EVENT_END)) {
+                ++timeslot_private_packets;
+            }
         }
     } else if (signal == NRFKIT_TIMESLOT_SIGNAL_TIMER) {
         ++timeslot_deadlines;
@@ -128,8 +131,10 @@ static struct nrfkit_timeslot_action timeslot_handler(
         ++timeslot_extend_failed;
     } else if (signal == NRFKIT_TIMESLOT_SIGNAL_BLOCKED) {
         ++timeslot_blocked;
+        timeslot_idle = 1U;
     } else if (signal == NRFKIT_TIMESLOT_SIGNAL_CANCELLED) {
         ++timeslot_cancelled;
+        timeslot_idle = 1U;
     } else if (signal == NRFKIT_TIMESLOT_SIGNAL_IDLE) {
         timeslot_idle = 1U;
     } else if (signal == NRFKIT_TIMESLOT_SIGNAL_CLOSED) {
@@ -348,7 +353,7 @@ int main(void)
                 command[2] == 0U) {
                 output[1] = 0x0EU;
                 uint32_t const stack_used = stack_watermark_used();
-                output[2] = 21U;
+                output[2] = 29U;
                 output[3] = 1U;
                 output[4] = command[0];
                 output[5] = command[1];
@@ -372,7 +377,13 @@ int main(void)
                 output[22] = (uint8_t)((uint32_t)acl_put_result >> 24U);
                 output[23] = controller_region.before == CONTROLLER_CANARY &&
                     controller_region.after == CONTROLLER_CANARY ? 1U : 0U;
-                event_size = 23U;
+                uint32_t const fault_source = nrfkit_sdc_last_fault.source;
+                uint32_t const fault_line = nrfkit_sdc_last_fault.line;
+                for (size_t byte = 0U; byte < 4U; ++byte) {
+                    output[24U + byte] = (uint8_t)(fault_source >> (byte * 8U));
+                    output[28U + byte] = (uint8_t)(fault_line >> (byte * 8U));
+                }
+                event_size = 31U;
 #if defined(NRFKIT_M7_TIMESLOT)
             } else if (command[0] == 0x01U && command[1] == 0xFCU &&
                        command[2] == 0U) {
@@ -407,11 +418,24 @@ int main(void)
                 output[6] = timeslot_idle != 0U ? 0U : 0x0CU;
                 event_size = 6U;
                 if (timeslot_idle != 0U) {
+                    timeslot_radio_enabled = 1U;
                     timeslot_burst_remaining = 8U;
                     timeslot_retry_budget = 16U;
                     timeslot_request();
                 }
 #endif
+            } else if (command[0] == 0x03U && command[1] == 0xFCU &&
+                       command[2] == 0U) {
+                output[1] = 0x0EU;
+                output[2] = 4U;
+                output[3] = 1U;
+                output[4] = command[0];
+                output[5] = command[1];
+                output[6] = 0U;
+                event_size = 6U;
+                nrfkit_sdc_last_fault.magic = 0U;
+                nrfkit_sdc_last_fault.source = 0U;
+                nrfkit_sdc_last_fault.line = 0U;
             } else if (nrfkit_sdc_hci_command(
                            command, packet_size - 1U, &output[1],
                            sizeof(output) - 1U, &event_size) != 0) {
