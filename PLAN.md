@@ -688,6 +688,16 @@ Linux runtime-PM suspend/resume/remote-wakeup 门禁需要操作系统 root 写 
 - 有第二个兼容设备时，双板 soak、丢包和唤醒测试通过；
 - 在没有双板证据前，README 不宣称完整 proprietary link 已验证。
 
+M5 的单板退出门禁已在现有 LM20 DK 上通过：TIMER10 经 DPPIC10 定时触发
+RADIO TXEN，1 Mbit、地址、白化和三字节 CRC 配置完成寄存器回读，固件在
+READY/END/PHYEND/DISABLED 状态链结束后由中断唤醒并输出精确 PASS token。
+公开的 cooperative ownership API 已验证 proprietary 与 BLE owner 互斥，并且
+只有同一 owner 在 RADIO 为 DISABLED 时才能释放。双板 TX/RX 镜像和并行受保护
+harness 已提供，但本机输入清单只有一块兼容板，因此未运行空口接收、CRC/白化
+互操作、丢包、soak 或接收唤醒测试，README 也不作这些宣称。可选 CCM 因当前
+里程碑不依赖加密且需要先按实际芯片 revision 选择 errata，留到具备双板证据或
+M6 组合验证时启用。
+
 ### M6：S115 BLE peripheral
 
 交付：

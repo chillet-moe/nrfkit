@@ -22,6 +22,7 @@ install(DIRECTORY
   boards
   linker
   patches
+  radio
   runtime
   third_party
   usb

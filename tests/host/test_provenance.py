@@ -24,7 +24,8 @@ class ProvenanceTests(unittest.TestCase):
             {
                 "nrfx-4.5.0", "cmsis-6.3.0", "nrf-device-family-pack-8.44.1",
                 "trusted-firmware-m-ncs-3.4.0", "s115-10.0.1",
-                "cherryusb-1.6.1",
+                "cherryusb-1.6.1", "nrf54lm20-datasheet-1.0",
+                "ncs-radio-test-3.4.0",
             },
         )
         for source_id, source in lock["audited_sources"].items():
@@ -33,7 +34,10 @@ class ProvenanceTests(unittest.TestCase):
             if source_id == "nrfx-4.5.0":
                 self.assertEqual(
                     source["patches"],
-                    ["patches/nrfx/0001-grtc-enable-compare-after-programming.patch"],
+                    [
+                        "patches/nrfx/0001-grtc-enable-compare-after-programming.patch",
+                        "patches/nrfx/0002-clock-xo-allow-null-source-output.patch",
+                    ],
                 )
             else:
                 self.assertEqual(source["patches"], "none")
@@ -58,14 +62,15 @@ class ProvenanceTests(unittest.TestCase):
         )
         self.assertEqual(actual.returncode, 0, actual.stdout)
         self.assertEqual(actual.stdout.strip(), expected)
-        check = subprocess.run(
-            [
-                "git", "-C", str(ROOT / "external/nrfx"), "apply", "--check",
-                str(ROOT / "patches/nrfx/0001-grtc-enable-compare-after-programming.patch"),
-            ],
-            text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False,
-        )
-        self.assertEqual(check.returncode, 0, check.stdout)
+        for patch in lock["audited_sources"]["nrfx-4.5.0"]["patches"]:
+            check = subprocess.run(
+                [
+                    "git", "-C", str(ROOT / "external/nrfx"), "apply", "--check",
+                    str(ROOT / patch),
+                ],
+                text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False,
+            )
+            self.assertEqual(check.returncode, 0, check.stdout)
 
     def test_cherryusb_submodule_is_locked(self) -> None:
         lock = json.loads(

@@ -538,6 +538,78 @@ def command_m4_usb_power(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_m5_radio_dual(args: argparse.Namespace) -> int:
+    if args.tx_probe == args.rx_probe:
+        raise ToolError("M5 dual-board validation requires two distinct probes")
+    tx_manifest = load_manifest(args.tx_manifest)
+    rx_manifest = load_manifest(args.rx_manifest)
+    if tx_manifest["oracle"] != "sdk-m5_radio_tx":
+        raise ToolError("M5 transmitter manifest must target m5_radio_tx")
+    if rx_manifest["oracle"] != "sdk-m5_radio_rx":
+        raise ToolError("M5 receiver manifest must target m5_radio_rx")
+
+    run_dir, report = _new_run("m5-radio-dual")
+    report.update({"status": "running", "stages": [], "child_reports": []})
+    atomic_json(run_dir / "run.json", report)
+    receiver: subprocess.Popen[str] | None = None
+    receiver_log = run_dir / "receiver.log"
+    receiver_stream = None
+    try:
+        public_cli = str(project_root() / "tools/nrfkit")
+        common = [
+            "--nrfutil", args.nrfutil,
+            "--timeout", str(args.timeout),
+            "--token-timeout", str(args.token_timeout),
+        ]
+        receiver_stream = receiver_log.open("w", encoding="utf-8")
+        receiver = subprocess.Popen(
+            [
+                public_cli, "run", "--manifest", str(args.rx_manifest.resolve()),
+                "--probe-serial", args.rx_probe, *common,
+            ],
+            text=True, stdout=receiver_stream, stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+        time.sleep(3.0)
+        tx_report = _run_p0_child(
+            [
+                public_cli, "run", "--manifest", str(args.tx_manifest.resolve()),
+                "--probe-serial", args.tx_probe, *common,
+            ],
+            run_dir / "transmitter.log", args.gate_timeout,
+        )
+        receiver.wait(timeout=args.gate_timeout)
+        receiver_stream.close()
+        receiver_stream = None
+        if receiver.returncode:
+            raise ToolError("M5 receiver child failed; see receiver.log")
+        lines = [line for line in receiver_log.read_text(encoding="utf-8").splitlines()
+                 if line.strip()]
+        if len(lines) != 1 or not Path(lines[0]).is_file():
+            raise ToolError("M5 receiver child did not return one run report")
+        rx_report = str(Path(lines[0]).resolve())
+        report["child_reports"] = [rx_report, tx_report]
+        _stage(run_dir, report, "airborne-link", receiver=rx_report, transmitter=tx_report)
+        report["status"] = "ok"
+    except BaseException as error:
+        report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
+        raise
+    finally:
+        if receiver is not None and receiver.poll() is None:
+            os.killpg(receiver.pid, signal.SIGTERM)
+            try:
+                receiver.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                os.killpg(receiver.pid, signal.SIGKILL)
+                receiver.wait()
+        if receiver_stream is not None:
+            receiver_stream.close()
+        report["cleanup"] = {"receiver_running": receiver is not None and receiver.poll() is None}
+        atomic_json(run_dir / "run.json", report)
+    print(run_dir / "run.json")
+    return 0
+
+
 def _serial_port(device: dict[str, Any], vcom: int) -> Path:
     matches = [item for item in device.get("serialPorts", []) if item.get("vcom") == vcom]
     if len(matches) != 1:
@@ -1332,6 +1404,16 @@ def main(argv: list[str] | None = None) -> int:
     m4_power = subparsers.add_parser("m4-usb-power")
     m4_power.add_argument("--timeout", type=float, default=30.0)
     m4_power.set_defaults(handler=command_m4_usb_power)
+    m5_dual = subparsers.add_parser("m5-radio-dual")
+    m5_dual.add_argument("--tx-manifest", type=Path, required=True)
+    m5_dual.add_argument("--rx-manifest", type=Path, required=True)
+    m5_dual.add_argument("--tx-probe", required=True)
+    m5_dual.add_argument("--rx-probe", required=True)
+    m5_dual.add_argument("--nrfutil", default=shutil.which("nrfutil") or "nrfutil")
+    m5_dual.add_argument("--timeout", type=float, default=90)
+    m5_dual.add_argument("--token-timeout", type=float, default=30)
+    m5_dual.add_argument("--gate-timeout", type=float, default=120)
+    m5_dual.set_defaults(handler=command_m5_radio_dual)
     probe_msd = subparsers.add_parser(
         "probe-msd",
         help="apply one fixed, explicitly authorized persistent J-Link MSD setting",

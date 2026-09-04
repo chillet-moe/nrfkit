@@ -5,6 +5,32 @@
     "sha256": "250ed9a4b9b8613a428f58286683c9882e6f2d44c2319924bcd57c435233b0f8"
   },
   "audited_sources": {
+    "nrf54lm20-datasheet-1.0": {
+      "release": "nRF54LM20A/nRF54LM20B Datasheet v1.0",
+      "url": "https://docs.nordicsemi.com/r/bundle/ps_nrf54lm20a/",
+      "sha256": "03a834fb52be8cf6248df6f67737f055c035cfb83492d44d58bdc2f0bfa3a3af",
+      "import_date": "2026-09-04",
+      "imported": false,
+      "patches": "none"
+    },
+    "ncs-radio-test-3.4.0": {
+      "release": "nRF Connect SDK v3.4.0 radio_test comparison",
+      "repository": "https://github.com/nrfconnect/sdk-nrf",
+      "commit": "99553055607b2e9885fbc80ccd11fa9da81c2df0",
+      "import_date": "2026-09-04",
+      "imported": false,
+      "patches": "none",
+      "files": {
+        "samples/peripheral/radio_test/src/main.c": {
+          "sha256": "22a3d99311934f2ff14870003f1c367827853f5d61bf3c6b443db8b6be942d5f",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "samples/peripheral/radio_test/src/radio_test.c": {
+          "sha256": "e493efb2391e0a70b375a7598604e9a01f71e7de5dd80d3271344627c4f450ed",
+          "license": "LicenseRef-Nordic-5-Clause"
+        }
+      }
+    },
     "nrfx-4.5.0": {
       "release": "nrfx v4.5.0",
       "repository": "https://github.com/NordicSemiconductor/nrfx",
@@ -13,7 +39,8 @@
       "import_date": "2026-09-04",
       "imported": true,
       "patches": [
-        "patches/nrfx/0001-grtc-enable-compare-after-programming.patch"
+        "patches/nrfx/0001-grtc-enable-compare-after-programming.patch",
+        "patches/nrfx/0002-clock-xo-allow-null-source-output.patch"
       ],
       "files": {
         "LICENSE": {

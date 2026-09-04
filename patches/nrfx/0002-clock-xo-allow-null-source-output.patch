@@ -1,0 +1,34 @@
+From 4b9a2f01e11fb820f93ae367e657576b3a166154 Mon Sep 17 00:00:00 2001
+From: nrfkit contributors <noreply@example.com>
+Date: Fri, 4 Sep 2026 13:25:00 +0800
+Subject: [PATCH] fix(clock): allow null XO source output
+
+The generic nrfx_clock_is_running API documents its source pointer as an
+optional output. Preserve that contract when the HFCLK implementation is XO
+based instead of dereferencing a null pointer.
+---
+ drivers/include/nrfx_clock_xo.h | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/include/nrfx_clock_xo.h b/drivers/include/nrfx_clock_xo.h
+index 3c1d5f7..9fda161 100644
+--- a/drivers/include/nrfx_clock_xo.h
++++ b/drivers/include/nrfx_clock_xo.h
+@@ -162,8 +162,13 @@ void nrfx_clock_xo_irq_handler(void);
+ 
+ NRFX_STATIC_INLINE bool nrfx_clock_xo_running_check(nrf_clock_hfclk_t * p_clk_src)
+ {
+-    bool ret = nrf_clock_is_running(NRF_CLOCK, NRF_CLOCK_DOMAIN_HFCLK, p_clk_src);
+-    return (ret && (*p_clk_src == NRF_CLOCK_HFCLK_HIGH_ACCURACY));
++    nrf_clock_hfclk_t clk_src;
++    bool ret = nrf_clock_is_running(NRF_CLOCK, NRF_CLOCK_DOMAIN_HFCLK, &clk_src);
++    if (p_clk_src != NULL)
++    {
++        *p_clk_src = clk_src;
++    }
++    return ret && (clk_src == NRF_CLOCK_HFCLK_HIGH_ACCURACY);
+ }
+ 
+ #endif // NRFX_DECLARE_ONLY
+-- 
+2.51.0

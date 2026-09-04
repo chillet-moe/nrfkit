@@ -71,6 +71,28 @@ nrfkit_enable_usb_device(m4_usb_validation STACK cherryusb CLASSES hid)
 nrfkit_enable_nrfx(m4_usb_validation DRIVERS timer)
 nrfkit_finalize_target(m4_usb_validation)
 
+add_executable(m5_radio_validation m5-radio-validation/main.c)
+nrfkit_configure_target(m5_radio_validation
+  SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
+)
+nrfkit_claim_resources(m5_radio_validation OWNER radio_validation RESOURCES
+  dppi10.channel.0 timer10
+)
+nrfkit_enable_radio(m5_radio_validation)
+nrfkit_finalize_target(m5_radio_validation)
+
+foreach(role IN ITEMS tx rx)
+  set(target "m5_radio_${role}")
+  add_executable("${target}" m5-radio-link/main.c)
+  nrfkit_configure_target("${target}"
+    SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
+  )
+  string(TOUPPER "${role}" role_upper)
+  target_compile_definitions("${target}" PRIVATE "NRFKIT_M5_LINK_${role_upper}=1")
+  nrfkit_enable_radio("${target}")
+  nrfkit_finalize_target("${target}")
+endforeach()
+
 set(NRFKIT_BUILD_ID "development" CACHE STRING
   "Build identifier emitted by the hardware-validation firmware"
 )
@@ -141,6 +163,24 @@ if(NRFKIT_ENABLE_HARDWARE_TESTS)
       --expected-token NRFKIT_M4_USB
     VERBATIM
   )
+  add_custom_command(TARGET m5_radio_validation POST_BUILD
+    COMMAND "${NRFKIT_TOOL}" sdk manifest
+      --build-dir "$<TARGET_FILE_DIR:m5_radio_validation>"
+      --target m5_radio_validation
+      --expected-token NRFKIT_M5_RADIO
+    VERBATIM
+  )
+  foreach(role IN ITEMS tx rx)
+    set(target "m5_radio_${role}")
+    string(TOUPPER "${role}" role_upper)
+    add_custom_command(TARGET "${target}" POST_BUILD
+      COMMAND "${NRFKIT_TOOL}" sdk manifest
+        --build-dir "$<TARGET_FILE_DIR:${target}>"
+        --target "${target}"
+        --expected-token "NRFKIT_M5_${role_upper} PASS"
+      VERBATIM
+    )
+  endforeach()
   enable_testing()
   add_test(NAME m2_hardware_gate
     COMMAND "${NRFKIT_TOOL}" m2-gate
@@ -173,5 +213,14 @@ if(NRFKIT_ENABLE_HARDWARE_TESTS)
     LABELS "hardware;root"
     RESOURCE_LOCK nrf54lm20dk
     TIMEOUT 600
+  )
+  add_test(NAME m5_hardware_radio_single
+    COMMAND "${NRFKIT_TOOL}" run
+      --manifest "$<TARGET_FILE_DIR:m5_radio_validation>/m5_radio_validation.device-manifest.json"
+  )
+  set_tests_properties(m5_hardware_radio_single PROPERTIES
+    LABELS hardware
+    RESOURCE_LOCK nrf54lm20dk
+    TIMEOUT 180
   )
 endif()

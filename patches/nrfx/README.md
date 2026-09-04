@@ -9,3 +9,7 @@ consumer workspace. They must use paths relative to the nrfx repository root,
 include the upstream commit and evidence reference in their commit message, and
 be covered by host and real-board regression tests. Do not use this directory
 to carry speculative fixes or downstream product policy.
+
+`0002-clock-xo-allow-null-source-output.patch` restores the documented optional
+source-output contract of `nrfx_clock_is_running()`. The unpatched XO path
+dereferences `NULL`; this was reproduced on LM20 by the M5 clock precondition.
