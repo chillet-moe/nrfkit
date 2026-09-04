@@ -262,3 +262,8 @@ class H4Session:
         self._write(command_packet(opcode, parameters), deadline)
         while not command_status(self.next_event(deadline), opcode):
             pass
+
+    def acl_put(self, packet: bytes, timeout: float = 5.0) -> None:
+        if len(packet) < 4 or len(packet) != int.from_bytes(packet[2:4], "little") + 4:
+            raise HciContractError("malformed HCI ACL packet")
+        self._write(bytes((H4_ACL,)) + packet, time.monotonic() + timeout)

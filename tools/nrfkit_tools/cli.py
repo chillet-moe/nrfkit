@@ -1254,7 +1254,8 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                         advertising_enabled = False
                         handle = int(connection["handle"])
                         acl_deadline = time.monotonic() + args.hci_timeout
-                        session.wait_for_acl(acl_deadline)
+                        acl_packet = session.wait_for_acl(acl_deadline)
+                        session.acl_put(acl_packet, args.hci_timeout)
                         session.command_status(
                             0x0406, struct.pack("<HB", handle, 0x13), args.hci_timeout,
                         )

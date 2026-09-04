@@ -113,6 +113,9 @@ class HciTests(unittest.TestCase):
             def wait_for_acl(self, deadline: float) -> bytes:
                 return self.acl_packets[-1]
 
+            def acl_put(self, packet: bytes, timeout: float = 5.0) -> None:
+                self.commands.append((0xFFFF, packet))
+
             def next_event(self, deadline: float):
                 if self.commands and self.commands[-1][0] == 0x200A:
                     parameters = bytes.fromhex(
@@ -214,6 +217,7 @@ class HciTests(unittest.TestCase):
             self.assertIn((0x200A, b"\x01"), created[0].commands)
             self.assertIn((0x200C, b"\x00\x01"), created[0].commands)
             self.assertEqual(opcodes.count(0x0406), 2)
+            self.assertIn(0xFFFF, opcodes)
             self.assertIn(0x2005, opcodes)
             self.assertIn(0x0C01, opcodes)
             self.assertIn(0x2001, opcodes)
