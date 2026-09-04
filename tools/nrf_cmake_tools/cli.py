@@ -287,6 +287,15 @@ def _probe_has_msd(device: dict[str, Any]) -> bool:
     )
 
 
+def _probe_interface_contract(device: dict[str, Any], msd_enabled: bool) -> bool:
+    vcoms = {port.get("vcom") for port in device.get("serialPorts", [])}
+    return (
+        _probe_has_msd(device) is msd_enabled
+        and vcoms == {0, 1}
+        and device.get("traits", {}).get("jlink") is True
+    )
+
+
 def _wait_for_probe_msd_state(
     nrfutil: str,
     serial: str,
@@ -306,12 +315,7 @@ def _wait_for_probe_msd_state(
                 nrfutil, run_dir / f"device-list-{attempt:02d}.log", min(5, remaining)
             )
             device = select_device(devices, board_version, serial)
-            vcoms = {port.get("vcom") for port in device.get("serialPorts", [])}
-            if (
-                _probe_has_msd(device) is enabled
-                and vcoms == {0, 1}
-                and device.get("traits", {}).get("jlink") is True
-            ):
+            if _probe_interface_contract(device, enabled):
                 return device
             last_error = "probe enumerated without the required MSD/J-Link/dual-VCOM state"
         except (DeviceContractError, ToolError, OSError) as error:
@@ -774,6 +778,75 @@ def _run_p0_child(argv: list[str], log: Path, timeout: float) -> str:
     return str(report)
 
 
+def command_probe_msd(args: argparse.Namespace) -> int:
+    action = "enable" if args.enabled else "disable"
+    run_dir, report = _new_run(f"probe-msd-{action}")
+    report.update({
+        "status": "running",
+        "requested_state": "enabled" if args.enabled else "disabled",
+        "stages": [],
+    })
+    atomic_json(run_dir / "run.json", report)
+    try:
+        nrfutil = executable(args.nrfutil, "nrfutil")
+        contract = oracle(project_root(), "ncs-hello-world")
+        devices = _enumerate(nrfutil, run_dir / "device-list.log", args.timeout)
+        device = select_device(devices, contract["board_version"], args.probe_serial)
+        original_msd = _probe_has_msd(device)
+        backup = run_dir / "probe-state-before.json"
+        atomic_json(backup, device)
+        backup.chmod(0o400)
+        report.update({
+            "probe_msd_originally_enabled": original_msd,
+            "probe_state_backup": str(backup.resolve()),
+        })
+        _stage(
+            run_dir, report, "device-selection",
+            board_version=contract["board_version"], msd_enabled=original_msd,
+        )
+        if original_msd != args.enabled:
+            if not args.authorize_persistent_change:
+                raise ToolError(
+                    f"probe MSD is currently {'enabled' if original_msd else 'disabled'}; "
+                    "explicit --authorize-persistent-change is required"
+                )
+            jlink = executable(args.jlink_commander, "JLinkExe")
+            device = _set_probe_msd(
+                jlink, nrfutil, device, args.enabled,
+                run_dir / "probe-msd", args.timeout,
+            )
+            _stage(
+                run_dir, report, f"probe-msd-{action}",
+                command=f"MSD{action.capitalize()}", rebooted=True, verified=True,
+            )
+            report["persistent_change_applied"] = True
+        else:
+            if not _probe_interface_contract(device, args.enabled):
+                raise ToolError(
+                    "probe has the requested MSD state but not the required "
+                    "J-Link and dual-VCOM interface contract"
+                )
+            _stage(
+                run_dir, report, "probe-msd-already-requested-state", verified=True,
+            )
+            report["persistent_change_applied"] = False
+        after = run_dir / "probe-state-after.json"
+        atomic_json(after, device)
+        after.chmod(0o400)
+        report.update({
+            "probe_msd_finally_enabled": _probe_has_msd(device),
+            "probe_state_after": str(after.resolve()),
+            "status": "ok",
+        })
+    except BaseException as error:
+        report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
+        atomic_json(run_dir / "run.json", report)
+        raise
+    atomic_json(run_dir / "run.json", report)
+    print(run_dir / "run.json")
+    return 0
+
+
 def command_p0_gate(args: argparse.Namespace) -> int:
     run_dir, report = _new_run("p0-gate")
     operation_error: BaseException | None = None
@@ -796,6 +869,8 @@ def command_p0_gate(args: argparse.Namespace) -> int:
         devices = _enumerate(nrfutil, run_dir / "device-list.log", args.timeout)
         device = select_device(devices, contract["board_version"], args.probe_serial)
         original_msd = _probe_has_msd(device)
+        if not _probe_interface_contract(device, original_msd):
+            raise ToolError("selected probe does not expose J-Link and exactly VCOM0/VCOM1")
         report["probe_msd_originally_enabled"] = original_msd
         _stage(
             run_dir, report, "device-selection",
@@ -804,8 +879,10 @@ def command_p0_gate(args: argparse.Namespace) -> int:
         if original_msd:
             if not args.authorize_temporary_msd_disable:
                 raise ToolError(
-                    "probe MSD is enabled; explicit --authorize-temporary-msd-disable "
-                    "is required for the backed-up, automatically restored P0 gate"
+                    "probe MSD is enabled; use 'probe-msd disable' after separate "
+                    "authorization for the preferred persistent fix, or pass explicit "
+                    "--authorize-temporary-msd-disable for the backed-up, automatically "
+                    "restored compatibility path; explicit authorization is required"
                 )
             restore_msd = True
             device = _set_probe_msd(
@@ -860,6 +937,14 @@ def command_p0_gate(args: argparse.Namespace) -> int:
         ], run_dir / f"child-{child_number:02d}-gdb-smoke.log", args.gate_timeout)
         report["child_reports"].append(gdb_report)
         _stage(run_dir, report, "gdb-smoke", child_report=gdb_report)
+        device = _wait_for_probe_msd_state(
+            nrfutil, device["serialNumber"], contract["board_version"], False,
+            run_dir / "final-interface-verification", args.timeout,
+        )
+        _stage(
+            run_dir, report, "probe-interface-verification",
+            msd_enabled=False, jlink=True, vcoms=[0, 1],
+        )
         report["status"] = "ok"
     except BaseException as error:
         operation_error = error
@@ -879,6 +964,7 @@ def command_p0_gate(args: argparse.Namespace) -> int:
                 report["restoration_error"] = f"{type(error).__name__}: {error}"
         report["cleanup"] = {
             "probe_msd_restored": not restore_msd or restoration_error is None,
+            "probe_msd_unchanged": not restore_msd,
         }
         atomic_json(run_dir / "run.json", report)
     if restoration_error is not None:
@@ -962,6 +1048,23 @@ def main(argv: list[str] | None = None) -> int:
     gdb.add_argument("--token-timeout", type=float, default=10)
     gdb.add_argument("--serial-ready-delay", type=float, default=0.5)
     gdb.set_defaults(handler=command_gdb_smoke)
+    probe_msd = subparsers.add_parser(
+        "probe-msd",
+        help="apply one fixed, explicitly authorized persistent J-Link MSD setting",
+    )
+    probe_msd_commands = probe_msd.add_subparsers(
+        dest="probe_msd_command", required=True
+    )
+    for name, enabled in (("disable", False), ("enable", True)):
+        command = probe_msd_commands.add_parser(name)
+        command.add_argument("--probe-serial", default=os.environ.get("NRF_PROBE_SERIAL"))
+        command.add_argument("--nrfutil", default=shutil.which("nrfutil") or "nrfutil")
+        command.add_argument(
+            "--jlink-commander", default=shutil.which("JLinkExe") or "JLinkExe"
+        )
+        command.add_argument("--timeout", type=float, default=90)
+        command.add_argument("--authorize-persistent-change", action="store_true")
+        command.set_defaults(handler=command_probe_msd, enabled=enabled)
     p0_gate = subparsers.add_parser("p0-gate")
     p0_gate.add_argument("--probe-serial", default=os.environ.get("NRF_PROBE_SERIAL"))
     p0_gate.add_argument("--nrfutil", default=shutil.which("nrfutil") or "nrfutil")

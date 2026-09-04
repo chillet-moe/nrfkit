@@ -555,7 +555,7 @@ BLE 实板验收至少包括：
 - 在一个不含 NCS 环境变量的 shell 中，普通 consumer CMake 路径不会触发任何官方参考流程；
 - tracked 文件、Git diff 和准备提交的 commit message 通过私有名称、本地路径、探针序列号和原始日志泄漏扫描。
 
-P0 于 2026-09-04 完成退出审计。公共 `p0-gate` 从锁定来源连续完成三次 hello-world exact-token PASS、一次 Bare Metal + S115 exact-token PASS，以及带 exact-token 验证的 GDB smoke PASS。所有烧写均使用 `ERASE_NONE`、`VERIFY_READ` 和 `RESET_NONE`，串口、GDB server 与探针锁均完成清理。已确认该 J-Link OB 同时暴露 MSD 与 VCOM 时会丢失启动字节；经单独授权后，公共 gate 只执行固定的临时 MSD disable/reboot/verify 与 enable/reboot/verify 事务，并在成功和失败路径恢复原始接口状态。host 负向测试、公用内容泄漏扫描及离线 consumer configure/build 门禁通过；未执行 mass erase、recover、provisioning、保护设置、板控器固件更新或一次性/配置区域写入。
+P0 于 2026-09-04 完成退出审计。公共 `p0-gate` 从锁定来源连续完成三次 hello-world exact-token PASS、一次 Bare Metal + S115 exact-token PASS，以及带 exact-token 验证的 GDB smoke PASS。所有烧写均使用 `ERASE_NONE`、`VERIFY_READ` 和 `RESET_NONE`，串口、GDB server 与探针锁均完成清理。已确认该 J-Link OB 同时暴露 MSD 与 VCOM 时会丢失启动字节；初始诊断使用了固定、可恢复的临时 MSD 事务。随后用户单独授权该受影响探针长期保持 MSD disabled，公共 `probe-msd` 工作流负责完整本机备份、固定 `MSDDisable`/reboot 和 J-Link + 双 VCOM 读回验证，后续 gate 在该状态下不再修改持久配置。此决定只适用于经验证且不需要拖拽烧写的本机探针；恢复 MSD 需要新的明确授权。host 负向测试、公用内容泄漏扫描及离线 consumer configure/build 门禁通过；未执行 mass erase、recover、provisioning、保护设置、板控器固件更新或一次性/配置区域写入。
 
 ### M0：仓库、来源与设计冻结
 

@@ -14,7 +14,7 @@ from unittest import mock
 from nrf_cmake_tools.cli import (
     ToolError, _probe_has_msd, _probe_lock, _serial_cleanup, _serial_open,
     _serial_reader, _serial_reader_stop, _set_probe_msd, command_flash,
-    command_p0_gate, command_run, load_manifest,
+    command_p0_gate, command_probe_msd, command_run, load_manifest,
 )
 from nrf_cmake_tools.device import program_argv, safe_backend_contract
 from nrf_cmake_tools.image import ImageContractError
@@ -31,6 +31,8 @@ class FlashCommandTests(unittest.TestCase):
             "serialNumber": "probe-123",
             "devkit": {"boardVersion": "PCA10184"},
             "usb": {"interfaces": interfaces},
+            "serialPorts": [{"vcom": 0}, {"vcom": 1}],
+            "traits": {"jlink": True},
         }
 
     def test_programming_command_is_non_erasing_verified_and_non_resetting(self) -> None:
@@ -166,6 +168,101 @@ class FlashCommandTests(unittest.TestCase):
                 "nrfutil", "probe-123", "PCA10184", False,
                 run_dir / "msd-disable-verification", 10,
             )
+
+    def test_persistent_probe_msd_change_requires_explicit_authorization(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory)
+            report = {"schema": "nrf-cmake-sdk-run/v1", "status": "running"}
+            args = argparse.Namespace(
+                nrfutil="nrfutil", jlink_commander="JLinkExe", probe_serial=None,
+                timeout=10, enabled=False, authorize_persistent_change=False,
+            )
+            with (
+                mock.patch("nrf_cmake_tools.cli._new_run", return_value=(run_dir, report)),
+                mock.patch(
+                    "nrf_cmake_tools.cli.executable", side_effect=lambda value, _: value
+                ),
+                mock.patch(
+                    "nrf_cmake_tools.cli.oracle",
+                    return_value={"board_version": "PCA10184"},
+                ),
+                mock.patch(
+                    "nrf_cmake_tools.cli._enumerate",
+                    return_value=[self.probe_device(True)],
+                ),
+                mock.patch("nrf_cmake_tools.cli._set_probe_msd") as set_msd,
+            ):
+                with self.assertRaisesRegex(ToolError, "explicit .* is required"):
+                    command_probe_msd(args)
+            set_msd.assert_not_called()
+            self.assertEqual(report["status"], "failed")
+            self.assertTrue((run_dir / "probe-state-before.json").is_file())
+
+    def test_persistent_probe_msd_disable_backs_up_and_verifies_state(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory)
+            report = {"schema": "nrf-cmake-sdk-run/v1", "status": "running"}
+            enabled = self.probe_device(True)
+            disabled = self.probe_device(False)
+            args = argparse.Namespace(
+                nrfutil="nrfutil", jlink_commander="JLinkExe", probe_serial=None,
+                timeout=10, enabled=False, authorize_persistent_change=True,
+            )
+            with (
+                mock.patch("nrf_cmake_tools.cli._new_run", return_value=(run_dir, report)),
+                mock.patch(
+                    "nrf_cmake_tools.cli.executable", side_effect=lambda value, _: value
+                ),
+                mock.patch(
+                    "nrf_cmake_tools.cli.oracle",
+                    return_value={"board_version": "PCA10184"},
+                ),
+                mock.patch("nrf_cmake_tools.cli._enumerate", return_value=[enabled]),
+                mock.patch(
+                    "nrf_cmake_tools.cli._set_probe_msd", return_value=disabled
+                ) as set_msd,
+                mock.patch("builtins.print"),
+            ):
+                self.assertEqual(command_probe_msd(args), 0)
+            set_msd.assert_called_once_with(
+                "JLinkExe", "nrfutil", enabled, False,
+                run_dir / "probe-msd", 10,
+            )
+            self.assertEqual(
+                json.loads((run_dir / "probe-state-before.json").read_text()), enabled
+            )
+            self.assertEqual(
+                json.loads((run_dir / "probe-state-after.json").read_text()), disabled
+            )
+            self.assertTrue(report["persistent_change_applied"])
+            self.assertFalse(report["probe_msd_finally_enabled"])
+
+    def test_persistent_probe_msd_disable_is_idempotent_without_authorization(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory)
+            report = {"schema": "nrf-cmake-sdk-run/v1", "status": "running"}
+            disabled = self.probe_device(False)
+            args = argparse.Namespace(
+                nrfutil="nrfutil", jlink_commander="JLinkExe", probe_serial=None,
+                timeout=10, enabled=False, authorize_persistent_change=False,
+            )
+            with (
+                mock.patch("nrf_cmake_tools.cli._new_run", return_value=(run_dir, report)),
+                mock.patch(
+                    "nrf_cmake_tools.cli.executable", side_effect=lambda value, _: value
+                ),
+                mock.patch(
+                    "nrf_cmake_tools.cli.oracle",
+                    return_value={"board_version": "PCA10184"},
+                ),
+                mock.patch("nrf_cmake_tools.cli._enumerate", return_value=[disabled]),
+                mock.patch("nrf_cmake_tools.cli._set_probe_msd") as set_msd,
+                mock.patch("builtins.print"),
+            ):
+                self.assertEqual(command_probe_msd(args), 0)
+            set_msd.assert_not_called()
+            self.assertFalse(report["persistent_change_applied"])
+            self.assertFalse(report["probe_msd_finally_enabled"])
 
     def test_p0_gate_refuses_msd_change_without_explicit_authorization(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

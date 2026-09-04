@@ -48,7 +48,15 @@ tools/nrf-cmake-sdk p0-gate \
   --authorize-temporary-msd-disable
 ```
 
-Some J-Link OB probes lose VCOM data while their mass-storage interface is enabled. When MSD is present, this command's opt-in flag temporarily disables it, reboots and verifies the probe, runs the gates, and restores and verifies MSD in cleanup even after a failure. Because this changes persistent probe configuration, a Codex agent may pass the flag only after the user separately authorizes that exact temporary change; tool escalation alone is not authorization.
+Some J-Link OB probes lose VCOM data while their mass-storage interface is enabled. For a probe on which this limitation has been confirmed and drag-and-drop programming is not needed, the preferred local setup is an explicitly authorized one-time persistent disable:
+
+```sh
+tools/nrf-cmake-sdk probe-msd disable --authorize-persistent-change
+```
+
+The command saves the complete enumerated state in the ignored run report, emits only `MSDDisable` plus a controller reboot, and verifies that J-Link and both VCOM ports remain after re-enumeration. The tradeoff is loss of MSD drag-and-drop programming. A later `probe-msd enable --authorize-persistent-change` can restore it, but that reversal needs a new explicit authorization.
+
+When MSD is already disabled, `p0-gate` treats that as the normal preferred state and makes no persistent change. Its `--authorize-temporary-msd-disable` option remains as a compatibility path: it disables MSD, runs the gates, and restores MSD in cleanup. Any persistent or temporary configuration change requires separate user authorization in addition to Codex tool escalation; this policy is local and is not imposed on downstream probes.
 
 Hardware commands use the generated manifest and the same public entry point. USB, serial, probes, programming, and GDB require Codex tool escalation; see [`docs/hardware-workflow.md`](docs/hardware-workflow.md). Programming remains fail-closed and uses `ERASE_NONE`, read-back verification, immutable snapshots, and address allowlists.
 
