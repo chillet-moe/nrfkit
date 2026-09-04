@@ -11,7 +11,12 @@
 
 #define PIN(port, pin) NRF_PIN_PORT_TO_PIN_NUMBER((pin), (port))
 #define RX_RING_SIZE 512U
-#define CONTROLLER_MEMORY_SIZE (64U * 1024U)
+#define CONTROLLER_MEMORY_SIZE (8U * 1024U)
+#define STACK_WATERMARK_PATTERN UINT8_C(0xA5)
+#define STACK_WATERMARK_GUARD 128U
+
+extern uint8_t __StackLimit[];
+extern uint8_t __StackTop[];
 
 static nrfx_uarte_t hci_uart = NRFX_UARTE_INSTANCE(NRF_UARTE20);
 static uint8_t controller_memory[CONTROLLER_MEMORY_SIZE] __attribute__((aligned(8)));
@@ -22,8 +27,32 @@ static volatile uint16_t rx_write;
 static uint8_t rx_ring[RX_RING_SIZE];
 static volatile uint8_t tx_done;
 static volatile uint8_t uart_fault;
+static uint8_t *stack_watermark_end;
+static volatile uint8_t acl_submissions;
 volatile uint32_t nrfkit_m6_required_memory;
 volatile uint32_t nrfkit_m6_lifecycle_enables;
+
+static void stack_watermark_initialize(void)
+{
+    uintptr_t stack_pointer;
+    __asm volatile("mrs %0, msp" : "=r"(stack_pointer));
+    uintptr_t const limit = (uintptr_t)__StackLimit;
+    uintptr_t const end = stack_pointer > limit + STACK_WATERMARK_GUARD ?
+        stack_pointer - STACK_WATERMARK_GUARD : limit;
+    stack_watermark_end = (uint8_t *)end;
+    for (uint8_t *byte = __StackLimit; byte < stack_watermark_end; ++byte) {
+        *byte = STACK_WATERMARK_PATTERN;
+    }
+}
+
+static uint32_t stack_watermark_used(void)
+{
+    uint8_t *byte = __StackLimit;
+    while (byte < stack_watermark_end && *byte == STACK_WATERMARK_PATTERN) {
+        ++byte;
+    }
+    return (uint32_t)((uintptr_t)__StackTop - (uintptr_t)byte);
+}
 
 static void uart_handler(const nrfx_uarte_event_t *event, void *context)
 {
@@ -78,6 +107,7 @@ static uint8_t receive_byte(void)
 
 int main(void)
 {
+    stack_watermark_initialize();
     nrfx_uarte_config_t uart = NRFX_UARTE_DEFAULT_CONFIG(
         PIN(NRFKIT_VCOM_TX_PORT, NRFKIT_VCOM_TX_PIN),
         PIN(NRFKIT_VCOM_RX_PORT, NRFKIT_VCOM_RX_PIN));
@@ -151,6 +181,7 @@ int main(void)
                 if (nrfkit_sdc_hci_acl_put(command) != 0) {
                     nrfkit_assert_fail();
                 }
+                ++acl_submissions;
                 continue;
             }
             size_t event_size;
@@ -158,7 +189,8 @@ int main(void)
             if (command[0] == 0x00U && command[1] == 0xFCU &&
                 command[2] == 0U) {
                 output[1] = 0x0EU;
-                output[2] = 9U;
+                uint32_t const stack_used = stack_watermark_used();
+                output[2] = 16U;
                 output[3] = 1U;
                 output[4] = command[0];
                 output[5] = command[1];
@@ -167,8 +199,16 @@ int main(void)
                 output[8] = (uint8_t)(nrfkit_m6_required_memory >> 8U);
                 output[9] = (uint8_t)(nrfkit_m6_required_memory >> 16U);
                 output[10] = (uint8_t)(nrfkit_m6_required_memory >> 24U);
-                output[11] = (uint8_t)nrfkit_m6_lifecycle_enables;
-                event_size = 11U;
+                output[11] = (uint8_t)stack_used;
+                output[12] = (uint8_t)(stack_used >> 8U);
+                output[13] = (uint8_t)(stack_used >> 16U);
+                output[14] = (uint8_t)(stack_used >> 24U);
+                output[15] = (uint8_t)nrfkit_m6_lifecycle_enables;
+                output[16] = nrfkit_sdc_last_fault.magic ==
+                    NRFKIT_SDC_FAULT_MAGIC ? 1U : 0U;
+                output[17] = uart_fault;
+                output[18] = acl_submissions;
+                event_size = 18U;
             } else if (nrfkit_sdc_hci_command(
                            command, packet_size - 1U, &output[1],
                            sizeof(output) - 1U, &event_size) != 0) {

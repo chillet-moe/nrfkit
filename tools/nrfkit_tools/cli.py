@@ -1147,6 +1147,21 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
             termios.tcflush(descriptor, termios.TCIFLUSH)
             session = H4Session(descriptor)
 
+            def read_diagnostics() -> dict[str, int | bool]:
+                diagnostics = session.command(0xFC00, timeout=args.hci_timeout)
+                if len(diagnostics) != 12 or diagnostics[8] != 2:
+                    raise ToolError("Controller returned malformed lifecycle diagnostics")
+                return {
+                    "required_memory": int.from_bytes(diagnostics[:4], "little"),
+                    "stack_watermark_bytes": int.from_bytes(
+                        diagnostics[4:8], "little"
+                    ),
+                    "enable_count": diagnostics[8],
+                    "fault_recorded": bool(diagnostics[9]),
+                    "uart_fault": bool(diagnostics[10]),
+                    "acl_submissions": diagnostics[11],
+                }
+
             session.command(0x0C03, timeout=args.hci_timeout)
             version = session.command(0x1001, timeout=args.hci_timeout)
             features = session.command(0x1003, timeout=args.hci_timeout)
@@ -1163,13 +1178,11 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                 "le_features": le_features.hex(),
             }
             _stage(run_dir, report, "hci-reset-version-features", **version_evidence)
-            diagnostics = session.command(0xFC00, timeout=args.hci_timeout)
-            if len(diagnostics) != 5 or diagnostics[4] != 2:
-                raise ToolError("Controller returned malformed lifecycle diagnostics")
+            diagnostics = read_diagnostics()
+            if diagnostics["fault_recorded"] or diagnostics["uart_fault"]:
+                raise ToolError("Controller diagnostics reported a platform fault")
             _stage(
-                run_dir, report, "sdc-lifecycle-reentry",
-                required_memory=int.from_bytes(diagnostics[:4], "little"),
-                enable_count=diagnostics[4],
+                run_dir, report, "sdc-lifecycle-memory-stack", **diagnostics,
             )
 
             # HCI Reset restores the default masks, which do not deliver LE Meta
@@ -1257,6 +1270,14 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                         disconnection_reason=reason,
                         raw_acl_packets=len(session.acl_packets),
                         host_connection_cleanup=host_connection,
+                    )
+                    post_acl_diagnostics = read_diagnostics()
+                    if post_acl_diagnostics["acl_submissions"] < 1:
+                        raise ToolError("Controller did not accept the raw host ACL packet")
+                    _stage(
+                        run_dir, report, "hci-raw-acl-bidirectional",
+                        controller_to_host_packets=len(session.acl_packets),
+                        host_to_controller_packets=post_acl_diagnostics["acl_submissions"],
                     )
                 finally:
                     if advertising_enabled:

@@ -160,6 +160,14 @@ class SdcCmakeTests(unittest.TestCase):
                 "type": "H4", "baud": 1000000, "hardware_flow_control": True,
             })
             self.assertEqual(manifest["build_evidence"]["status"], "ok")
+            evidence = manifest["build_evidence"]
+            self.assertEqual(len(evidence["map_sha256"]), 64)
+            self.assertIn("radio0", evidence["resources"])
+            self.assertGreater(evidence["elf_budget"]["rram_file_bytes"], 0)
+            self.assertLessEqual(
+                evidence["elf_budget"]["ram_allocated_bytes"],
+                evidence["elf_budget"]["ram_capacity_bytes"],
+            )
             link_map = (build / "m6_sdc_validation.map").read_text(encoding="utf-8")
             for symbol in (
                 "nrfkit_sdc_hci_command", "RADIO_0_IRQHandler",

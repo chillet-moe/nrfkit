@@ -6,6 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import struct
 from typing import Any
 
 from .device import safe_backend_contract
@@ -39,6 +40,44 @@ def sha256(path: Path) -> str:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def _elf_load_budget(
+    elf: Path, *, ram_origin: int, ram_length: int, rram_length: int,
+) -> dict[str, int]:
+    data = elf.read_bytes()
+    if len(data) < 52 or data[:5] != b"\x7fELF\x01" or data[5] != 1:
+        raise SdkContractError("SDC budget requires a little-endian ELF32 image")
+    header = struct.Struct("<16sHHIIIIIHHHHHH")
+    program = struct.Struct("<IIIIIIII")
+    fields = header.unpack_from(data)
+    offset, entry_size, count = fields[5], fields[9], fields[10]
+    if entry_size != program.size or offset + count * entry_size > len(data):
+        raise SdkContractError("SDC ELF program header table is invalid")
+    ram_allocated = 0
+    ram_initialized = 0
+    rram_file = 0
+    for index in range(count):
+        kind, unused_offset, virtual, physical, file_size, memory_size, unused_flags, unused_align = (
+            program.unpack_from(data, offset + index * entry_size)
+        )
+        if kind != 1:
+            continue
+        if ram_origin <= virtual < ram_origin + ram_length:
+            if virtual + memory_size > ram_origin + ram_length:
+                raise SdkContractError("SDC ELF LOAD segment exceeds RAM")
+            ram_allocated += memory_size
+            ram_initialized += file_size
+        if physical < rram_length:
+            if physical + file_size > rram_length:
+                raise SdkContractError("SDC ELF LOAD segment exceeds RRAM")
+            rram_file += file_size
+    return {
+        "ram_allocated_bytes": ram_allocated,
+        "ram_initialized_bytes": ram_initialized,
+        "ram_capacity_bytes": ram_length,
+        "rram_file_bytes": rram_file,
+    }
 
 
 def create_device_manifest(
@@ -180,6 +219,7 @@ def create_device_manifest(
             f"libsoftdevice_controller_{variant}.a",
         }
         archive_names = {Path(value).name for value in sdc_target.get("archives", [])}
+        resources = sdc_target.get("resources")
         if (
             sdc_target.get("schema") != "nrfkit-sdc-target/v1"
             or sdc_target.get("target") != target
@@ -187,6 +227,9 @@ def create_device_manifest(
             or sdc_target.get("security_domain") != "secure"
             or sdc_target.get("float_abi") != "hard-float"
             or archive_names != required_archives
+            or not isinstance(resources, list)
+            or not resources
+            or any(not isinstance(resource, str) for resource in resources)
             or not all(name in link_map for name in required_archives)
         ):
             raise SdkContractError("SDC build evidence does not match the locked link contract")
@@ -197,6 +240,14 @@ def create_device_manifest(
             "status": "ok", "variant": variant,
             "security_domain": "secure", "float_abi": "hard-float",
             "archives": sorted(required_archives),
+            "resources": sorted(resources),
+            "map_sha256": sha256(map_path),
+            "elf_budget": _elf_load_budget(
+                elf,
+                ram_origin=layout["ram"]["origin"],
+                ram_length=layout["ram"]["length"],
+                rram_length=layout["rram"]["length"],
+            ),
         }
     output = build_dir / f"{target}.device-manifest.json"
     atomic_json(output, manifest)
