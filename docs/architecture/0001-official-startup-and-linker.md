@@ -16,6 +16,7 @@ The generic nrfx memory files describe physical banks, while the product specifi
 3. Use the nrfx per-device linker scripts, memory headers, device headers, SVDs, and licensed common linker script as authoritative inputs, but expose repository-owned layout wrappers/contracts with stricter memory regions and assertions. Do not copy Zephyr-generated linker output.
 4. Retain TF-M startup files as independent vector/reset comparison evidence, not the primary implementation.
 5. Treat Clang/LLD compatibility as a verified property, not an assumption based on GNU filenames. M1 must compile, link, inspect, and compare the resulting ELF before the source choice becomes shipped support.
+6. The initial standalone LM20 layout exposes the complete RRAM application range but only RAM0. RAM1 is a separate future capability because its top end contains product-defined VPR saved-context and ProtectedRAM reservations. This conservative choice costs 256 KiB of initially usable RAM but prevents ordinary sections, heap, or stack from silently occupying an unresolved reserved tail.
 
 ## Consequences
 

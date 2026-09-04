@@ -1,5 +1,9 @@
 {
   "schema": "nrf-cmake-sdk-sources/v1",
+  "vendor_import_manifest": {
+    "path": "docs/provenance/vendor-imports.lock",
+    "sha256": "0fa5e9a958c7873d40393817a2394792b4012362f3a97664e7ff62ed3f9fa1c8"
+  },
   "audited_sources": {
     "nrfx-4.5.0": {
       "release": "nrfx v4.5.0",
@@ -7,7 +11,7 @@
       "commit": "1b7bedb5c7f379a3ec3ece851796e94d7e5d0b2c",
       "mdk_version": "9.0.2-RC-1",
       "import_date": "2026-09-04",
-      "imported": false,
+      "imported": true,
       "patches": "none",
       "files": {
         "LICENSE": {"sha256": "55e466145d9fbe1ded026036d65abf9c610483cf9042d8689aebe3553984178e", "license": "BSD-3-Clause"},
@@ -26,6 +30,17 @@
         "bsp/stable/mdk/nrf54l/nrf54l15/nrf54l15_application.h": {"sha256": "ed4d5392e0bfdd46fb3d24eb5231cb5701ff084861fdc1c71c78a7f71ea561a7", "license": "BSD-3-Clause"},
         "bsp/stable/mdk/nrf54l/nrf54l15/nrf54l15_application_vectors.h": {"sha256": "52bd19365b83aaa0f3bb58b89f3e9c575c43dedbde971f2c07c96a20aa096ce5", "license": "BSD-3-Clause"},
         "bsp/stable/mdk/nrf54l/nrf54l15/nrf54l15_application.svd": {"sha256": "b4787bb032b71c00341d5e00ad4ee64bb23bc3762879335570278a4e641ed44b", "license": "BSD-3-Clause"}
+      }
+    },
+    "cmsis-6.3.0": {
+      "release": "CMSIS 6.3.0",
+      "repository": "https://github.com/ARM-software/CMSIS_6",
+      "commit": "45dab712ad84f8cbbf2b7bfc089c19088507df6f",
+      "import_date": "2026-09-04",
+      "imported": true,
+      "patches": "none",
+      "files": {
+        "LICENSE": {"sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1", "license": "Apache-2.0"}
       }
     },
     "nrf-device-family-pack-8.44.1": {
@@ -92,7 +107,8 @@
       "files": {
         "zephyr/samples/hello_world/CMakeLists.txt": "4fb1ac53d25ad1943827352dbc773825f9a89668286db956bb4b98f949a2f93d",
         "zephyr/samples/hello_world/prj.conf": "81661c2d549ab252e266fcaad53350640c58a6d4d17dad54268e3cfc1166b6b3",
-        "zephyr/samples/hello_world/src/main.c": "441f01eaf3bb6fb71614fad7264c5aaab135078ce3a73ae8c9d6889de5271d6b"
+        "zephyr/samples/hello_world/src/main.c": "441f01eaf3bb6fb71614fad7264c5aaab135078ce3a73ae8c9d6889de5271d6b",
+        "zephyr/boards/nordic/nrf54lm20dk/nrf54lm20dk_common.dtsi": "bf595f14715583311e3f89c3fba245bea171454f317469ee0d1ff7dff2b7a210"
       },
       "license": "Apache-2.0",
       "imported": false,

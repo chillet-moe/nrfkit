@@ -4,13 +4,38 @@
 
 This project is not affiliated with or endorsed by Nordic Semiconductor. Nordic Semiconductor, nRF, and related marks belong to their respective owners.
 
-The project is in early bring-up. Completed P0 provides locked official reference builds, ELF and Intel HEX address auditing, guarded programming, reset/run orchestration, the aggregate hardware gate, and J-Link GDB smoke tests. This is not yet a consumer SDK release; see [`PLAN.md`](PLAN.md) for the normative scope and completion gates.
+The project is in early bring-up. P0 provides locked official reference builds and the guarded hardware workflow. M1 provides an experimental nRF54LM20A application-core freestanding build with Clang/LLD, a GNU Arm smoke path, official startup/SystemInit, C/C++ initialization, and ELF/HEX/BIN/map/layout artifacts. Real-board validation of SDK-built images belongs to M2, so this is not yet a consumer SDK release; see [`PLAN.md`](PLAN.md) for the normative scope and completion gates.
 
 The M0 source decision, current target status, and contribution contract are documented in [`docs/provenance/source-audit.md`](docs/provenance/source-audit.md), [`docs/support-matrix.md`](docs/support-matrix.md), and [`CONTRIBUTING.md`](CONTRIBUTING.md). Exact upstream identities remain machine-independent in `sources.lock`; local source paths and hardware identities never belong in tracked files.
 
-## Experimental CMake package
+## Experimental firmware build
 
-M0 provides the initial package-discovery skeleton, not yet a firmware target API. A source checkout can be consumed without consulting NCS or west by pointing CMake directly at its package directory:
+The M1 examples build without consulting NCS or west. Point CMake at the source-tree package and the host LLVM installation:
+
+```sh
+cmake -S examples -B build/lm20 -G Ninja \
+  -DNrfCMakeSdk_DIR="$PWD/cmake" \
+  -DCMAKE_TOOLCHAIN_FILE="$PWD/cmake/toolchains/arm-clang.cmake" \
+  -DNRF_LLVM_ROOT=/path/to/llvm
+cmake --build build/lm20
+```
+
+This builds `empty`, `blinky`, `fault`, and the C++ constructor example. Each target produces `.elf`, `.hex`, `.bin`, `.map`, and `.image-layout.json`. The standalone layout uses RRAM at `0x00000000..0x001fd000`, RAM0 only at `0x20000000..0x20040000`, a 16 KiB stack, and no heap. RAM1 remains deliberately unavailable until its reserved top tail is modeled.
+
+The public target API is target-scoped:
+
+```cmake
+add_executable(firmware main.cpp)
+nrf_sdk_configure_target(firmware
+  SOC nrf54lm20a
+  CORE cpuapp
+  BOARD nrf54lm20dk
+  RUNTIME freestanding
+)
+nrf_sdk_finalize_target(firmware)
+```
+
+The package-discovery skeleton is also usable for ordinary host consumers:
 
 ```sh
 cmake -S tests/consumer/minimal -B build/minimal -G Ninja \
@@ -18,7 +43,7 @@ cmake -S tests/consumer/minimal -B build/minimal -G Ninja \
 cmake --build build/minimal
 ```
 
-The root project can also be installed to a prefix; the installed package exports the same `NrfCMakeSdk::core` interface target. Host tests exercise both forms with deliberately invalid NCS/Zephyr environment paths to ensure configuration remains independent of those workspaces.
+The root project can also be installed to a prefix; the installed package includes the same firmware API and `NrfCMakeSdk::core` interface target. Host tests exercise both forms with deliberately invalid NCS/Zephyr environment paths to ensure configuration remains independent of those workspaces.
 
 ## Maintainer reference workflow
 

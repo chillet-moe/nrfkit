@@ -2,7 +2,7 @@
   "SPDXID": "SPDXRef-DOCUMENT",
   "spdxVersion": "SPDX-2.3",
   "dataLicense": "CC0-1.0",
-  "name": "nrf-cmake-sdk M0 SBOM draft",
+  "name": "nrf-cmake-sdk M1 SBOM draft",
   "documentNamespace": "https://spdx.org/spdxdocs/nrf-cmake-sdk-0.0.0-20260904",
   "creationInfo": {
     "created": "2026-09-04T00:00:00Z",
@@ -29,7 +29,18 @@
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "BSD-3-Clause AND Apache-2.0 AND LicenseRef-CodeSourcery-Linker-Script",
       "copyrightText": "NOASSERTION",
-      "comment": "Audited M1 candidate; not imported in M0. Exact candidate file hashes are in sources.lock."
+      "comment": "The audited LM20A MDK/startup subset is imported unmodified. Exact file hashes are in the vendor import manifest referenced by sources.lock."
+    },
+    {
+      "SPDXID": "SPDXRef-Package-CMSIS",
+      "name": "CMSIS",
+      "versionInfo": "6.3.0",
+      "downloadLocation": "git+https://github.com/ARM-software/CMSIS_6.git@45dab712ad84f8cbbf2b7bfc089c19088507df6f",
+      "filesAnalyzed": false,
+      "licenseConcluded": "Apache-2.0",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "Copyright (c) 2009-2025 Arm Limited",
+      "comment": "CMSIS Core headers are imported unmodified; exact file hashes are in the vendor import manifest referenced by sources.lock."
     },
     {
       "SPDXID": "SPDXRef-Package-TFM",
@@ -57,9 +68,15 @@
   "relationships": [
     {
       "spdxElementId": "SPDXRef-Package-nrf-cmake-sdk",
-      "relationshipType": "OTHER",
+      "relationshipType": "CONTAINS",
       "relatedSpdxElement": "SPDXRef-Package-nrfx",
-      "comment": "Planned source input"
+      "comment": "Imported LM20A MDK/startup subset"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-nrf-cmake-sdk",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-Package-CMSIS",
+      "comment": "Imported CMSIS Core header subset"
     },
     {
       "spdxElementId": "SPDXRef-Package-nrf-cmake-sdk",

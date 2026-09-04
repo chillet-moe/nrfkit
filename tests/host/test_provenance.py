@@ -21,13 +21,13 @@ class ProvenanceTests(unittest.TestCase):
         self.assertEqual(
             set(lock["audited_sources"]),
             {
-                "nrfx-4.5.0", "nrf-device-family-pack-8.44.1",
+                "nrfx-4.5.0", "cmsis-6.3.0", "nrf-device-family-pack-8.44.1",
                 "trusted-firmware-m-ncs-3.4.0", "s115-10.0.1",
             },
         )
         for source in lock["audited_sources"].values():
             self.assertEqual(source["import_date"], "2026-09-04")
-            self.assertFalse(source["imported"])
+            self.assertIsInstance(source["imported"], bool)
             self.assertEqual(source["patches"], "none")
             if "commit" in source:
                 self.assertRegex(source["commit"], r"^[0-9a-f]{40}$")
@@ -39,6 +39,30 @@ class ProvenanceTests(unittest.TestCase):
                 if isinstance(file_value, dict):
                     self.assertTrue(file_value["license"])
 
+    def test_vendor_import_manifest_covers_and_hashes_third_party_tree(self) -> None:
+        lock = json.loads(
+            (ROOT / "docs/provenance/sources.lock").read_text(encoding="utf-8")
+        )
+        import_ref = lock["vendor_import_manifest"]
+        import_path = ROOT / import_ref["path"]
+        import hashlib
+        self.assertEqual(hashlib.sha256(import_path.read_bytes()).hexdigest(), import_ref["sha256"])
+        manifest = json.loads(import_path.read_text(encoding="utf-8"))
+        self.assertEqual(manifest["schema"], "nrf-cmake-sdk-vendor-imports/v1")
+        entries = {item["destination"]: item for item in manifest["files"]}
+        actual = {
+            path.relative_to(ROOT).as_posix(): path
+            for path in (ROOT / "third_party").rglob("*") if path.is_file()
+        }
+        self.assertEqual(set(entries), set(actual))
+        for destination, path in actual.items():
+            item = entries[destination]
+            self.assertRegex(item["sha256"], SHA256)
+            self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), item["sha256"])
+            self.assertTrue(item["source_path"])
+            self.assertTrue(item["license"])
+            self.assertEqual(item["patches"], "none")
+
     def test_spdx_draft_describes_current_project_and_external_candidates(self) -> None:
         sbom = json.loads(
             (ROOT / "docs/provenance/sbom.spdx.json").read_text(encoding="utf-8")
@@ -48,6 +72,7 @@ class ProvenanceTests(unittest.TestCase):
         package_ids = {package["SPDXID"] for package in sbom["packages"]}
         self.assertIn("SPDXRef-Package-nrf-cmake-sdk", package_ids)
         self.assertIn("SPDXRef-Package-nrfx", package_ids)
+        self.assertIn("SPDXRef-Package-CMSIS", package_ids)
         self.assertIn("SPDXRef-Package-S115", package_ids)
         self.assertEqual(
             {item["licenseId"] for item in sbom["hasExtractedLicensingInfos"]},
@@ -63,6 +88,18 @@ class ProvenanceTests(unittest.TestCase):
         self.assertIn("Official GNU application", audit)
         self.assertIn("No device-specific Arm/ArmClang", audit)
         self.assertIn("not currently planned for import", audit)
+
+    def test_m1_toolchains_are_identified_without_local_paths(self) -> None:
+        lock = json.loads(
+            (ROOT / "docs/provenance/toolchains.lock").read_text(encoding="utf-8")
+        )
+        self.assertIn("llvm-arm-bare-metal", lock["tools"])
+        self.assertIn("fedora-gnu-arm-smoke", lock["tools"])
+        for tool in lock["tools"].values():
+            serialized = json.dumps(tool)
+            self.assertNotRegex(serialized, r"/(?:home|Users)/[^/]+/")
+            for digest in tool.get("executables", {}).values():
+                self.assertRegex(digest, SHA256)
 
 
 if __name__ == "__main__":

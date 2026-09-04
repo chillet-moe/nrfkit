@@ -1,0 +1,600 @@
+{
+  "schema": "nrf-cmake-sdk-vendor-imports/v1",
+  "import_date": "2026-09-04",
+  "files": [
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/a-profile/cmsis_armclang_a.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/a-profile/cmsis_armclang_a.h",
+      "sha256": "e3a6811ff4efb84514114b0b4832ba94bfccfc661039cf3f00e3c373cce29655",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/a-profile/cmsis_clang_a.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/a-profile/cmsis_clang_a.h",
+      "sha256": "179ee88a1c2e7c2e56fe399e9e88f4dba1916edf80152d88c71807db4e675ce7",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/a-profile/cmsis_cp15.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/a-profile/cmsis_cp15.h",
+      "sha256": "2fee149025d4d08f20fa54fe18162d24d5abc61908964501ff20f50621418a7a",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/a-profile/cmsis_gcc_a.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/a-profile/cmsis_gcc_a.h",
+      "sha256": "bdf9a2a49a012704b799951e66c6af13f7513349eef5f7291fd1d7ac0add0f0c",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/a-profile/cmsis_iccarm_a.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/a-profile/cmsis_iccarm_a.h",
+      "sha256": "c41d99a21bdcd2050d6d428ea2591837999cd7871e39d49eb7b10fe1ed3c4ab0",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/a-profile/irq_ctrl.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/a-profile/irq_ctrl.h",
+      "sha256": "ba65458c3550ed2613902e084ddcd69f9feae1dfb80bcb99d50e10c88ef8c336",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/cmsis_armclang.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/cmsis_armclang.h",
+      "sha256": "f7361b36a56909eff2b1cecd778443fd9da21eaa86878dabf5e8e216f6bfea29",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/cmsis_clang.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/cmsis_clang.h",
+      "sha256": "015fd70aaca6475443082154b7c844d6db58e757b2dbe3fa3bd2673e0c353ba0",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/cmsis_compiler.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/cmsis_compiler.h",
+      "sha256": "8932e7ac5c9a13b199c64f25b3dc67ebf0a877b33dbcf434d4e1b78e625f57c5",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/cmsis_gcc.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/cmsis_gcc.h",
+      "sha256": "7c34c8eb47e78acc8da3122fd27fc912b653b14817a2e1fb55ed41fb55c54281",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/cmsis_iccarm.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/cmsis_iccarm.h",
+      "sha256": "636f5dbc40e48243aad3312b3942457bae0df2f4d6725680572a13307b6d454f",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/cmsis_version.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/cmsis_version.h",
+      "sha256": "3b9195c5373a2a4dbfd968b083b3d7f5f446f9ec2e126f75928ac1ff4356b91e",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/core_ca.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/core_ca.h",
+      "sha256": "84e0df477d2e9cfefd7afe1e69d5dc29887f914147cf603f9823d3ab8bc6b1ef",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/core_cm0.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/core_cm0.h",
+      "sha256": "7ad6ed17206a7cb99bfef0ec36411620fb2ba9b4ef0cc1152b0e68c7db62348f",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/core_cm0plus.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/core_cm0plus.h",
+      "sha256": "3a01ca99a202b3c2acf476e9523181c9f6ddb027fa8e097c0be0037b213c8f23",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/core_cm1.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/core_cm1.h",
+      "sha256": "d5c5fade64174a97e81156e765cffa867aace08ccd66617bf5622327e1ede099",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/core_cm23.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/core_cm23.h",
+      "sha256": "8d2fb0ec0e59c664392591fe703cf7243e50969f05d9c6c4e4fea42cb99032cb",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/core_cm3.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/core_cm3.h",
+      "sha256": "00c9f5f9b9244661549e0ee7d4fa0e82de049f40c17902c201c1eb00fce70936",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/core_cm33.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/core_cm33.h",
+      "sha256": "47bd70aed10df47c7ca54bf049685d24ae886294b2d05ac6e411804dfe81b4b8",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/core_cm35p.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/core_cm35p.h",
+      "sha256": "eb1c002b97357517d1e070b0565f8bd3d859c95d09074e47b9cf59cee70f8130",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/core_cm4.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/core_cm4.h",
+      "sha256": "5d6f71c32258821ebf371045a5670fe74a1cab49318f8df75344adfe4813de04",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/core_cm52.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/core_cm52.h",
+      "sha256": "647b222cdf36b0ede804853c153b6d1486603de7c881ea3ed3acacb69b7b3c7b",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/core_cm55.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/core_cm55.h",
+      "sha256": "b0772b23e6dfce96638e7ca0040a063d9b399ed91a2843c62c32192a059d0231",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/core_cm7.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/core_cm7.h",
+      "sha256": "2927d0c055445d19cef7d311e076961ffa86f7af4bcbc5673dbd14d9c160ac29",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/core_cm85.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/core_cm85.h",
+      "sha256": "acea058815b71ec3710415001518e014d19f50be7b06e1ecf1a6071f28945698",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/core_sc000.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/core_sc000.h",
+      "sha256": "8a42600f7afd149a6029cc147f0aa7e48ad016b1729d87de24e29b74163910d0",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/core_sc300.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/core_sc300.h",
+      "sha256": "7846ebbc73ded9559195026f7719a6ffa7646cb0fd2de8a5927812b9ce8bc944",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/core_starmc1.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/core_starmc1.h",
+      "sha256": "1201164ecf3ecf25df9a49b6abea55eb3b612addfdd0b9d1d460b0e95bc3f9f1",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/core_starmc3.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/core_starmc3.h",
+      "sha256": "425936814b668ef4523bf759d6ac6f9dce8a8dd3d64087b3711239854bbb53f5",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/m-profile/armv7m_cachel1.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/m-profile/armv7m_cachel1.h",
+      "sha256": "f7905d3e336feccda0647f214e791b424c5f92e788f1303e587cebca729b6dc3",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/m-profile/armv7m_mpu.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/m-profile/armv7m_mpu.h",
+      "sha256": "44294dc3e331deb8daae269793e579cc10920a9b88d133bbaf3a7af65d29f9e4",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/m-profile/armv81m_pac.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/m-profile/armv81m_pac.h",
+      "sha256": "fe2f5db52980237fe8bafe265b660ef9caac90bae4c478d34f243e82346d1daa",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/m-profile/armv8m_mpu.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/m-profile/armv8m_mpu.h",
+      "sha256": "3540efc65de718421637748878159d19e2aabc53609eb4bd02d6894cc9977582",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/m-profile/armv8m_pmu.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/m-profile/armv8m_pmu.h",
+      "sha256": "1323587da9fea03c96a685a9cf60c576b4d0532b3339501401332ff8a6c58e32",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/m-profile/cmsis_armclang_m.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/m-profile/cmsis_armclang_m.h",
+      "sha256": "d7425ea4ca4577e557f9ea155006f5506db1e9f6580442d56d6417549ad53b92",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/m-profile/cmsis_clang_m.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/m-profile/cmsis_clang_m.h",
+      "sha256": "4d6c792c84658954f991176e1774513c367df20d22f2ab2f43c30c6f14e2f106",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/m-profile/cmsis_gcc_m.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/m-profile/cmsis_gcc_m.h",
+      "sha256": "56241ce5b4798048f84429e28c1949d30bb907155f0b8351cb36aaaa9cbbeabb",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/m-profile/cmsis_iccarm_m.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/m-profile/cmsis_iccarm_m.h",
+      "sha256": "044ea6c892db7a8e65664894416e516d5aa1f6461ab94026bfc3feb28fcce1ca",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/m-profile/cmsis_tiarmclang_m.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/m-profile/cmsis_tiarmclang_m.h",
+      "sha256": "c753507cf915b193908baad0754322144c1b40192cdaf22da0aa8b9202185cef",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/r-profile/cmsis_armclang_r.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/r-profile/cmsis_armclang_r.h",
+      "sha256": "d3875ee329abb8a5746cfda99633d71f30a131156ebc8aafc8b2ec4992df8616",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/r-profile/cmsis_clang_r.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/r-profile/cmsis_clang_r.h",
+      "sha256": "50cb3a674ebffb742934ec63c86948ec321771ee4c645d136a5d897dcc2ead07",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/r-profile/cmsis_gcc_r.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/r-profile/cmsis_gcc_r.h",
+      "sha256": "3502300039821e8f1b8ecbd7a5cc433c5ce90da41e4d71fccaec0bb1568404da",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/r-profile/cmsis_iccarm_r.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/r-profile/cmsis_iccarm_r.h",
+      "sha256": "8295759ba6993f3a71c4b7cd953e75bcb59c016960670f2a9613b081d6afd415",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/CMSIS/Core/Include/tz_context.h",
+      "source": "cmsis-6.3.0",
+      "source_path": "CMSIS/Core/Include/tz_context.h",
+      "sha256": "2bcc2a5fea0567eff96dd3f2fd197b88feaa144bfe0df6146abd802701456d3b",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/cmsis/LICENSE",
+      "source": "cmsis-6.3.0",
+      "source_path": "LICENSE",
+      "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/LICENSE",
+      "source": "nrfx-4.5.0",
+      "source_path": "LICENSE",
+      "sha256": "55e466145d9fbe1ded026036d65abf9c610483cf9042d8689aebe3553984178e",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/common/compiler_abstraction.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/common/compiler_abstraction.h",
+      "sha256": "f65ff886b5219dd83b6d0cbd3a2ffe5a34c6b50d95b337e311cb4e6a85a454b8",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/common/core_vpr.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/common/core_vpr.h",
+      "sha256": "809d8271b985de43d958b36c97143c5949acc63557db7b2528c2cb6023b8fa64",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/common/system_config_sau.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/common/system_config_sau.h",
+      "sha256": "222c4b2a36149e9ad3c564f938d12582a9a6632513e1eff1e639ec56855befa1",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/common/system_nrf.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/common/system_nrf.h",
+      "sha256": "76657d81aba544d4aa02740e0df97f341b5da0fb60405375ffcce05a2069f73c",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf.h",
+      "sha256": "906d88f66f86deffe9e6a1fc685a84912fc0b461a26f77b24486b14f30761b5e",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/nrf54l_erratas.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/nrf54l_erratas.h",
+      "sha256": "f3b0719b62970b9178334764ab2771b1e3c2da80bb9aa98dbda183963b6ca81c",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/nrf54lm20a/gcc_startup_nrf54lm20a_application.S",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/gcc_startup_nrf54lm20a_application.S",
+      "sha256": "dc1030b228b8e5552189818aad0cde5344466457985a656cc989d5cc153fc9b2",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/nrf54lm20a/nrf54lm20a.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a.h",
+      "sha256": "116c982e3074e37c78ff0dc60d190dc9f50601b668dbd1a6ab6bdc6283bbb94f",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/nrf54lm20a/nrf54lm20a_application.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_application.h",
+      "sha256": "161484696a4912ce758e8521f4acbd63a4debd45feb662da0c07bf0cd0825088",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/nrf54lm20a/nrf54lm20a_application.svd",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_application.svd",
+      "sha256": "847e2de9bf06a4750620e3d582d680cc390dd58b34af1f874100c872788fd862",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/nrf54lm20a/nrf54lm20a_application_peripherals.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_application_peripherals.h",
+      "sha256": "79869235f59e51ba39af5bb4e955e77ac44ccec5b21a19bf8992ae5e435ae3da",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/nrf54lm20a/nrf54lm20a_application_vectors.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_application_vectors.h",
+      "sha256": "bd5f90147e8b9c880cad4200558cea5a4605cd4a61712b2cfd1d8ea7470b0eab",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/nrf54lm20a/nrf54lm20a_flpr.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_flpr.h",
+      "sha256": "5896004fd28b01ff1ec84bdb98b5e7b86867d1d6ba73c34d01fcc91e28d97f25",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/nrf54lm20a/nrf54lm20a_flpr_peripherals.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_flpr_peripherals.h",
+      "sha256": "c0afe9dbad7ac33a57230c57cc6bdc1711a683cc539864eb641158119977a1aa",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/nrf54lm20a/nrf54lm20a_flpr_vectors.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_flpr_vectors.h",
+      "sha256": "1233ef15b99edced99de53d02d3f5a62eca48e9d89c26d8dd1612610b1f6652b",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/nrf54lm20a/nrf54lm20a_global.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_global.h",
+      "sha256": "cf18070e347b90bac9e245f1a5e3848fc7465526fc033339d7f00552a3922d94",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/nrf54lm20a/nrf54lm20a_interim.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_interim.h",
+      "sha256": "e3fcfe6cbb2b23dc14c352e30ba4404b58e3f4e2c2e89fb0a21a24866c315874",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/nrf54lm20a/nrf54lm20a_name_change.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_name_change.h",
+      "sha256": "7b5f9b2a507d92b7cef3ddfc3797e81117d08710a40842e0565c55c19268632b",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/nrf54lm20a/nrf54lm20a_peripherals.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_peripherals.h",
+      "sha256": "d8a166d51f87d74fb43056ba29636d4fc3a72a683ac4658ea3e06d2a652658be",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/nrf54lm20a/nrf54lm20a_types.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_types.h",
+      "sha256": "821ff7d40f29e16814dcd51110e67f4cf8eafde6fc54980e7923f29271a920b6",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/nrf54lm20a/nrf54lm20a_version.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_version.h",
+      "sha256": "ec8143f31e2a1d270de51439dc58b2f1d4d11ef488d9bc2c6fc6c808bd83960b",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/nrf54lm20a/nrf54lm20a_xxaa_application.ld",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_xxaa_application.ld",
+      "sha256": "b735f14c15d3ee987877c96b02127ecef024557c012bd05377b95754292ccc70",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/nrf54lm20a/nrf54lm20a_xxaa_application_memory.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_xxaa_application_memory.h",
+      "sha256": "c6a091fe5e8ff67a05f6e0b306ab5ab4efddf37a5a48706fe2616160241563fe",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/nrf54lm20a/nrf54lm20a_xxaa_flpr_memory.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_xxaa_flpr_memory.h",
+      "sha256": "cc23b0c454f2898d6e9d82ad0ad2ea32232c6ee8c129152f5506058a98def8fc",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/system_nrf54l.c",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/system_nrf54l.c",
+      "sha256": "0d028b02ceec9dfe5d34c5d35bca8c35fe70de89c4a176614b202e20d8722c99",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/system_nrf54l.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/system_nrf54l.h",
+      "sha256": "0f1dff09c7fa8174cc916d1d15993d4377bf5aa8ecd641c593340e3e8dd31895",
+      "license": "Apache-2.0",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf54l/system_nrf54l_approtect.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf54l/system_nrf54l_approtect.h",
+      "sha256": "e0186ca8df7395be60dc3cbd8e112384ba457dea594c559c53d51ad8ad836903",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    },
+    {
+      "destination": "third_party/nrfx/mdk/nrf_peripherals.h",
+      "source": "nrfx-4.5.0",
+      "source_path": "bsp/stable/mdk/nrf_peripherals.h",
+      "sha256": "731df0d5c3bbb2f0455c08bd784d3112d4f20599ceafbebda9b81c15dbe62de4",
+      "license": "BSD-3-Clause",
+      "patches": "none"
+    }
+  ]
+}
+
+

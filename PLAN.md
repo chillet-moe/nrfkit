@@ -1,6 +1,6 @@
 # nrf-cmake-sdk：目标与执行计划
 
-> 状态：P0、M0 已完成；M1 LM20 freestanding ELF 与链接契约进行中<br>
+> 状态：P0、M0、M1 已完成；M2 LM20 自研镜像实板启动与 GDB 进行中<br>
 > 计划基线：2026-09-04<br>
 > 首要目标：nRF54LM20A / nRF54LM20 DK<br>
 > 次要目标：nRF54L15 / nRF54L15 DK<br>
@@ -227,13 +227,13 @@ $HOME/Documents/Datasheets/NORDIC/nRF54LM20A_nRF54LM20B_Datasheet_v1.0.pdf
 
 ### 3.3 启动代码的硬约束
 
-在已检查的 nrfx/MDK 基线中存在：
+初始 NCS v3.4.0 所带 nrfx/MDK 基线中存在：
 
 - `system_nrf54l.c/.h`；
 - nRF54LM20A 与 nRF54L15 的 CMSIS 设备头、peripheral 头、SVD 和 memory header；
 - nrfx SoC IRQ 映射；
 
-但没有发现传统的、专用于 LM20/L15 的 GNU `startup_*.S`。NCS 的普通应用启动由 Zephyr 的通用 Cortex-M 代码生成；TF-M 中存在 Nordic/Arm 维护的 `startup_nrf54lm.c`、`startup_nrf54lx.c`、共同 IRQ 代码和 `Reset_Handler`，它们是 CMSIS startup 的衍生实现。
+但该旧基线没有传统的、专用于 LM20/L15 的 GNU `startup_*.S`。M0 后续审计确认 nrfx v4.5.0 已发布专用 GNU startup；M1 采用该精确版本的官方文件。NCS 的普通应用启动仍由 Zephyr 的通用 Cortex-M 代码生成；TF-M 中 Nordic/Arm 维护的 CMSIS 衍生 startup 保留为版本差异对照。
 
 因此 M0 必须先完成一次独立来源审计：
 
@@ -252,7 +252,7 @@ $HOME/Documents/Datasheets/NORDIC/nRF54LM20A_nRF54LM20B_Datasheet_v1.0.pdf
 
 ### 3.4 链接脚本的硬约束
 
-当前基线同样未发现 Nordic 为 LM20/L15 发布的独立 GNU linker script。若 M0 审计仍得出此结论，链接脚本必须“基于官方数据生成/编写”，而不是把 Zephyr 生成结果当成无来源模板。
+初始 NCS 基线同样没有 Nordic 为 LM20/L15 发布的独立 GNU linker script；M0 后续确认 nrfx v4.5.0 已包含 per-device GNU linker script。M1 将其作为官方内存输入，但使用带更严格边界和断言的仓库自有布局，且不把 Zephyr 生成结果当成模板。
 
 信息来源至少包括：
 
@@ -597,6 +597,8 @@ M0 于 2026-09-04 完成退出审计。独立检查确认 nrfx v4.5.0 已为 LM2
 - `.data`、`.bss`、`.noinit`、constructors、stack/heap 全部通过 host 检查；
 - 产物扫描确认无配置区 record；
 - GNU Arm 编译至少能完成 compile/link smoke test，功能验证仍以 Clang 为主。
+
+M1 于 2026-09-04 完成退出审计。CMSIS 6.3.0 与 nrfx 4.5.0 的 LM20A MDK、官方 GNU startup 和 `SystemInit` 子集已按逐文件来源、SHA-256、许可证和未修改状态导入；Clang/LLD 为主路径，GNU Arm 完成独立 compile/link smoke。四个示例均生成 ELF、HEX、BIN、map 和 layout manifest；两处不同绝对 build 路径的所有 load image 逐字节一致。host 合约确认 306 项 vector 的位置和地址与最新 startup、设备头、SVD 一致，并记录 NCS v3.4.0 TF-M 的旧版命名差异；`.data`、`.bss`、`.noinit`、C++23 constructors、16 KiB stack、零 heap、fault record 和越界 linker assertion 均通过。所有 ELF/HEX load ranges 通过公共配置区 guard，两份锁定 oracle receipt 已随新 `sources.lock` 重建并复编成功。共 43 个 host tests、SPDX validator、JSON、public hygiene 和 diff check 通过。M1 只宣称 host/build contract 完成，自研镜像的实板证据属于 M2。
 
 ### M2：LM20 实板启动、烧写与 GDB
 

@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
+set(CMAKE_SYSTEM_NAME Generic)
+set(CMAKE_SYSTEM_PROCESSOR arm)
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+
+set(NRF_GNU_ARM_ROOT "" CACHE PATH "GNU Arm Embedded installation prefix")
+find_program(CMAKE_C_COMPILER NAMES arm-none-eabi-gcc HINTS "${NRF_GNU_ARM_ROOT}" PATH_SUFFIXES bin REQUIRED)
+find_program(CMAKE_CXX_COMPILER NAMES arm-none-eabi-g++ HINTS "${NRF_GNU_ARM_ROOT}" PATH_SUFFIXES bin REQUIRED)
+find_program(CMAKE_ASM_COMPILER NAMES arm-none-eabi-gcc HINTS "${NRF_GNU_ARM_ROOT}" PATH_SUFFIXES bin REQUIRED)
+find_program(CMAKE_OBJCOPY NAMES arm-none-eabi-objcopy HINTS "${NRF_GNU_ARM_ROOT}" PATH_SUFFIXES bin REQUIRED)
+find_program(CMAKE_READELF NAMES arm-none-eabi-readelf HINTS "${NRF_GNU_ARM_ROOT}" PATH_SUFFIXES bin REQUIRED)
+find_program(CMAKE_OBJDUMP NAMES arm-none-eabi-objdump HINTS "${NRF_GNU_ARM_ROOT}" PATH_SUFFIXES bin REQUIRED)

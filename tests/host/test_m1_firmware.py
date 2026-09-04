@@ -1,0 +1,214 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import tempfile
+import unittest
+import xml.etree.ElementTree as ET
+
+from nrf_cmake_tools.image import parse_elf, parse_ihex, require_allowed
+
+
+ROOT = Path(__file__).resolve().parents[2]
+EXAMPLES = ROOT / "examples"
+STARTUP = (
+    ROOT / "third_party/nrfx/mdk/nrf54l/nrf54lm20a"
+    / "gcc_startup_nrf54lm20a_application.S"
+)
+DEVICE_HEADER = (
+    ROOT / "third_party/nrfx/mdk/nrf54l/nrf54lm20a"
+    / "nrf54lm20a_application.h"
+)
+SVD = (
+    ROOT / "third_party/nrfx/mdk/nrf54l/nrf54lm20a"
+    / "nrf54lm20a_application.svd"
+)
+
+
+def run(argv: list[str]) -> str:
+    result = subprocess.run(
+        argv, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        check=False,
+    )
+    if result.returncode:
+        raise AssertionError(f"command failed ({result.returncode}): {' '.join(argv)}\n{result.stdout}")
+    return result.stdout
+
+
+class M1FirmwareTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.cmake = shutil.which("cmake")
+        cls.ninja = shutil.which("ninja") or shutil.which("ninja-build")
+        configured_llvm = os.environ.get("NRF_LLVM_ROOT")
+        clang = shutil.which("clang")
+        if configured_llvm:
+            llvm_root = Path(configured_llvm)
+        elif clang:
+            llvm_root = Path(clang).resolve().parent.parent
+        else:
+            raise unittest.SkipTest("the locked LLVM tools are required")
+        cls.llvm_root = llvm_root
+        cls.readelf = llvm_root / "bin/llvm-readelf"
+        cls.objdump = llvm_root / "bin/llvm-objdump"
+        if not all((cls.cmake, cls.ninja, cls.readelf.exists(), cls.objdump.exists())):
+            raise unittest.SkipTest("CMake, Ninja, and the locked LLVM tools are required")
+        cls.temporary = tempfile.TemporaryDirectory()
+        base = Path(cls.temporary.name)
+        cls.build_a = base / "absolute-path-a" / "build"
+        cls.build_b = base / "different" / "absolute-path-b" / "build"
+        for build in (cls.build_a, cls.build_b):
+            run([
+                cls.cmake, "-S", str(EXAMPLES), "-B", str(build), "-G", "Ninja",
+                f"-DNrfCMakeSdk_DIR={ROOT / 'cmake'}",
+                f"-DCMAKE_TOOLCHAIN_FILE={ROOT / 'cmake/toolchains/arm-clang.cmake'}",
+                f"-DNRF_LLVM_ROOT={llvm_root}",
+            ])
+            run([cls.cmake, "--build", str(build)])
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        if hasattr(cls, "temporary"):
+            cls.temporary.cleanup()
+
+    def test_load_images_are_reproducible_across_absolute_build_paths(self) -> None:
+        for name in ("empty", "blinky", "fault", "constructors"):
+            with self.subTest(name=name):
+                self.assertEqual(
+                    (self.build_a / f"{name}.hex").read_bytes(),
+                    (self.build_b / f"{name}.hex").read_bytes(),
+                )
+                self.assertEqual(
+                    (self.build_a / f"{name}.bin").read_bytes(),
+                    (self.build_b / f"{name}.bin").read_bytes(),
+                )
+
+    def test_vector_table_matches_startup_header_and_svd(self) -> None:
+        source = STARTUP.read_text(encoding="utf-8")
+        table = source.split("__isr_vector:", 1)[1].split(
+            ".size __isr_vector", 1
+        )[0]
+        entries = re.findall(r"^\s*\.long\s+([^\s/]+)", table, re.MULTILINE)
+        self.assertEqual(len(entries), 306)
+        self.assertEqual(entries[-1], "VREGUSB_IRQHandler")
+
+        header = DEVICE_HEADER.read_text(encoding="utf-8")
+        header_irqs = {
+            name: int(value)
+            for name, value in re.findall(
+                r"^\s*([A-Z][A-Z0-9_]+)_IRQn\s*=\s*([0-9]+),",
+                header, re.MULTILINE,
+            )
+        }
+        svd_irqs = {}
+        for interrupt in ET.parse(SVD).getroot().findall(".//interrupt"):
+            name = interrupt.findtext("name")
+            value = interrupt.findtext("value")
+            if name is not None and value is not None:
+                svd_irqs[name] = int(value)
+        self.assertEqual(set(header_irqs) - set(svd_irqs), {"CM33SS"})
+        self.assertEqual(
+            {name: header_irqs[name] for name in svd_irqs}, svd_irqs
+        )
+        for name, irq in header_irqs.items():
+            self.assertEqual(entries[16 + irq], f"{name}_IRQHandler")
+
+        sections = run([str(self.readelf), "-SW", str(self.build_a / "empty.elf")])
+        self.assertRegex(
+            sections,
+            r"\.isr_vector\s+PROGBITS\s+00000000\s+[0-9a-f]+\s+0004c8",
+        )
+        vector_dump = run([
+            str(self.objdump), "-s", "-j", ".isr_vector",
+            str(self.build_a / "empty.elf"),
+        ])
+        self.assertIn("00000420", vector_dump)
+
+    def test_runtime_sections_symbols_and_constructor_contract(self) -> None:
+        empty_sections = run([
+            str(self.readelf), "-SW", str(self.build_a / "empty.elf")
+        ])
+        for name in (".data", ".bss", ".noinit"):
+            self.assertIn(name, empty_sections)
+        empty_symbols = run([
+            str(self.readelf), "-sW", str(self.build_a / "empty.elf")
+        ])
+        for symbol in (
+            "__StackTop", "__StackLimit", "__HeapBase", "__HeapLimit",
+            "__data_load_start", "__data_start", "__data_end",
+            "__bss_start__", "__bss_end__", "__noinit_start", "__noinit_end",
+            "nrf_cmake_sdk_last_fault",
+        ):
+            self.assertIn(symbol, empty_symbols)
+        self.assertRegex(empty_symbols, r"20040000\s+0\s+NOTYPE\s+GLOBAL.*__StackTop")
+
+        constructors_sections = run([
+            str(self.readelf), "-SW", str(self.build_a / "constructors.elf")
+        ])
+        self.assertRegex(
+            constructors_sections,
+            r"\.init_array\s+INIT_ARRAY\s+[0-9a-f]+\s+[0-9a-f]+\s+000004",
+        )
+        constructors_symbols = run([
+            str(self.readelf), "-sW", str(self.build_a / "constructors.elf")
+        ])
+        self.assertIn("constructor_observation", constructors_symbols)
+
+    def test_artifacts_and_load_ranges_exclude_configuration_regions(self) -> None:
+        for name in ("empty", "blinky", "fault", "constructors"):
+            with self.subTest(name=name):
+                elf = parse_elf(self.build_a / f"{name}.elf")
+                ihex = parse_ihex(self.build_a / f"{name}.hex")
+                require_allowed(elf.ranges, ((0, 0x001FD000),))
+                require_allowed(ihex.ranges, ((0, 0x001FD000),))
+                self.assertTrue((self.build_a / f"{name}.map").is_file())
+                self.assertTrue((self.build_a / f"{name}.image-layout.json").is_file())
+
+    def test_linker_assertion_rejects_stack_overlap(self) -> None:
+        result = subprocess.run(
+            [self.cmake, "--build", str(self.build_a), "--target", "linker_overlap"],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            check=False,
+        )
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("zeroed RAM overlaps stack", result.stdout)
+
+    def test_gnu_arm_compile_and_link_smoke(self) -> None:
+        if shutil.which("arm-none-eabi-gcc") is None:
+            self.skipTest("GNU Arm Embedded is not installed")
+        build = Path(self.temporary.name) / "gnu-arm-smoke"
+        run([
+            self.cmake, "-S", str(EXAMPLES), "-B", str(build), "-G", "Ninja",
+            f"-DNrfCMakeSdk_DIR={ROOT / 'cmake'}",
+            f"-DCMAKE_TOOLCHAIN_FILE={ROOT / 'cmake/toolchains/arm-gcc.cmake'}",
+        ])
+        run([self.cmake, "--build", str(build), "--target", "empty"])
+        self.assertTrue((build / "empty.elf").is_file())
+
+    def test_installed_package_builds_firmware_offline(self) -> None:
+        base = Path(self.temporary.name) / "installed-firmware"
+        sdk_build = base / "sdk-build"
+        prefix = base / "prefix"
+        build = base / "consumer-build"
+        run([
+            self.cmake, "-S", str(ROOT), "-B", str(sdk_build), "-G", "Ninja",
+            f"-DCMAKE_INSTALL_PREFIX={prefix}",
+        ])
+        run([self.cmake, "--build", str(sdk_build), "--target", "install"])
+        run([
+            self.cmake, "-S", str(EXAMPLES), "-B", str(build), "-G", "Ninja",
+            f"-DCMAKE_PREFIX_PATH={prefix}",
+            f"-DCMAKE_TOOLCHAIN_FILE={prefix / 'share/nrf-cmake-sdk/cmake/toolchains/arm-clang.cmake'}",
+            f"-DNRF_LLVM_ROOT={self.llvm_root}",
+        ])
+        run([self.cmake, "--build", str(build), "--target", "empty"])
+        self.assertTrue((build / "empty.elf").is_file())
+
+
+if __name__ == "__main__":
+    unittest.main()

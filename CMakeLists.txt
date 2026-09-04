@@ -17,6 +17,20 @@ target_include_directories(nrf_cmake_sdk_core INTERFACE
 
 install(TARGETS nrf_cmake_sdk_core EXPORT NrfCMakeSdkTargets)
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(DIRECTORY
+  include
+  boards
+  linker
+  runtime
+  third_party
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrf-cmake-sdk
+)
+install(DIRECTORY cmake/toolchains
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrf-cmake-sdk/cmake
+)
+install(FILES cmake/modules/NrfSdkFirmware.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/NrfCMakeSdk
+)
 install(EXPORT NrfCMakeSdkTargets
   FILE NrfCMakeSdkTargets.cmake
   NAMESPACE NrfCMakeSdk::

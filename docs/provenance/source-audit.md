@@ -1,12 +1,13 @@
-# M0 source and license audit
+# M0/M1 source and license audit
 
-This audit was performed on 2026-09-04. Exact commits and file hashes are in `sources.lock`. None of the candidates below is imported into the consumer package yet.
+This audit was performed on 2026-09-04. Exact commits and file hashes are in `sources.lock`. M1 imports the audited CMSIS Core and nrfx/MDK subset; external oracles and S115 remain outside the consumer package.
 
 ## Release baseline
 
 - [nRF Connect SDK v3.4.0](https://github.com/nrfconnect/sdk-nrf/releases/tag/v3.4.0) remains the production reference-oracle release selected for nRF54LM20 revision 1. Its already validated commits are unchanged.
 - nRF Connect SDK Bare Metal v2.0.1 remains the source of the validated S115 10.0.1 binary, headers, license, and release notes.
-- [nrfx v4.5.0](https://github.com/NordicSemiconductor/nrfx/releases/tag/v4.5.0) is newer than the nrfx 4.2.1-derived HAL snapshots in those workspaces. It is the M1 MDK/startup candidate, not a silent replacement for either P0 oracle.
+- [nrfx v4.5.0](https://github.com/NordicSemiconductor/nrfx/releases/tag/v4.5.0) is newer than the nrfx 4.2.1-derived HAL snapshots in those workspaces. Its audited LM20A MDK/startup subset is the M1 consumer source, not a silent replacement for either P0 oracle.
+- [CMSIS 6.3.0](https://github.com/ARM-software/CMSIS_6/releases/tag/v6.3.0), commit `45dab712`, supplies the Cortex-M33 compiler/core headers used by both Clang and GNU Arm builds.
 
 ## Startup and linker search
 
@@ -21,10 +22,11 @@ The earlier fallback assumption is therefore superseded: M1 should start from th
 
 ## Planned source and license disposition
 
-| Material | License | M0 disposition |
+| Material | License | Disposition |
 |---|---|---|
-| nrfx/MDK device headers, vectors, SVDs, and memory headers | BSD-3-Clause | Permitted candidate; retain notices and exact upstream paths. |
-| nrfx GNU startup and `system_nrf54l.c/.h` | Apache-2.0 | Permitted candidate; import unmodified where practical and record any integration patch separately. |
+| CMSIS 6.3.0 Core headers | Apache-2.0 | Imported unmodified for M1. |
+| nrfx/MDK device headers, vectors, SVDs, and memory headers | BSD-3-Clause | The LM20A subset is imported unmodified with notices and exact upstream paths. |
+| nrfx GNU startup and `system_nrf54l.c/.h` | Apache-2.0 | Imported unmodified; SDK integration is kept in project-owned CMake/runtime/linker files. |
 | nrfx device linker scripts | BSD-3-Clause at repository scope | Permitted reference/import candidate. |
 | nrfx `nrf_common.ld` | Permissive CodeSourcery notice embedded in the file | Permitted candidate under `LicenseRef-CodeSourcery-Linker-Script`; preserve the notice verbatim. |
 | TF-M Nordic startup comparison files | Apache-2.0 | Audit evidence; not currently planned for import. |
@@ -35,8 +37,8 @@ The earlier fallback assumption is therefore superseded: M1 should start from th
 
 Nordic document `4539_001 v1.0`, Figure 3 on PDF page 15, shows RRAM from `0x00000000`, configuration areas at `0x00FFC000` through `0x00FFF000`, and RAM from `0x20000000` with a reserved top tail for VPR saved context and ProtectedRAM. The nrfx v4.5.0 LM20 memory header describes two physical 256 KiB RAM banks, while NCS v3.4.0 exposes a smaller CPU application SRAM range. These facts describe different abstraction levels; the full physical bank size is not by itself permission to allocate the reserved tail.
 
-M1 must therefore use the stricter usable-RAM boundary until the device header IRQ data, SVD, product specification, TF-M/Zephyr platform data, and locked reference ELF/map agree. It must not copy a generated Zephyr linker script or allocate the entire second bank merely because the generic nrfx memory header names it. The same cross-check applies to RRAM, S115 placement, configuration areas, and every linker assertion.
+M1 therefore exposes only RAM0 (`0x20000000..0x20040000`) for the initial standalone layout. RAM1 stays unavailable until a later layout explicitly accounts for the VPR saved-context and ProtectedRAM tail. The SDK does not copy a generated Zephyr linker script or allocate the entire second bank merely because the generic nrfx memory header names it. The same cross-check applies to RRAM, S115 placement, configuration areas, and every linker assertion.
 
 ## Reproducibility
 
-The release archive/tag, source URL, commit, per-file SHA-256, SPDX identifier, import date, and patch state are machine-independent entries in `sources.lock`. Local workspaces and downloaded audit archives are discovery inputs only. A future import must verify these hashes before copying files and must change `imported` only in the commit that adds the corresponding source.
+The release archive/tag, source URL, commit, per-file SHA-256, SPDX identifier, import date, and patch state are machine-independent entries in `sources.lock` and its hashed `vendor-imports.lock`. Host tests require that the latter covers every tracked `third_party` file and that every digest still matches. Local workspaces and downloaded audit archives are discovery inputs only.

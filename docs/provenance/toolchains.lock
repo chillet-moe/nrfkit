@@ -11,6 +11,33 @@
       "executable_sha256": "89d2e0a8d434306a4d17ba93694c424637513e4341923b697291254d07b1e683",
       "version_output": "GNU gdb (Arm GNU Toolchain 15.3.Rel1 (Build arm-15.149)) 16.3.90.20250906-git",
       "installed_by_consumer_build": false
+    },
+    "llvm-arm-bare-metal": {
+      "release": "LLVM 24.0.0 development snapshot",
+      "source": "https://github.com/llvm/llvm-project/tree/17ac8fdd95283110a14f1de8c15a0fc661119296",
+      "version_output": "clang version 24.0.0git; LLD 24.0.0; llvm-project 17ac8fdd95283110a14f1de8c15a0fc661119296",
+      "executables": {
+        "bin/clang": "a078c09e1e1e4e6318fdce22e0faff723a56a9fa730cbbe67b6dc7234f73d7c0",
+        "bin/clang++": "a078c09e1e1e4e6318fdce22e0faff723a56a9fa730cbbe67b6dc7234f73d7c0",
+        "bin/ld.lld": "0b286c9f565d89b251a34e5cb32fa368c28f9fa4c4f80d49ed1c40bc978e6938",
+        "bin/llvm-objcopy": "802cb12a1ac0a88f5e0d149880400e5fcb3d7902d77c39121a51ac0aabcefcdb",
+        "bin/llvm-readelf": "4e48dca735c780de2046f5da74528bd98caf4094756f432104a4bbfe879167d6",
+        "bin/llvm-objdump": "1c87e5e5cba07fe75a2a2749fb135b10623c0b5c7cc40cbf3ea9233087f56bfc"
+      },
+      "installed_by_consumer_build": false
+    },
+    "fedora-gnu-arm-smoke": {
+      "release": "arm-none-eabi-gcc-cs 15.2.0-4.fc44 and arm-none-eabi-binutils-cs 2.45-3.fc44",
+      "source": "https://src.fedoraproject.org/rpms/arm-none-eabi-gcc-cs",
+      "version_output": "arm-none-eabi-gcc 15.2.0; GNU ld 2.45",
+      "executables": {
+        "arm-none-eabi-gcc": "dff3cd82e3f5c54c1b66fbc8a6c75dec7f85210b4b393421840d26b9600a5451",
+        "arm-none-eabi-g++": "085a9acd346df8390cfc514f005992f67dcc881d4b7cf4a2e506688ea6d75ac4",
+        "arm-none-eabi-objcopy": "c9baa089bb347a27262a9f7542119b4b1dcaaf90d51708700155141a62d84625",
+        "arm-none-eabi-readelf": "d5915690e74367528b651c8beb87f499fa952afaa513effc2408c23761a67605",
+        "arm-none-eabi-objdump": "1b063ed04a457bf652a833b7b44fc249ee35f92d55c7f689835d6634b62f9694"
+      },
+      "installed_by_consumer_build": false
     }
   }
 }

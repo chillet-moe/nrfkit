@@ -16,5 +16,8 @@ set_target_properties(NrfCMakeSdk::core PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${_nrf_cmake_sdk_root}/include"
 )
 set(NrfCMakeSdk_VERSION "0.0.0")
+set(NrfCMakeSdk_ROOT "${_nrf_cmake_sdk_root}")
+
+include("${CMAKE_CURRENT_LIST_DIR}/modules/NrfSdkFirmware.cmake")
 
 unset(_nrf_cmake_sdk_root)
