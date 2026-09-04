@@ -173,7 +173,7 @@ static mpsl_timeslot_signal_return_param_t *timeslot_callback(
         nrf_timer_event_clear(MPSL_TIMER0, NRF_TIMER_EVENT_COMPARE0);
         struct nrfkit_timeslot_action const action = application_handler(
             NRFKIT_TIMESLOT_SIGNAL_TIMER, application_context);
-        if (action.kind != NRFKIT_TIMESLOT_ACTION_EXTEND) {
+        if (action.kind == NRFKIT_TIMESLOT_ACTION_NONE) {
             return end_grant();
         }
         return handle_action(action);
@@ -270,4 +270,10 @@ bool nrfkit_timeslot_is_open(void)
 bool nrfkit_timeslot_is_granted(void)
 {
     return grant_active != 0U;
+}
+
+bool nrfkit_timeslot_deadline_pending(void)
+{
+    return grant_active != 0U &&
+        nrf_timer_event_check(MPSL_TIMER0, NRF_TIMER_EVENT_COMPARE0);
 }

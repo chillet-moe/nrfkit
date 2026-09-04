@@ -24,3 +24,8 @@ config NRFKIT_M7_PEER_4M_BT_0_4
 	bool "Use the BT=0.4 4 Mbit mode instead of BT=0.6"
 	depends on NRFKIT_M7_PEER_PHY_4M
 	default n
+
+config NRFKIT_M7_PEER_PACED_TX
+	bool "Pace packets for a scheduled Timeslot receiver"
+	depends on NRFKIT_M5_PEER_TX
+	default n

@@ -107,6 +107,21 @@ target_compile_definitions(m7_timeslot_validation PRIVATE NRFKIT_M7_TIMESLOT=1)
 nrfkit_finalize_target(m7_timeslot_validation)
 
 foreach(role IN ITEMS tx rx)
+  set(target "m7_timeslot_radio_${role}")
+  add_executable("${target}" m7-timeslot-radio-link/main.c)
+  nrfkit_configure_target("${target}"
+    SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
+  )
+  string(TOUPPER "${role}" role_upper)
+  target_compile_definitions("${target}" PRIVATE
+    "NRFKIT_M7_TIMESLOT_LINK_${role_upper}=1"
+  )
+  nrfkit_enable_sdc("${target}" VARIANT multirole)
+  nrfkit_enable_mpsl_timeslot("${target}")
+  nrfkit_finalize_target("${target}")
+endforeach()
+
+foreach(role IN ITEMS tx rx)
   set(target "m5_radio_${role}")
   add_executable("${target}" m5-radio-link/main.c)
   nrfkit_configure_target("${target}"
@@ -286,6 +301,17 @@ if(NRFKIT_ENABLE_HARDWARE_TESTS)
         VERBATIM
       )
     endforeach()
+  endforeach()
+  foreach(role IN ITEMS tx rx)
+    set(target "m7_timeslot_radio_${role}")
+    string(TOUPPER "${role}" role_upper)
+    add_custom_command(TARGET "${target}" POST_BUILD
+      COMMAND "${NRFKIT_TOOL}" sdk manifest
+        --build-dir "$<TARGET_FILE_DIR:${target}>"
+        --target "${target}"
+        --expected-token "NRFKIT_M7_TS_${role_upper} PASS"
+      VERBATIM
+    )
   endforeach()
   if(TARGET m6_ble_official_baseline)
     add_custom_command(TARGET m6_ble_official_baseline POST_BUILD

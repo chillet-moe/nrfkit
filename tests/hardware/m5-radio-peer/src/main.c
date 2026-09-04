@@ -122,6 +122,9 @@ int main(void)
             printk("NRFKIT_M5_PEER FAIL tx\n");
             return 1;
         }
+#if defined(CONFIG_NRFKIT_M7_PEER_PACED_TX) && CONFIG_NRFKIT_M7_PEER_PACED_TX
+        k_busy_wait(1000U);
+#endif
     }
 #if defined(CONFIG_NRFKIT_M7_PEER_PHY_4M) && CONFIG_NRFKIT_M7_PEER_PHY_4M
     printk("NRFKIT_M7_PEER_TX PASS\n");

@@ -61,6 +61,8 @@ int32_t nrfkit_timeslot_close(void);
 
 bool nrfkit_timeslot_is_open(void);
 bool nrfkit_timeslot_is_granted(void);
+/** True once the backend cleanup deadline has elapsed inside a grant. */
+bool nrfkit_timeslot_deadline_pending(void);
 
 #ifdef __cplusplus
 }

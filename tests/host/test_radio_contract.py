@@ -84,6 +84,9 @@ class RadioContractTests(unittest.TestCase):
                     ROOT / f"tests/hardware/m5-radio-peer/configs/{role}-4m-{mode}.conf"
                 ).is_file())
         self.assertIn("CONFIG_NRFKIT_M7_PEER_PHY_4M", peer)
+        self.assertTrue((
+            ROOT / "tests/hardware/m5-radio-peer/configs/tx-timeslot-4m-bt-0-6.conf"
+        ).is_file())
 
     def test_timeslot_backend_enforces_grant_and_deadline_contract(self) -> None:
         header = (ROOT / "include/nrfkit/timeslot.h").read_text(encoding="utf-8")
@@ -95,7 +98,8 @@ class RadioContractTests(unittest.TestCase):
         )
         for token in (
             "nrfkit_timeslot_open", "nrfkit_timeslot_request_earliest",
-            "nrfkit_timeslot_close", "NRFKIT_TIMESLOT_ACTION_EXTEND",
+            "nrfkit_timeslot_close", "nrfkit_timeslot_deadline_pending",
+            "NRFKIT_TIMESLOT_ACTION_EXTEND",
             "NRFKIT_TIMESLOT_SIGNAL_BLOCKED", "NRFKIT_TIMESLOT_SIGNAL_CANCELLED",
         ):
             self.assertIn(token, header)
@@ -108,6 +112,12 @@ class RadioContractTests(unittest.TestCase):
             self.assertIn(token, source)
         self.assertIn("function(nrfkit_enable_mpsl_timeslot target)", module)
         self.assertIn("enable SDC on '${target}' first", module)
+        link = (ROOT / "examples/m7-timeslot-radio-link/main.c").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("NRFKIT_RADIO_OWNER_TIMESLOT", link)
+        self.assertIn("nrfkit_timeslot_deadline_pending", link)
+        self.assertIn("GRANT_DISTANCE_US", link)
 
     def test_dual_board_harness_rejects_a_single_probe(self) -> None:
         cli = (ROOT / "tools/nrfkit_tools/cli.py").read_text(encoding="utf-8")

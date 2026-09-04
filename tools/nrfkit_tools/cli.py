@@ -2139,6 +2139,7 @@ def main(argv: list[str] | None = None) -> int:
             "p2", "p3", "bonding", "hid", "product", "reconnect",
             "bluez-kdist", "tx", "rx", "tx-1m", "rx-1m",
             "tx-4m-bt-0-6", "rx-4m-bt-0-6",
+            "tx-timeslot-4m-bt-0-6",
             "tx-4m-bt-0-4", "rx-4m-bt-0-4",
         ),
     )
