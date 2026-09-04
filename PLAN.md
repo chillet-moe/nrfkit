@@ -1,6 +1,6 @@
 # nrfkit：目标与执行计划
 
-> 状态：P0、M0、M1、M2、M3 已完成；M4 部分完成且暂不阻塞无线主线；M5 direct-RADIO 基线已收束；M6 SoftDevice Controller 为当前核心任务；M7 MPSL Timeslot 与 4 Mbit/s 优先私有 2.4 GHz 待执行<br>
+> 状态：P0、M0、M1、M2、M3、M6 已完成；M4 部分完成且暂不阻塞无线主线；M5 direct-RADIO 基线已收束；M7 MPSL Timeslot 与 4 Mbit/s 优先私有 2.4 GHz 为当前核心任务<br>
 > 计划基线：2026-09-05<br>
 > 唯一 SDK 支持目标：nRF54LM20A / nRF54LM20 DK<br>
 > 实验室夹具：nRF54L15 DK（不属于 SDK 支持目标）<br>
@@ -791,6 +791,25 @@ BlueZ 实际发现其 advertising、由 Controller 实际扫描确定性 host pe
 - 每种 archive 的最终 map、RAM budget、MPSL/SDC resource config、stack watermark、assert/
   fault 和重复运行结果可审计；
 - 没有 Host、ATT/GATT/HID profile，也没有 S115 compatibility shim 被偷偷带入。
+
+M6 于 2026-09-05 完成退出审计。纯 CMake consumer target 只链接锁定的 secure
+hard-float MPSL、FEM common closure archive 和显式选择的 Multirole、Peripheral-only
+或 Central-only SDC archive；普通 configure/build 不读取 NCS、west、Kconfig、Devicetree
+或 Zephyr。最小平台底座实现并自动检查 GRTC/SYSCOUNTER、128 MHz、IRQ/priority、LF/HF
+clock、低优先级串行执行、嵌套低延迟、CRACEN entropy、同步 disable、fault reset 与资源
+所有权。最终 map hash、完整资源表和 ELF RRAM/RAM/16 KiB stack 预算进入每份 guarded
+manifest；运行期另报告 8-byte aligned Controller buffer 的实际需求、前后 canary、栈水位和
+fault 状态。
+
+最终同一提交的三种归档各连续运行三次全部 PASS。Multirole 实测 Controller memory 为
+3312 bytes，Peripheral-only 为 1496 bytes，Central-only 为 1520 bytes；三者观测栈高水位
+均为 1168 bytes，所有 canary 完整且无 MPSL/SDC/UART fault。Multirole 完成
+enable/disable/re-enable、Reset/version/features、可连接广播与 Peripheral accept、扫描与
+Central initiate、两种角色的主动 disconnect，以及双向 raw HCI ACL；两个裁剪归档分别完成
+适用子集。最终独立 GDB 门禁也完成 main breakpoint、单步、CPUID、RAM 读写、detach 和
+server cleanup。所有程序写入仍为普通应用 RRAM 的 `ERASE_NONE` + read-back，未执行 mass
+erase、recover、provisioning、配置区写入或探针配置变更。112 个 host tests、public hygiene
+和 diff check 通过。M7 从该已验证底座开始，不再以 direct-RADIO 冒充 MPSL 共存。
 
 ### 历史检查点：S115/nRF-BM（原 M6，已停止）
 

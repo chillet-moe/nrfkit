@@ -4,7 +4,7 @@
 
 This project is not affiliated with or endorsed by Nordic Semiconductor. Nordic Semiconductor, nRF, and related marks belong to their respective owners.
 
-The project is in early bring-up. P0 through M3 now provide locked official reference builds, a guarded hardware workflow, an experimental nRF54LM20A freestanding runtime, real-board runtime/GDB validation, target-scoped nrfx drivers, DMA/IRQ tests, bounded RRAM scratch writes, and System ON sleep/retention validation. M4 USBHS device support is partially validated. M5 established a direct-RADIO diagnostic baseline and reusable two-board tooling; it did not claim completed over-the-air interoperability. The current M6 task makes version-locked Nordic `sdk-nrfxlib` a first-class input and brings up SoftDevice Controller, Multirole first, on the minimum documented MPSL substrate. M7 then adds MPSL Timeslot proprietary radio with 4 Mbit/s as the primary PHY target. This is not yet a consumer SDK release; see [`PLAN.md`](PLAN.md) for the normative scope and completion gates.
+The project is in early bring-up. P0 through M3 and M6 now provide locked official reference builds, a guarded hardware workflow, an experimental nRF54LM20A freestanding runtime, target-scoped nrfx drivers, and a pure-CMake SoftDevice Controller/MPSL integration validated with all three controller archives. M4 USBHS device support is partially validated. M5 established a direct-RADIO diagnostic baseline and reusable two-board tooling; it did not claim completed over-the-air interoperability. The current M7 task adds MPSL Timeslot proprietary radio with 4 Mbit/s as the primary PHY target. This is not yet a consumer SDK release; see [`PLAN.md`](PLAN.md) for the normative scope and completion gates.
 
 Clone with submodules initialized (`git clone --recurse-submodules`) before building. The complete nrfx, CherryUSB, and Nordic sdk-nrfxlib trees remain immutable, version-locked upstream submodules instead of ordinary project-owned source. NrfKit compiles or links only requested components and prepares nrfx project patches in an ignored consumer cache; configure never downloads or edits an upstream tree. An explicit `NRFKIT_NRFXLIB_ROOT` override may point at the exact same locked checkout after full identity/hash validation; normal builds never discover an installed NCS workspace.
 
@@ -64,6 +64,18 @@ error-free goodput, latency, loss, retries, queue bounds, stability, and power;
 2 and 1 Mbit/s remain compatibility and diagnostic baselines. See
 [`docs/provenance/radio.md`](docs/provenance/radio.md).
 
+The experimental SoftDevice Controller integration is also target-scoped and selects
+exactly one locked archive variant:
+
+```cmake
+nrfkit_enable_sdc(firmware VARIANT multirole) # or peripheral / central
+```
+
+It supplies Controller lifecycle and raw HCI only—there is no BLE Host, ATT/GATT,
+profile stack, or S115 compatibility layer. The generated guarded manifest records
+the selected archives, resource configuration, final map hash, and ELF memory budget.
+See [`docs/provenance/sdc-mpsl-resource-contract.md`](docs/provenance/sdc-mpsl-resource-contract.md).
+
 The package-discovery skeleton is also usable for ordinary host consumers:
 
 ```sh
@@ -96,9 +108,10 @@ tools/nrfkit run --oracle ncs-hello-world \
 
 `run --manifest` remains available when the firmware was produced separately; that form starts at manifest audit and does not claim to have rebuilt an official oracle.
 
-The M6 SDC oracle carries binary H4 rather than an ASCII console token. After its
-locked reference build, run its guarded bidirectional Controller gate and the
-independent GDB check explicitly:
+The M6 SDC workflow carries binary H4 rather than an ASCII console token. The same
+guarded bidirectional Controller gate accepts either the locked official oracle
+manifest or a generated standalone SDK manifest. Run it and the independent GDB
+check explicitly:
 
 ```sh
 tools/nrfkit m6-sdc-oracle \
@@ -107,6 +120,10 @@ tools/nrfkit gdb-smoke \
   --manifest .work/reference/build/ncs-hci-uart-sdc/image-manifest.json \
   --gdb /path/to/locked/arm-none-eabi-gdb
 ```
+
+For the standalone example, use `m6_sdc_validation.device-manifest.json`; the
+Peripheral-only and Central-only examples generate correspondingly named manifests
+and automatically run only their applicable HCI role subset.
 
 The complete P0 acceptance gate is also a single public command. It performs three consecutive hello-world runs, the Bare Metal plus S115 run, and GDB smoke with exact-token verification:
 

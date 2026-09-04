@@ -114,9 +114,34 @@ stops at `main`, single-steps, reads CPUID, detaches, and verifies that the GDB
 server exits. Its final report is
 `.work/runs/20260905-034827-gdb-smoke-699428/run.json`.
 
-## Remaining M6 evidence
+## Standalone completion evidence
 
-This contract is the input to implementation, not board-completion evidence.
-The next gate maps every requirement ID to standalone CMake ownership checks,
-platform code, link/map checks, and bounded runtime observations. No repeated
-board trial is an acceptable substitute for a documented source-level mapping.
+The pure-CMake platform maps every requirement ID to target ownership checks,
+platform code, link/map checks, and bounded runtime observations. Each guarded
+manifest records the exact selected archives, resource list, final map hash, ELF
+RRAM bytes, initialized/static RAM, the 16 KiB reserved stack, total RAM reservation,
+and remaining RAM headroom. Final total RAM reservations are 30613 bytes for
+Multirole, 28509 bytes for Peripheral-only, and 28601 bytes for Central-only.
+
+The validation firmware performs enable, disable, and re-enable before accepting
+HCI traffic. Its test-only diagnostic command reports the exact configured Controller
+memory requirement (3312, 1496, and 1520 bytes respectively), stack watermark,
+persisted SDC fault state, UART state, ACL submission result, and both Controller
+buffer canaries. The final three-run matrix observed a 1168-byte stack high-water
+mark for every archive, intact canaries, and no fault. The report IDs are:
+
+- Multirole: `20260905-044042-m6-sdc-oracle-732900`,
+  `20260905-044051-m6-sdc-oracle-732993`, and
+  `20260905-044105-m6-sdc-oracle-733099`;
+- Peripheral-only: `20260905-044129-m6-sdc-oracle-733295`,
+  `20260905-044133-m6-sdc-oracle-733368`, and
+  `20260905-044140-m6-sdc-oracle-733443`;
+- Central-only: `20260905-044153-m6-sdc-oracle-733549`,
+  `20260905-044159-m6-sdc-oracle-733622`, and
+  `20260905-044208-m6-sdc-oracle-733704`.
+
+Multirole proves both roles, both locally initiated disconnections, Controller-to-Host
+and Host-to-Controller raw ACL, and all baseline HCI commands. Each role-only archive
+proves its applicable subset. The independent final GDB report ID is
+`20260905-044223-gdb-smoke-733811`. No Host, ATT/GATT, profile, Zephyr component,
+or S115 shim enters these images.

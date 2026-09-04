@@ -32,7 +32,7 @@ identity, or raw transcript stays in ignored local storage. The first new PHY ga
 is 4 Mbit/s in both directions for three rounds. The existing 2 and 1 Mbit/s profiles
 are compatibility and diagnostic baselines, not substitutes for that gate.
 
-Before the current M6 performs any SDC/MPSL hardware operation, its locked nrfxlib
+Before any SDC/MPSL hardware operation, its locked nrfxlib
 README, API documentation, integration notes, release notes, component manifests,
 license, attribution, and documented resource requirements must be read and reduced
 to a source-located resource/ABI contract. The host gate must check archive/header
@@ -40,12 +40,15 @@ identity, target, security domain, float ABI, ELF attributes, unresolved symbols
 alignment, final memory map, and every documented peripheral/IRQ/priority/clock/
 lifecycle constraint. Do not use repeated flashes to discover a documented rule.
 
-The SDC oracle and consumer lifecycle must reuse the same public manifest, inspect,
+The completed M6 SDC oracle and consumer lifecycle reuse the same public manifest, inspect,
 safe-flash, serial/HCI, GDB, timeout, lock, process cleanup, and structured-report
 machinery. Multirole is tested first; Peripheral-only and Central-only then repeat
 their valid HCI subsets. A minimal MPSL substrate is necessarily active before SDC,
 but direct RADIO access is forbidden outside an MPSL-granted Timeslot whenever MPSL
-owns the documented resources. M7 must exercise Timeslot grant, blocked, cancel,
+owns the documented resources. The gate additionally records lifecycle re-entry,
+actual Controller memory, final map/ELF RAM budget, Controller-buffer canaries, stack
+watermark, persisted fault state, both connection roles, disconnection, and both raw
+ACL directions. M7 must exercise Timeslot grant, blocked, cancel,
 extend, deadline, and teardown behavior with SDC disabled, advertising, and connected.
 
 The M4 USB device gate is `tools/nrfkit m4-usb-gate`. Its default contract performs

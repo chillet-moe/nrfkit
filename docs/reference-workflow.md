@@ -12,7 +12,10 @@ The SDC `hci_uart` oracle uses a specialized `m6-sdc-oracle` gate rather than an
 ASCII token. Its manifest locks H4 at 1 Mbaud with hardware flow control and
 requires successful Multirole/MPSL build evidence. The gate performs the same
 guarded programming, initializes the raw Host address and event masks, reads
-version/features, and proves both advertising and scanning over the air. For the
+version/features, and proves both advertising and scanning over the air. Standalone
+SDK manifests additionally select and verify one of the three archive variants and
+run lifecycle re-entry, applicable connection roles, disconnect, raw ACL, runtime
+memory/canary/stack/fault checks, and final-map/ELF-budget evidence. For the
 scan direction it owns a temporary `bluetoothctl` advertisement process and
 removes that advertisement in `finally`; no persistent host-adapter setting is
 changed. A separate `gdb-smoke` invocation supplies the independent debug gate.
