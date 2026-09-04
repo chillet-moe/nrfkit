@@ -1526,6 +1526,9 @@ def command_run(args: argparse.Namespace) -> int:
             token = manifest["expected_token"].encode()
             while time.monotonic() < deadline and token not in reader[2]:
                 time.sleep(0.05)
+            if token in reader[2]:
+                # Preserve counters and the line terminator emitted after a PASS token.
+                time.sleep(0.05)
             transcript = _serial_reader_stop(reader)
             reader = None
             (run_dir / "serial.log").write_bytes(transcript)
