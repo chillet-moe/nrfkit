@@ -403,6 +403,77 @@
       "imported": false,
       "patches": "none"
     },
+    "ncs-hci-uart-sdc": {
+      "release": "nRF Connect SDK v3.4.0",
+      "repository": "https://github.com/nrfconnect/sdk-nrf",
+      "sample": "zephyr/samples/bluetooth/hci_uart",
+      "extra_conf": "tests/reference/ncs-hci-uart-sdc-hard-float.conf",
+      "board": "nrf54lm20dk/nrf54lm20a/cpuapp",
+      "soc": "nrf54lm20a",
+      "core": "Application",
+      "device_family": "NRF54L",
+      "board_version": "PCA10184",
+      "expected_token": "HCI Reset Command Complete",
+      "vcom": 1,
+      "hci_transport": {
+        "type": "H4",
+        "baud": 1000000,
+        "hardware_flow_control": true
+      },
+      "image_allowlists": {
+        "hci_uart": [[0, 2048000]]
+      },
+      "modules": {
+        "nrf": "99553055607b2e9885fbc80ccd11fa9da81c2df0",
+        "zephyr": "bf801e4e3d19e1ffa76164346480cb7734dd2800",
+        "modules/hal/nordic": "18da0cc9726f8759c627dba3180b3ba9294e433c",
+        "nrfxlib": "d4ce5fe1a7d8af29bc01a4e1ddf5540ef65b6a3b"
+      },
+      "files": {
+        "zephyr/samples/bluetooth/hci_uart/CMakeLists.txt": "708824e02b084a47845124a9503705cf08121fa118949087303b20bea0a543a7",
+        "zephyr/samples/bluetooth/hci_uart/prj.conf": "e76fa083e54f604e55b3a94d6b796c721d89b5a6e151bbfc5b2eeb79fd4a79d2",
+        "zephyr/samples/bluetooth/hci_uart/src/main.c": "9f570b02b047dcbfef0f95809e860f03fc728b174c111d8f74d5b92c6ae80561",
+        "zephyr/samples/bluetooth/hci_uart/boards/nrf54lm20dk_nrf54lm20a_cpuapp.overlay": "76d87e578baef30b337eb04145e46508dc73d959537d1103ec15871a9eed43d9",
+        "zephyr/boards/nordic/nrf54lm20dk/nrf54lm20dk_common.dtsi": "bf595f14715583311e3f89c3fba245bea171454f317469ee0d1ff7dff2b7a210",
+        "zephyr/boards/nordic/nrf54lm20dk/nrf54lm20_a_b_cpuapp_common.dtsi": "e755faa447da8d4e9d0655e31b122a5ac300e43d962098b63c94bb202213f1f8",
+        "nrf/subsys/mpsl/init/mpsl_init.c": "e4b02e618e06bd4c26b63eaea619661a65a8f6dfdae8af292f202d74f3a19bc9",
+        "nrfxlib/softdevice_controller/lib/nrf54lm/manifest.yaml": "49263225476c30ede292ad5d0965427f2a7da8b222c0bb41d129a66d6a9fb24b",
+        "nrfxlib/mpsl/lib/nrf54lm/manifest.yaml": "2cd5b95867d1e525d18e2661868e73d188fa44218d7592e3274ce9736a913d2c"
+      },
+      "project_files": {
+        "tests/reference/ncs-hci-uart-sdc-hard-float.conf": "93a3da251f729f0af2fc334b003f1c3e4cab013da0f596c5fc0577fe67266fbe"
+      },
+      "build_evidence": {
+        "config": "hci_uart/zephyr/.config",
+        "config_markers": ["CONFIG_BT_LL_SOFTDEVICE=y", "CONFIG_BT_LL_SOFTDEVICE_MULTIROLE=y", "CONFIG_MPSL=y", "CONFIG_FPU=y", "CONFIG_FP_HARDABI=y", "CONFIG_MPSL_LIB_FLOAT_ABI_DIR=\"hard-float\""],
+        "link_file": "hci_uart/zephyr/zephyr.map",
+        "link_markers": [
+          "nrfxlib/softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_multirole.a",
+          "nrfxlib/mpsl/lib/nrf54lm/hard-float/libmpsl.a",
+          "MPSL_IRQ_TIMER0_Handler",
+          "MPSL_IRQ_RTC0_Handler",
+          "MPSL_IRQ_RADIO_Handler",
+          "mpsl_timer0_isr_wrapper",
+          "mpsl_rtc0_isr_wrapper",
+          "mpsl_radio_isr_wrapper"
+        ],
+        "forbidden_link_markers": [
+          "libsoftdevice_controller_peripheral.a",
+          "libsoftdevice_controller_central.a",
+          "libsoftdevice_controller_ll_sw_split.a"
+        ],
+        "text_files": [{
+          "path": "hci_uart/zephyr/isr_tables.c",
+          "markers": [
+            "z_irq_spurious}, /* 75 */",
+            "z_irq_spurious}, /* 202 */"
+          ]
+        }]
+      },
+      "license": "Apache-2.0 AND LicenseRef-Nordic-5-Clause",
+      "imported": false,
+      "patches": "none"
+    },
     "ncs-m5-radio-peer": {
       "release": "nRF Connect SDK v3.4.0",
       "repository": "https://github.com/nrfconnect/sdk-nrf",

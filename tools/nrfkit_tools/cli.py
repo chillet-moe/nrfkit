@@ -1735,6 +1735,7 @@ def main(argv: list[str] | None = None) -> int:
         "oracle",
         choices=(
             "ncs-hello-world", "nrf-bm-leds-s115",
+            "ncs-hci-uart-sdc",
             "ncs-m5-radio-peer", "nrf-bm-ble-hids-mouse-s115",
             "nrf-bm-m6-s145-central",
         ),
@@ -1747,6 +1748,7 @@ def main(argv: list[str] | None = None) -> int:
         "oracle",
         choices=(
             "ncs-hello-world", "nrf-bm-leds-s115",
+            "ncs-hci-uart-sdc",
             "ncs-m5-radio-peer", "nrf-bm-ble-hids-mouse-s115",
             "nrf-bm-m6-s145-central",
         ),

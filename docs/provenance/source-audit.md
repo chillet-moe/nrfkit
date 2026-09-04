@@ -51,7 +51,12 @@ changelog, public header, license, and attribution file by reproducible tree
 digest. The contract records the nRF54LM resource masks, callback contexts,
 clock/lifecycle ordering, 8-byte Controller memory alignment, public archive
 link closure, and the hard-float ELF attributes of all four selected archives.
-Implementation and real-board evidence remain separate M6 gates.
+The locked NCS v3.4.0 `hci_uart` reference now builds through the repository
+workflow with machine-checked configuration and final-map evidence for hard-float
+Multirole SDC plus MPSL. The generated ISR table also closes the TIMER20/ECB00
+question: both remain unregistered/spurious vectors while TIMER10, GRTC_3, and
+RADIO_0 carry the public MPSL handlers. Guarded HCI/GDB observation and standalone
+implementation remain separate M6 gates.
 
 ## Startup and linker search
 

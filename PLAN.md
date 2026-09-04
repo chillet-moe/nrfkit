@@ -751,11 +751,12 @@ M6 的文档/资源契约阶段已完成：锁定版 SDC/MPSL 的 RST 文档、�
 公开 headers、manifest、license/attribution 已按完整树摘要审计，LM20 外设/IRQ/channel
 mask、128 MHz 与 GRTC/SYSCOUNTER 前置条件、LF/HF clock、低优先级与 callback context、
 低延迟回调、初始化/teardown、entropy、fault、8-byte Controller memory alignment 及三种
-SDC archive 的 hard-float ELF/link closure 已进入机器可检查 contract。该结果尚不等于
-平台适配或实板完成；下一步是关闭官方 hci_uart oracle 的 build/map/HCI/GDB 门禁，再以
-同一 contract 实现纯 CMake 底座。TIMER20/ECB00 虽由文档列为带 IRQ 的 MPSL-owned
-资源，但公开 API 没有独立 handler，必须先从锁定 oracle 的最终 map 闭环其 vector 行为，
-不得上板猜测。
+SDC archive 的 hard-float ELF/link closure 已进入机器可检查 contract。官方 NCS v3.4.0
+`hci_uart` oracle 已由公共 reference workflow 重复构建，配置和最终 map 证明实际链接
+hard-float Multirole SDC 与匹配的 MPSL；生成的 ISR 表进一步确认 TIMER20 IRQ 202 与
+ECB00 IRQ 75 均未注册并保持 spurious，而 TIMER10、GRTC_3 和 RADIO_0 绑定公开 MPSL
+handler。该结果尚不等于平台适配或实板完成；下一步是关闭 oracle 的 guarded flash、
+H4/HCI 与 GDB 门禁，再以同一 contract 实现纯 CMake 底座。
 
 交付：
 

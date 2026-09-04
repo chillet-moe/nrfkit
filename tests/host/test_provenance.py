@@ -15,6 +15,25 @@ SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
 class ProvenanceTests(unittest.TestCase):
+    def test_sdc_reference_oracle_is_locked_to_hard_float_multirole(self) -> None:
+        lock = json.loads(
+            (ROOT / "docs/provenance/sources.lock").read_text(encoding="utf-8")
+        )
+        oracle = lock["oracles"]["ncs-hci-uart-sdc"]
+        self.assertEqual(oracle["board"], "nrf54lm20dk/nrf54lm20a/cpuapp")
+        self.assertEqual(oracle["modules"]["nrfxlib"],
+                         lock["audited_sources"]["sdk-nrfxlib-3.4.0"]["commit"])
+        self.assertEqual(oracle["hci_transport"], {
+            "type": "H4", "baud": 1000000, "hardware_flow_control": True,
+        })
+        evidence = oracle["build_evidence"]
+        self.assertIn("CONFIG_BT_LL_SOFTDEVICE_MULTIROLE=y", evidence["config_markers"])
+        self.assertIn('CONFIG_MPSL_LIB_FLOAT_ABI_DIR="hard-float"',
+                      evidence["config_markers"])
+        self.assertIn("libsoftdevice_controller_multirole.a",
+                      " ".join(evidence["link_markers"]))
+        self.assertNotIn("soft-float", " ".join(evidence["link_markers"]))
+
     def test_audited_sources_have_reproducible_identity(self) -> None:
         lock = json.loads(
             (ROOT / "docs/provenance/sources.lock").read_text(encoding="utf-8")

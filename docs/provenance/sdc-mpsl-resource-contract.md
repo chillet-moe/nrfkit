@@ -80,13 +80,28 @@ symbol sets are recorded without interpreting or publishing obfuscated private
 symbols; all named external symbols must close against the selected MPSL and
 the two platform low-latency callbacks.
 
+## Official oracle build evidence
+
+The locked NCS v3.4.0 `hci_uart` oracle now builds through the public reference
+workflow for `nrf54lm20dk/nrf54lm20a/cpuapp`. Its configuration and final map
+are checked on every build for the secure hard-float Multirole SDC archive and
+the matching hard-float MPSL archive; Peripheral-only, Central-only, and Zephyr
+Link Layer archives are forbidden. The generated manifest also records H4 on
+VCOM1 at 1 Mbaud with hardware flow control and confines the image to ordinary
+application RRAM.
+
+The version-locked NCS MPSL integration source binds the public TIMER0, RTC0,
+and RADIO entry points to LM20 TIMER10, GRTC_3, and RADIO_0 respectively. The
+final map contains all three wrappers and handlers. The generated final ISR
+table leaves ECB00 IRQ 75 and TIMER20 IRQ 202 on `z_irq_spurious`; neither has
+an application-facing MPSL handler or a registered oracle ISR. This closes the
+previous ambiguity: those two peripherals remain MPSL-owned resources, but the
+standalone platform must not invent or register handlers for them.
+
 ## Remaining M6 evidence
 
 This contract is the input to implementation, not board-completion evidence.
-The next gates must map every requirement ID to CMake ownership checks, platform
-code, link/map checks, and bounded runtime observations. TIMER20 and ECB00 are
-documented as interrupt-owning resources even though the public MPSL API exposes
-only RADIO, GRTC, TIMER10, and CLOCK forwarding handlers; their final vector and
-ownership behavior must therefore be confirmed from the locked official oracle
-map before the standalone adapter is allowed to run. No repeated board trial is
-an acceptable substitute for closing that source-level mapping.
+The next gate is guarded oracle flash plus raw HCI and GDB observation, followed
+by mapping every requirement ID to standalone CMake ownership checks, platform
+code, link/map checks, and bounded runtime observations. No repeated board trial
+is an acceptable substitute for a documented source-level mapping.

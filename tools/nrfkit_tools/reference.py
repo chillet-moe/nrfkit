@@ -234,6 +234,62 @@ def _profile_contract(contract: dict[str, Any], profile: str | None) -> dict[str
     return {**contract, **selected, "profile": profile}
 
 
+def _verify_build_evidence(build_dir: Path, contract: dict[str, Any]) -> dict[str, Any]:
+    evidence_contract = contract.get("build_evidence")
+    if evidence_contract is None:
+        return {"status": "not-required"}
+
+    def checked_file(key: str) -> tuple[Path, str]:
+        relative = Path(evidence_contract[key])
+        path = (build_dir / relative).resolve()
+        if not path.is_relative_to(build_dir.resolve()) or not path.is_file():
+            raise ReferenceContractError(f"build evidence file is missing or outside build: {relative}")
+        return path, path.read_text(encoding="utf-8", errors="replace")
+
+    config_path, config_text = checked_file("config")
+    for marker in evidence_contract.get("config_markers", []):
+        if marker not in config_text.splitlines():
+            raise ReferenceContractError(f"required config marker is missing: {marker}")
+
+    link_path, link_text = checked_file("link_file")
+    for marker in evidence_contract.get("link_markers", []):
+        if marker not in link_text:
+            raise ReferenceContractError(f"required link marker is missing: {marker}")
+    for marker in evidence_contract.get("forbidden_link_markers", []):
+        if marker in link_text:
+            raise ReferenceContractError(f"forbidden link marker is present: {marker}")
+    text_evidence = []
+    for item in evidence_contract.get("text_files", []):
+        relative = Path(item["path"])
+        path = (build_dir / relative).resolve()
+        if not path.is_relative_to(build_dir.resolve()) or not path.is_file():
+            raise ReferenceContractError(
+                f"build evidence file is missing or outside build: {relative}"
+            )
+        contents = path.read_text(encoding="utf-8", errors="replace")
+        for marker in item.get("markers", []):
+            if marker not in contents:
+                raise ReferenceContractError(f"required text marker is missing: {marker}")
+        for marker in item.get("forbidden_markers", []):
+            if marker in contents:
+                raise ReferenceContractError(f"forbidden text marker is present: {marker}")
+        text_evidence.append({
+            "path": str(path),
+            "sha256": sha256(path),
+            "markers": item.get("markers", []),
+            "forbidden_markers": item.get("forbidden_markers", []),
+        })
+    return {
+        "status": "ok",
+        "config": {"path": str(config_path), "sha256": sha256(config_path)},
+        "link": {"path": str(link_path), "sha256": sha256(link_path)},
+        "config_markers": evidence_contract.get("config_markers", []),
+        "link_markers": evidence_contract.get("link_markers", []),
+        "forbidden_link_markers": evidence_contract.get("forbidden_link_markers", []),
+        "text_files": text_evidence,
+    }
+
+
 def _build_manifest(
     oracle_id: str,
     root: Path,
@@ -280,7 +336,10 @@ def _build_manifest(
             "entry": elf_image.entry, "ranges": elf_image.ranges,
         },
         "images": images,
+        "build_evidence": _verify_build_evidence(build_dir, contract),
     }
+    if "hci_transport" in contract:
+        manifest["hci_transport"] = contract["hci_transport"]
     manifest_path = build_dir / "image-manifest.json"
     atomic_json(manifest_path, manifest)
     return manifest_path
