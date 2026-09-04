@@ -37,6 +37,41 @@ install(DIRECTORY external/cherryusb/
   DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/cherryusb
   PATTERN ".git" EXCLUDE
 )
+install(DIRECTORY external/sdk-nrfxlib/mpsl/include
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/mpsl
+)
+install(DIRECTORY external/sdk-nrfxlib/softdevice_controller/include
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/softdevice_controller
+)
+install(FILES
+  external/sdk-nrfxlib/mpsl/README.rst
+  external/sdk-nrfxlib/mpsl/license.txt
+  external/sdk-nrfxlib/mpsl/LICENSE-ATTRIBUTION.txt
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/mpsl
+)
+install(FILES
+  external/sdk-nrfxlib/softdevice_controller/README.rst
+  external/sdk-nrfxlib/softdevice_controller/license.txt
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/softdevice_controller
+)
+install(FILES
+  external/sdk-nrfxlib/mpsl/lib/nrf54lm/manifest.yaml
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/mpsl/lib/nrf54lm
+)
+install(FILES
+  external/sdk-nrfxlib/softdevice_controller/lib/nrf54lm/manifest.yaml
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/softdevice_controller/lib/nrf54lm
+)
+install(FILES
+  external/sdk-nrfxlib/mpsl/lib/nrf54lm/hard-float/libmpsl.a
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/mpsl/lib/nrf54lm/hard-float
+)
+install(FILES
+  external/sdk-nrfxlib/softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_multirole.a
+  external/sdk-nrfxlib/softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_peripheral.a
+  external/sdk-nrfxlib/softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_central.a
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/softdevice_controller/lib/nrf54lm/hard-float
+)
 install(DIRECTORY cmake/toolchains
   DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/cmake
 )

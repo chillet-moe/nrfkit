@@ -7,6 +7,132 @@ set(_NRFKIT_NRFX_DRIVERS
   reset retention cracen
 )
 
+set(_NRFKIT_SDC_RESOURCES
+  grtc.channel.7 grtc.channel.8 grtc.channel.9 grtc.channel.10 grtc.channel.11
+  timer10 timer20 ecb00 radio0 clock temp
+  dppi10.channel.0 dppi10.channel.1 dppi10.channel.2 dppi10.channel.3
+  dppi10.channel.4 dppi10.channel.5 dppi10.channel.6 dppi10.channel.7
+  dppi10.channel.8 dppi10.channel.9 dppi10.channel.10 dppi10.channel.11
+  dppi20.channel.0 dppi00.channel.1 dppi00.channel.3
+  ppib11.channel.0 ppib21.channel.0
+  ppib00.channel.0 ppib00.channel.1 ppib00.channel.2 ppib00.channel.3
+  ppib10.channel.0 ppib10.channel.1 ppib10.channel.2 ppib10.channel.3
+  ccm00 aar00 rramc
+)
+
+function(_nrfkit_define_nrfxlib_targets)
+  if(TARGET NrfKit::mpsl)
+    return()
+  endif()
+  set(root "${NrfKit_ROOT}/external/sdk-nrfxlib")
+  _nrfkit_prepare_nrfx(nrfx)
+  set(paths
+    mpsl/lib/nrf54lm/hard-float/libmpsl.a
+    softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_multirole.a
+    softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_peripheral.a
+    softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_central.a
+  )
+  set(hashes
+    5d6ec178b731b721d519089fa9f2c9adf4fba37e3d77387c8a9c4133752fdb7e
+    74b04b594ae5593e3b1e8eb4f2408c4ae9c6d96b1e1ff64abfd3e5d1010ead52
+    4ba73318343946c3e2d46825888e09fabce4a11e249905e373ec4cbb802bb3e3
+    f499ee6db94d45be6c8a1c83d8aa7157632b445c1d4fffd59946d49925a1186b
+  )
+  list(LENGTH paths count)
+  math(EXPR last "${count} - 1")
+  foreach(index RANGE 0 ${last})
+    list(GET paths ${index} relative)
+    list(GET hashes ${index} expected_hash)
+    set(path "${root}/${relative}")
+    if(NOT EXISTS "${path}")
+      message(FATAL_ERROR
+        "NrfKit requires the locked sdk-nrfxlib v3.4.0 input: ${relative}"
+      )
+    endif()
+    file(SHA256 "${path}" actual_hash)
+    if(NOT actual_hash STREQUAL expected_hash)
+      message(FATAL_ERROR "NrfKit sdk-nrfxlib input hash mismatch: ${relative}")
+    endif()
+  endforeach()
+
+  add_library(NrfKit::mpsl STATIC IMPORTED GLOBAL)
+  set_target_properties(NrfKit::mpsl PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES
+      "${root}/mpsl/include;${nrfx};${nrfx}/bsp/stable"
+  )
+  list(GET paths 0 mpsl_path)
+  set_target_properties(NrfKit::mpsl PROPERTIES IMPORTED_LOCATION "${root}/${mpsl_path}")
+  foreach(variant IN ITEMS multirole peripheral central)
+    if(variant STREQUAL "multirole")
+      set(index 1)
+    elseif(variant STREQUAL "peripheral")
+      set(index 2)
+    else()
+      set(index 3)
+    endif()
+    list(GET paths ${index} sdc_path)
+    add_library("NrfKit::sdc_${variant}" STATIC IMPORTED GLOBAL)
+    set_target_properties("NrfKit::sdc_${variant}" PROPERTIES
+      IMPORTED_LOCATION "${root}/${sdc_path}"
+      INTERFACE_INCLUDE_DIRECTORIES
+        "${root}/softdevice_controller/include;${root}/mpsl/include;${nrfx};${nrfx}/bsp/stable"
+    )
+  endforeach()
+endfunction()
+
+function(nrfkit_enable_sdc target)
+  if(NOT TARGET "${target}")
+    message(FATAL_ERROR "nrfkit_enable_sdc: unknown target '${target}'")
+  endif()
+  get_target_property(configured "${target}" NRFKIT_CONFIGURED)
+  if(NOT configured)
+    message(FATAL_ERROR "nrfkit_enable_sdc: configure '${target}' first")
+  endif()
+  get_target_property(finalized "${target}" NRFKIT_FINALIZED)
+  if(finalized)
+    message(FATAL_ERROR "nrfkit_enable_sdc: '${target}' is already finalized")
+  endif()
+  cmake_parse_arguments(PARSE_ARGV 1 ARG "" "VARIANT" "")
+  if(ARG_UNPARSED_ARGUMENTS OR NOT ARG_VARIANT)
+    message(FATAL_ERROR "nrfkit_enable_sdc requires VARIANT <variant>")
+  endif()
+  if(NOT ARG_VARIANT MATCHES "^(multirole|peripheral|central)$")
+    message(FATAL_ERROR "nrfkit_enable_sdc: unsupported VARIANT '${ARG_VARIANT}'")
+  endif()
+  get_target_property(existing "${target}" NRFKIT_SDC_VARIANT)
+  if(existing)
+    message(FATAL_ERROR "nrfkit_enable_sdc: '${target}' already uses '${existing}'")
+  endif()
+  get_target_property(soc "${target}" NRFKIT_SOC)
+  if(NOT soc STREQUAL "nrf54lm20a")
+    message(FATAL_ERROR "nrfkit_enable_sdc: '${soc}' is not supported")
+  endif()
+
+  nrfkit_claim_resources("${target}" OWNER sdc_mpsl RESOURCES ${_NRFKIT_SDC_RESOURCES})
+  _nrfkit_define_nrfxlib_targets()
+  nrfkit_enable_nrfx("${target}" DRIVERS clock grtc dppi rramc)
+  target_link_libraries("${target}" PRIVATE "NrfKit::sdc_${ARG_VARIANT}" NrfKit::mpsl)
+
+  string(MAKE_C_IDENTIFIER "${target}" target_id)
+  set(config_dir "${CMAKE_CURRENT_BINARY_DIR}/nrfkit/${target_id}")
+  file(MAKE_DIRECTORY "${config_dir}")
+  string(REPLACE ";" "\", \"" resources_json "${_NRFKIT_SDC_RESOURCES}")
+  set(root "${NrfKit_ROOT}/external/sdk-nrfxlib")
+  string(CONCAT sdc_target_content
+    "{\n"
+    "  \"schema\": \"nrfkit-sdc-target/v1\",\n"
+    "  \"target\": \"${target}\",\n"
+    "  \"variant\": \"${ARG_VARIANT}\",\n"
+    "  \"security_domain\": \"secure\",\n"
+    "  \"float_abi\": \"hard-float\",\n"
+    "  \"archives\": [\"${root}/mpsl/lib/nrf54lm/hard-float/libmpsl.a\", \"${root}/softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_${ARG_VARIANT}.a\"],\n"
+    "  \"resources\": [\"${resources_json}\"]\n"
+    "}\n"
+  )
+  file(GENERATE OUTPUT "${config_dir}/sdc-target.json" CONTENT "${sdc_target_content}")
+  set_target_properties("${target}" PROPERTIES NRFKIT_SDC_VARIANT "${ARG_VARIANT}")
+endfunction()
+
 function(_nrfkit_prepare_nrfx out_var)
   set(nrfx_commit "1b7bedb5c7f379a3ec3ece851796e94d7e5d0b2c")
   set(nrfx_source "${NrfKit_ROOT}/external/nrfx")
@@ -629,7 +755,7 @@ function(nrfkit_claim_resources target)
   endif()
   foreach(resource IN LISTS ARG_RESOURCES)
     if(NOT resource MATCHES
-        "^(dppi(00|10|20|30)\\.(channel\\.([0-9]+)|group\\.([0-9]+))|gpiote(20|30)\\.channel\\.([0-9]+)|timer(00|10|20|21|22|23|24))$")
+        "^(dppi(00|10|20|30)\\.(channel\\.([0-9]+)|group\\.([0-9]+))|ppib(00|10|11|20|21)\\.channel\\.([0-9]+)|gpiote(20|30)\\.channel\\.([0-9]+)|grtc\\.channel\\.([0-9]+)|timer(00|10|20|21|22|23|24)|ecb00|radio0|clock|temp|ccm00|aar00|rramc)$")
       message(FATAL_ERROR "nrfkit_claim_resources: invalid resource '${resource}'")
     endif()
     if(resource MATCHES "^dppi(00|10|20|30)\\.channel\\.([0-9]+)$")
@@ -665,6 +791,16 @@ function(nrfkit_claim_resources target)
         set(limit 4)
       endif()
       if(index GREATER_EQUAL limit)
+        message(FATAL_ERROR "nrfkit_claim_resources: '${resource}' is out of range")
+      endif()
+    elseif(resource MATCHES "^ppib(00|10|11|20|21)\\.channel\\.([0-9]+)$")
+      set(index "${CMAKE_MATCH_2}")
+      if(index GREATER_EQUAL 16)
+        message(FATAL_ERROR "nrfkit_claim_resources: '${resource}' is out of range")
+      endif()
+    elseif(resource MATCHES "^grtc\\.channel\\.([0-9]+)$")
+      set(index "${CMAKE_MATCH_1}")
+      if(index GREATER_EQUAL 16)
         message(FATAL_ERROR "nrfkit_claim_resources: '${resource}' is out of range")
       endif()
     endif()
