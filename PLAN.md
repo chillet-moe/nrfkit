@@ -741,9 +741,18 @@ LESC 后同样通过；bonding 阶段确认 LESC、加密、双方实际 key dis
 DHKey 请求，随后本地 `BLE_GAP_SEC_STATUS_TIMEOUT`，没有进入连接加密更新；失败
 设备与 agent 均已清理。L15 central 使用与 BlueZ 相同的 IO capability 和实际
 key-distribution 组合仍可成功，因此问题不是 P2/P3、ECDH 本身、bond 持久化或
-该 key-distribution 组合，而是项目自有 bonding 路径与 BlueZ 的互操作差异。
-下一步必须以官方 `nrf_sdh`、IRQ forwarding、LESC、Peer Manager/HIDS 源码作为
-可工作的纯 CMake 基线，每次只替换一层；不得继续猜测或扩展自研 BLE 协议栈。
+该 key-distribution 组合，而是项目自有 bonding 路径与 BlueZ 的互操作差异。同一
+主机、适配器和 D-Bus 门禁随后重新验证官方 HIDS oracle，配对、加密属性读取、
+GATT 和 bonded reconnect 仍全部通过，排除了实验期间的主机状态漂移。
+
+差分定位已经确认直接使用锁定的官方 `irq_forward.s` 后 P2/P3 仍通过，但正常
+BlueZ bonding 仍失败；仅替换官方 Peer Manager、再替换官方 `nrf_ble_lesc`，以及
+去除 HID 后运行正常 bonding，均得到同一认证失败。官方 LESC 路径已生成 keypair
+和 DH key，目标没有触发应用断言；对象级官方 `nrf_sdh` ISR 调度适配也未使
+bonding 通过。这些带 RAM-only storage 或预编译对象的定位层不是 consumer 方案，
+不得提交为产品实现。下一步必须从已通过的官方 HIDS 应用开始，将其 handler、
+Peer Manager、持久化和 HIDS 直接源码集合整体建立为纯 CMake 基线，再从外围服务
+向内逐层裁剪；不得继续组合失败对象或扩展自研 BLE 协议栈。
 只有项目固件再通过正常 BlueZ bonding、HID、持久化重连和连接 soak 后才可标记
 M6 完成。随后再运行 LM20+L15 的 M5 双板门禁。
 
