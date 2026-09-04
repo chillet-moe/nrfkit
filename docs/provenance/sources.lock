@@ -529,6 +529,14 @@
           "extra_conf": "tests/hardware/m5-radio-peer/configs/tx-timeslot-4m-bt-0-6.conf",
           "expected_token": "NRFKIT_M7_PEER_TX PASS"
         },
+        "tx-timeslot-4m-bad-crc": {
+          "extra_conf": "tests/hardware/m5-radio-peer/configs/tx-timeslot-4m-bad-crc.conf",
+          "expected_token": "NRFKIT_M7_PEER_TX PASS"
+        },
+        "tx-timeslot-4m-bad-whitening": {
+          "extra_conf": "tests/hardware/m5-radio-peer/configs/tx-timeslot-4m-bad-whitening.conf",
+          "expected_token": "NRFKIT_M7_PEER_TX PASS"
+        },
         "tx-4m-bt-0-4": {
           "extra_conf": "tests/hardware/m5-radio-peer/configs/tx-4m-bt-0-4.conf",
           "expected_token": "NRFKIT_M7_PEER_TX PASS"
@@ -549,7 +557,7 @@
       },
       "project_files": {
         "tests/hardware/m5-radio-peer/CMakeLists.txt": "42c39479658f4be7695e7e93bbd34f1fa70ad902962ac581082c7851e18ba359",
-        "tests/hardware/m5-radio-peer/Kconfig": "66df3ab9eacd0459d828c352c016d722ad9fd932d1d15745aae9da46f1453231",
+        "tests/hardware/m5-radio-peer/Kconfig": "477998f2d8fc6a451506da4fedf14a6dc050732786d14a901ff62871832c97c2",
         "tests/hardware/m5-radio-peer/prj.conf": "5a64f7a7c9bbb5f816fd09b70942fad67dc604d99ddabcb9f78a7674fedf2377",
         "tests/hardware/m5-radio-peer/configs/tx.conf": "afc6f26a88dc625ff41e4967434f0ea16043e7a9daf2b3f988aad095fcef5dba",
         "tests/hardware/m5-radio-peer/configs/rx.conf": "b9df538bbd0939cd609aa26a3399aca4b3d4629e2fec1f8aa4f2fbd15f34008c",
@@ -557,10 +565,12 @@
         "tests/hardware/m5-radio-peer/configs/rx-1m.conf": "48e46d1e98861a419d67b4baef71fc21f5ba2cee4577bb5e818ca0707bc12949",
         "tests/hardware/m5-radio-peer/configs/tx-4m-bt-0-6.conf": "912d01171e67565db2a49bcbc06e0131bb0901291ecdae9616ee89a80bc9bcef",
         "tests/hardware/m5-radio-peer/configs/tx-timeslot-4m-bt-0-6.conf": "b5645a57c60f6c0b03df435d503f61c5e02df1426cbecb330fe5df7ec485afa9",
+        "tests/hardware/m5-radio-peer/configs/tx-timeslot-4m-bad-crc.conf": "6d2b079f24cabc62248219710cb5edcf2ebe2beb576d0b0b871f28e88c96e187",
+        "tests/hardware/m5-radio-peer/configs/tx-timeslot-4m-bad-whitening.conf": "e0b8cff40255b0191f3b7646e147cd4af9f5df8b1e190f4542b084ca101e37db",
         "tests/hardware/m5-radio-peer/configs/rx-4m-bt-0-6.conf": "a02852468ccf69108efde9b19339d91a347e2c4ecce0f23c83da547c6550f1a8",
         "tests/hardware/m5-radio-peer/configs/tx-4m-bt-0-4.conf": "9b16dc9101d89970806a787251e3ec11c6de767f826f2910ca792af4a92e0efe",
         "tests/hardware/m5-radio-peer/configs/rx-4m-bt-0-4.conf": "28cf03d97c2720a2eac820e043b44243afacd6f7722a3e29ff6ab1838356846f",
-        "tests/hardware/m5-radio-peer/src/main.c": "e4bf52700df28ee28f8bf1eb4c3bab234428ce5b1ee20c923122cd3fdc3519d3"
+        "tests/hardware/m5-radio-peer/src/main.c": "4a498d071e09f1be8202c0319fe037855b08ab45530b7d29d9f9c77196fbe14c"
       },
       "license": "BSD-3-Clause",
       "imported": false,

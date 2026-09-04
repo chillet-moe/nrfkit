@@ -112,6 +112,29 @@ int main(void)
 #if defined(CONFIG_NRFKIT_M5_PEER_TX) && CONFIG_NRFKIT_M5_PEER_TX
     k_sleep(K_SECONDS(1));
     packet[0] = PACKET_LENGTH;
+#if (defined(CONFIG_NRFKIT_M7_PEER_BAD_CRC_PREFIX) && \
+     CONFIG_NRFKIT_M7_PEER_BAD_CRC_PREFIX) || \
+    (defined(CONFIG_NRFKIT_M7_PEER_BAD_WHITENING_PREFIX) && \
+     CONFIG_NRFKIT_M7_PEER_BAD_WHITENING_PREFIX)
+    for (uint32_t index = 1U; index < sizeof(packet); ++index) {
+        packet[index] = (uint8_t)(0xA0U + index);
+    }
+#if defined(CONFIG_NRFKIT_M7_PEER_BAD_CRC_PREFIX) && \
+    CONFIG_NRFKIT_M7_PEER_BAD_CRC_PREFIX
+    nrf_radio_crcinit_set(NRF_RADIO, UINT32_C(0xAAAAAA));
+#else
+    nrf_radio_datawhiteiv_set(NRF_RADIO, 0x35U);
+#endif
+    for (uint32_t invalid = 0U; invalid < 64U; ++invalid) {
+        if (!transfer(NRF_RADIO_TASK_TXEN)) {
+            printk("NRFKIT_M7_PEER FAIL negative-prefix\n");
+            return 1;
+        }
+        k_busy_wait(1000U);
+    }
+    nrf_radio_crcinit_set(NRF_RADIO, UINT32_C(0x555555));
+    nrf_radio_datawhiteiv_set(NRF_RADIO, 0x53U);
+#endif
     for (uint32_t sequence = 0U; sequence < PACKET_COUNT; ++sequence) {
         packet[1] = (uint8_t)sequence;
         packet[2] = (uint8_t)(sequence >> 8U);

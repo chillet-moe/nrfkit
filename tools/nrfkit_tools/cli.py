@@ -967,6 +967,19 @@ def command_m5_radio_dual(args: argparse.Namespace) -> int:
                 )
             rx_report = str(Path(lines[0]).resolve())
             report["child_reports"].extend((rx_report, tx_report))
+            if getattr(args, "require_rx_crc_rejection", False):
+                transcript = Path(rx_report).with_name("serial.log").read_text(
+                    encoding="utf-8", errors="replace"
+                )
+                match = re.search(r"\bcrc=(\d+)\b", transcript)
+                if match is None or int(match.group(1)) < 1:
+                    raise ToolError(
+                        f"{milestone} receiver did not report a rejected CRC packet"
+                    )
+                _stage(
+                    run_dir, report, "crc-rejection", round=round_number,
+                    rejected=int(match.group(1)),
+                )
             _stage(run_dir, report, "airborne-link", round=round_number,
                    receiver=rx_report, transmitter=tx_report)
             receiver = None
@@ -2143,6 +2156,7 @@ def main(argv: list[str] | None = None) -> int:
             "bluez-kdist", "tx", "rx", "tx-1m", "rx-1m",
             "tx-4m-bt-0-6", "rx-4m-bt-0-6",
             "tx-timeslot-4m-bt-0-6",
+            "tx-timeslot-4m-bad-crc", "tx-timeslot-4m-bad-whitening",
             "tx-4m-bt-0-4", "rx-4m-bt-0-4",
         ),
     )
@@ -2251,6 +2265,7 @@ def main(argv: list[str] | None = None) -> int:
     m7_dual.add_argument("--token-timeout", type=float, default=30)
     m7_dual.add_argument("--gate-timeout", type=float, default=120)
     m7_dual.add_argument("--rounds", type=int, default=3)
+    m7_dual.add_argument("--require-rx-crc-rejection", action="store_true")
     m7_dual.set_defaults(handler=command_m5_radio_dual, milestone="M7")
     m6_ble = subparsers.add_parser("m6-ble-gate")
     m6_ble.add_argument("--device-name", default="nrfkit-m6")

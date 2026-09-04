@@ -130,6 +130,8 @@ class RadioContractTests(unittest.TestCase):
         self.assertIn('"receiver-ready", round=round_number', cli)
         self.assertIn('"--ready-file", str(ready_file)', cli)
         self.assertNotIn('f"M5 receiver', cli)
+        self.assertIn('"--require-rx-crc-rejection"', cli)
+        self.assertIn('"crc-rejection", round=round_number', cli)
 
     def test_xo_running_check_preserves_optional_output_contract(self) -> None:
         patch = (ROOT / "patches/nrfx/0002-clock-xo-allow-null-source-output.patch").read_text(

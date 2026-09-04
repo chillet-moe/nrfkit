@@ -29,3 +29,13 @@ config NRFKIT_M7_PEER_PACED_TX
 	bool "Pace packets for a scheduled Timeslot receiver"
 	depends on NRFKIT_M5_PEER_TX
 	default n
+
+config NRFKIT_M7_PEER_BAD_CRC_PREFIX
+	bool "Prepend packets with a mismatched CRC initial value"
+	depends on NRFKIT_M5_PEER_TX
+	default n
+
+config NRFKIT_M7_PEER_BAD_WHITENING_PREFIX
+	bool "Prepend packets with a mismatched whitening IV"
+	depends on NRFKIT_M5_PEER_TX
+	default n
