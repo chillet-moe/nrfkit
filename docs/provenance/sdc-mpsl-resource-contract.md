@@ -98,10 +98,25 @@ an application-facing MPSL handler or a registered oracle ISR. This closes the
 previous ambiguity: those two peripherals remain MPSL-owned resources, but the
 standalone platform must not invent or register handlers for them.
 
+The guarded board gate now passes on LM20. A raw Host issues HCI Reset, reads
+Controller version plus classic/LE features, initializes a static random test
+address, and explicitly enables the global LE Meta bit and LE Advertising
+Report bit restored to defaults by Reset. The Controller's advertisement is
+observed by BlueZ, then the Controller scans a process-owned temporary BlueZ
+advertisement. Both directions are over-the-air observations rather than only
+successful command status. The temporary host advertisement, Controller
+advertising/scanning state, VCOM descriptor, and probe lock are bounded and
+cleaned up. The final HCI report is
+`.work/runs/20260905-034804-m6-sdc-oracle-699276/run.json`.
+
+The independent locked Arm GDB gate also resets into the same official image,
+stops at `main`, single-steps, reads CPUID, detaches, and verifies that the GDB
+server exits. Its final report is
+`.work/runs/20260905-034827-gdb-smoke-699428/run.json`.
+
 ## Remaining M6 evidence
 
 This contract is the input to implementation, not board-completion evidence.
-The next gate is guarded oracle flash plus raw HCI and GDB observation, followed
-by mapping every requirement ID to standalone CMake ownership checks, platform
-code, link/map checks, and bounded runtime observations. No repeated board trial
-is an acceptable substitute for a documented source-level mapping.
+The next gate maps every requirement ID to standalone CMake ownership checks,
+platform code, link/map checks, and bounded runtime observations. No repeated
+board trial is an acceptable substitute for a documented source-level mapping.

@@ -8,6 +8,15 @@ P0 establishes two executable oracles before this project implements its own sta
 
 The image manifest binds the source receipt, debug ELF, every ordered HEX image, hashes, entry and load ranges, SoC, core, board, VCOM role, expected token, address allowlists, and the exact safe nrfutil backend parameters. The loader rejects any backend contract other than `ERASE_NONE`, `VERIFY_READ`, and `RESET_NONE`. On nRF54LM20 DK, the CPUAPP UART20 console uses Serial Port 1 (VCOM1); this follows the official P1.16/P1.17 mapping and is not inferred from host device numbering. `inspect` reparses the ELF and every Intel HEX record. Hard-coded configuration-region exclusions take precedence over manifest claims.
 
+The SDC `hci_uart` oracle uses a specialized `m6-sdc-oracle` gate rather than an
+ASCII token. Its manifest locks H4 at 1 Mbaud with hardware flow control and
+requires successful Multirole/MPSL build evidence. The gate performs the same
+guarded programming, initializes the raw Host address and event masks, reads
+version/features, and proves both advertising and scanning over the air. For the
+scan direction it owns a temporary `bluetoothctl` advertisement process and
+removes that advertisement in `finally`; no persistent host-adapter setting is
+changed. A separate `gdb-smoke` invocation supplies the independent debug gate.
+
 `flash` and `run` dynamically enumerate a unique matching board, acquire a per-probe lock, copy each validated HEX to a read-only run snapshot, recheck its hash and ranges, then invoke nrfutil with no erase, read-back verification, and no automatic post-program reset. `run` opens the declared VCOM with exclusive TTY ownership, asserts DTR/RTS as a terminal would, allows a short serial-ready interval for the DK interface MCU routing, and starts draining input before it issues a separate reset. Exclusive ownership prevents another local reader from silently consuming part of the startup stream. The reader remains active while the reset process runs so a short startup burst cannot be lost between stages. It requires the exact token before reporting success.
 
 Every process has a timeout and runs in its own process group. Local paths, probe identities, raw logs, and machine details remain in atomic `.work/runs/<id>/run.json` reports and adjacent logs. They are never public artifacts.

@@ -5,7 +5,7 @@ This table distinguishes reference evidence from consumer SDK support. “Planne
 | Target / capability | Source audit | Consumer build | Real-board validation | Status |
 |---|---:|---:|---:|---|
 | nRF54LM20A application core, standalone | Complete | Clang/LLD primary and GNU Arm smoke PASS; target-scoped nrfx drivers | SDK M2 gate plus M3 core/peripheral/System ON sleep and retention PASS | M3 complete |
-| nRF54LM20A + sdk-nrfxlib v3.4.0 SDC/MPSL | Source/hash/license selection, resource/ABI contract, and official Multirole oracle build/map PASS | Not implemented | Official oracle HCI/GDB and LM20 standalone lifecycle gates pending | Current M6; Multirole first |
+| nRF54LM20A + sdk-nrfxlib v3.4.0 SDC/MPSL | Source/hash/license selection, resource/ABI contract, and official Multirole oracle build/map PASS | Not implemented | Official oracle guarded HCI advertising/scanning and GDB PASS; standalone lifecycle gates pending | Current M6; Multirole first |
 | nRF54LM20A + S115 10.0.1 | Complete historical checkpoint | Reproducible pure-CMake baseline stopped at documented platform boundary | Official HIDS oracle PASS; pure baseline stops before advertising | Historical route stopped |
 | nRF54L15 laboratory fixture | Official sources plus local reference-peer input | Not a consumer target | Legacy BLE central checkpoint PASS; SDC peer and 4 Mbit/s radio work pending | Test fixture only |
 | Source-tree and installed `find_package` | N/A | Host PASS, offline; firmware and nrfx API included | N/A | Experimental M3 support |

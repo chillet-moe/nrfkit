@@ -96,6 +96,18 @@ tools/nrfkit run --oracle ncs-hello-world \
 
 `run --manifest` remains available when the firmware was produced separately; that form starts at manifest audit and does not claim to have rebuilt an official oracle.
 
+The M6 SDC oracle carries binary H4 rather than an ASCII console token. After its
+locked reference build, run its guarded bidirectional Controller gate and the
+independent GDB check explicitly:
+
+```sh
+tools/nrfkit m6-sdc-oracle \
+  --manifest .work/reference/build/ncs-hci-uart-sdc/image-manifest.json
+tools/nrfkit gdb-smoke \
+  --manifest .work/reference/build/ncs-hci-uart-sdc/image-manifest.json \
+  --gdb /path/to/locked/arm-none-eabi-gdb
+```
+
 The complete P0 acceptance gate is also a single public command. It performs three consecutive hello-world runs, the Bare Metal plus S115 run, and GDB smoke with exact-token verification:
 
 ```sh

@@ -55,8 +55,10 @@ The locked NCS v3.4.0 `hci_uart` reference now builds through the repository
 workflow with machine-checked configuration and final-map evidence for hard-float
 Multirole SDC plus MPSL. The generated ISR table also closes the TIMER20/ECB00
 question: both remain unregistered/spurious vectors while TIMER10, GRTC_3, and
-RADIO_0 carry the public MPSL handlers. Guarded HCI/GDB observation and standalone
-implementation remain separate M6 gates.
+RADIO_0 carry the public MPSL handlers. Guarded raw HCI then passed Reset,
+version/features, advertising and scanning in both over-the-air directions, and
+the independent GDB gate reached and stepped `main`. Standalone implementation
+remains the next M6 gate.
 
 ## Startup and linker search
 

@@ -414,6 +414,26 @@
       "verification": "Single-context harness audit and bounded empty-queue test."
     },
     {
+      "id": "SDC-HCI-02",
+      "category": "hci",
+      "statement": "A raw Host initializes an own address before advertising and explicitly enables both the global LE Meta event and required LE subevents after HCI Reset.",
+      "sources": [
+        {
+          "path": "softdevice_controller/include/sdc_hci_cmd_controller_baseband.h",
+          "anchor": "the \u201cLE Meta event\u201d bit in the event_Mask shall enable or"
+        },
+        {
+          "path": "softdevice_controller/include/sdc_hci_cmd_le.h",
+          "anchor": "For LE events to be generated, the LE Meta event bit in the Event_Mask shall also be"
+        },
+        {
+          "path": "softdevice_controller/include/sdc_hci_cmd_le.h",
+          "anchor": "Own_Address_Type parameter is set to 0x01, and the random address for the"
+        }
+      ],
+      "verification": "Raw-HCI oracle gate initializes a static random test address, sets bounded event masks, and proves advertising and scanning over the air."
+    },
+    {
       "id": "SDC-LINK-01",
       "category": "link",
       "statement": "MPSL and the selected SDC archive are the same nRF54LM secure hard-float manifest revision.",

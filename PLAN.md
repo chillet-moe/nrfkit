@@ -755,8 +755,10 @@ SDC archive 的 hard-float ELF/link closure 已进入机器可检查 contract。
 `hci_uart` oracle 已由公共 reference workflow 重复构建，配置和最终 map 证明实际链接
 hard-float Multirole SDC 与匹配的 MPSL；生成的 ISR 表进一步确认 TIMER20 IRQ 202 与
 ECB00 IRQ 75 均未注册并保持 spurious，而 TIMER10、GRTC_3 和 RADIO_0 绑定公开 MPSL
-handler。该结果尚不等于平台适配或实板完成；下一步是关闭 oracle 的 guarded flash、
-H4/HCI 与 GDB 门禁，再以同一 contract 实现纯 CMake 底座。
+handler。oracle 已通过 guarded `ERASE_NONE`/read-back 编程、HCI Reset/version/features、
+BlueZ 实际发现其 advertising、由 Controller 实际扫描确定性 host peer，以及独立锁定 GDB
+的 main breakpoint/单步/CPUID 门禁；所有临时 advertising/scanning、VCOM 与 GDB server
+均完成清理。该结果尚不等于平台适配完成；下一步以同一 contract 实现纯 CMake 底座。
 
 交付：
 
