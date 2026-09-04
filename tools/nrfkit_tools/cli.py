@@ -2192,7 +2192,7 @@ def main(argv: list[str] | None = None) -> int:
     m6_sdc_oracle = subparsers.add_parser("m6-sdc-oracle")
     add_device_arguments(m6_sdc_oracle)
     m6_sdc_oracle.add_argument("--device-name", default="nrfkit-sdc-oracle")
-    m6_sdc_oracle.add_argument("--hci-timeout", type=float, default=5.0)
+    m6_sdc_oracle.add_argument("--hci-timeout", type=float, default=10.0)
     m6_sdc_oracle.add_argument("--advertising-timeout", type=float, default=30.0)
     m6_sdc_oracle.add_argument("--scan-timeout", type=float, default=10.0)
     m6_sdc_oracle.add_argument("--scan-peer-name", default="nrfkit-host-peer")
