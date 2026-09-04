@@ -28,6 +28,16 @@ tools/nrf-cmake-sdk run --oracle ncs-hello-world \
 
 `run --manifest` remains available when the firmware was produced separately; that form starts at manifest audit and does not claim to have rebuilt an official oracle.
 
+The complete P0 acceptance gate is also a single public command. It performs three consecutive hello-world runs, the Bare Metal plus S115 run, and GDB smoke with exact-token verification:
+
+```sh
+tools/nrf-cmake-sdk p0-gate \
+  --gdb /path/to/locked/arm-none-eabi-gdb \
+  --authorize-temporary-msd-disable
+```
+
+Some J-Link OB probes lose VCOM data while their mass-storage interface is enabled. When MSD is present, this command's opt-in flag temporarily disables it, reboots and verifies the probe, runs the gates, and restores and verifies MSD in cleanup even after a failure. Because this changes persistent probe configuration, a Codex agent may pass the flag only after the user separately authorizes that exact temporary change; tool escalation alone is not authorization.
+
 Hardware commands use the generated manifest and the same public entry point. USB, serial, probes, programming, and GDB require Codex tool escalation; see [`docs/hardware-workflow.md`](docs/hardware-workflow.md). Programming remains fail-closed and uses `ERASE_NONE`, read-back verification, immutable snapshots, and address allowlists.
 
 ## Host tests

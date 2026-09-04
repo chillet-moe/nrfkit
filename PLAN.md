@@ -1,6 +1,6 @@
 # nrf-cmake-sdk：目标与执行计划
 
-> 状态：P0 工具、安全烧写与 GDB 基线已建立；官方串口 token 验收仍待通过<br>
+> 状态：P0 已完成；M0 仓库、来源与设计冻结进行中<br>
 > 计划基线：2026-09-04<br>
 > 首要目标：nRF54LM20A / nRF54LM20 DK<br>
 > 次要目标：nRF54L15 / nRF54L15 DK<br>
@@ -554,6 +554,8 @@ BLE 实板验收至少包括：
 - 全流程没有 mass erase、recover、provisioning、板载探针固件更新或一次性区域写入；
 - 在一个不含 NCS 环境变量的 shell 中，普通 consumer CMake 路径不会触发任何官方参考流程；
 - tracked 文件、Git diff 和准备提交的 commit message 通过私有名称、本地路径、探针序列号和原始日志泄漏扫描。
+
+P0 于 2026-09-04 完成退出审计。公共 `p0-gate` 从锁定来源连续完成三次 hello-world exact-token PASS、一次 Bare Metal + S115 exact-token PASS，以及带 exact-token 验证的 GDB smoke PASS。所有烧写均使用 `ERASE_NONE`、`VERIFY_READ` 和 `RESET_NONE`，串口、GDB server 与探针锁均完成清理。已确认该 J-Link OB 同时暴露 MSD 与 VCOM 时会丢失启动字节；经单独授权后，公共 gate 只执行固定的临时 MSD disable/reboot/verify 与 enable/reboot/verify 事务，并在成功和失败路径恢复原始接口状态。host 负向测试、公用内容泄漏扫描及离线 consumer configure/build 门禁通过；未执行 mass erase、recover、provisioning、保护设置、板控器固件更新或一次性/配置区域写入。
 
 ### M0：仓库、来源与设计冻结
 

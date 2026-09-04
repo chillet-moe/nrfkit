@@ -279,6 +279,77 @@ def _select(manifest: dict[str, Any], args: argparse.Namespace, run_dir: Path) -
     return select_device(devices, manifest["board_version"], args.probe_serial)
 
 
+def _probe_has_msd(device: dict[str, Any]) -> bool:
+    return any(
+        interface.get("class") == 8
+        or interface.get("interfaceString") == "MSD interface"
+        for interface in device.get("usb", {}).get("interfaces", [])
+    )
+
+
+def _wait_for_probe_msd_state(
+    nrfutil: str,
+    serial: str,
+    board_version: str,
+    enabled: bool,
+    run_dir: Path,
+    timeout: float,
+) -> dict[str, Any]:
+    deadline = time.monotonic() + timeout
+    attempt = 0
+    last_error = "probe did not enumerate"
+    while time.monotonic() < deadline:
+        attempt += 1
+        remaining = max(0.1, deadline - time.monotonic())
+        try:
+            devices = _enumerate(
+                nrfutil, run_dir / f"device-list-{attempt:02d}.log", min(5, remaining)
+            )
+            device = select_device(devices, board_version, serial)
+            vcoms = {port.get("vcom") for port in device.get("serialPorts", [])}
+            if (
+                _probe_has_msd(device) is enabled
+                and vcoms == {0, 1}
+                and device.get("traits", {}).get("jlink") is True
+            ):
+                return device
+            last_error = "probe enumerated without the required MSD/J-Link/dual-VCOM state"
+        except (DeviceContractError, ToolError, OSError) as error:
+            last_error = str(error)
+        time.sleep(0.25)
+    state = "enabled" if enabled else "disabled"
+    raise ToolError(f"J-Link MSD did not become {state}: {last_error}")
+
+
+def _set_probe_msd(
+    jlink: str,
+    nrfutil: str,
+    device: dict[str, Any],
+    enabled: bool,
+    run_dir: Path,
+    timeout: float,
+) -> dict[str, Any]:
+    action = "enable" if enabled else "disable"
+    command = "MSDEnable" if enabled else "MSDDisable"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    command_file = run_dir / f"msd-{action}.jlink"
+    command_file.write_text(f"{command}\nReboot force\nExit\n", encoding="ascii")
+    command_file.chmod(0o400)
+    serial = device["serialNumber"]
+    with _probe_lock(serial, f"probe-msd-{action}"):
+        result = run_logged([
+            jlink, "-USB", serial, "-NoGui", "1", "-ExitOnError", "1",
+            "-CommandFile", str(command_file),
+        ], run_dir / f"msd-{action}.log", timeout)
+        markers = ("Probe configured successfully.", "Rebooted successfully.")
+        if result.returncode or any(marker not in result.stdout for marker in markers):
+            raise ToolError(f"J-Link MSD {action} command failed")
+        return _wait_for_probe_msd_state(
+            nrfutil, serial, device["devkit"]["boardVersion"], enabled,
+            run_dir / f"msd-{action}-verification", timeout,
+        )
+
+
 def _snapshot_hexes(manifest: dict[str, Any], run_dir: Path) -> list[Path]:
     snapshots: list[Path] = []
     for item in manifest["images"]:
@@ -690,6 +761,139 @@ def command_gdb_smoke(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_p0_child(argv: list[str], log: Path, timeout: float) -> str:
+    result = run_logged(argv, log, timeout)
+    if result.returncode:
+        raise ToolError(f"P0 child command failed; see {log}")
+    lines = [line for line in result.stdout.splitlines() if line.strip()]
+    if len(lines) != 1:
+        raise ToolError("P0 child command did not return exactly one run report")
+    report = Path(lines[0])
+    if not report.is_absolute() or not report.is_file():
+        raise ToolError("P0 child command returned an invalid run report")
+    return str(report)
+
+
+def command_p0_gate(args: argparse.Namespace) -> int:
+    run_dir, report = _new_run("p0-gate")
+    operation_error: BaseException | None = None
+    restoration_error: BaseException | None = None
+    restore_msd = False
+    device: dict[str, Any] | None = None
+    report.update({
+        "status": "running",
+        "hello_world_required_passes": 3,
+        "child_reports": [],
+        "stages": [],
+    })
+    atomic_json(run_dir / "run.json", report)
+    try:
+        nrfutil = executable(args.nrfutil, "nrfutil")
+        jlink_commander = executable(args.jlink_commander, "JLinkExe")
+        gdb = executable(args.gdb, "arm-none-eabi-gdb")
+        jlink_server = executable(args.jlink, "JLinkGDBServerCLExe")
+        contract = oracle(project_root(), "ncs-hello-world")
+        devices = _enumerate(nrfutil, run_dir / "device-list.log", args.timeout)
+        device = select_device(devices, contract["board_version"], args.probe_serial)
+        original_msd = _probe_has_msd(device)
+        report["probe_msd_originally_enabled"] = original_msd
+        _stage(
+            run_dir, report, "device-selection",
+            board_version=contract["board_version"], msd_enabled=original_msd,
+        )
+        if original_msd:
+            if not args.authorize_temporary_msd_disable:
+                raise ToolError(
+                    "probe MSD is enabled; explicit --authorize-temporary-msd-disable "
+                    "is required for the backed-up, automatically restored P0 gate"
+                )
+            restore_msd = True
+            device = _set_probe_msd(
+                jlink_commander, nrfutil, device, False,
+                run_dir / "probe-msd", args.timeout,
+            )
+            _stage(run_dir, report, "probe-msd-disable", verified=True)
+
+        public_cli = str(project_root() / "tools/nrf-cmake-sdk")
+        common_run = [
+            public_cli, "run", "--probe-serial", device["serialNumber"],
+            "--nrfutil", nrfutil, "--timeout", str(args.timeout),
+            "--build-timeout", str(args.build_timeout),
+            "--token-timeout", str(args.token_timeout),
+            "--serial-ready-delay", str(args.serial_ready_delay),
+            "--cmake", args.cmake, "--ninja", args.ninja, "--west", args.west,
+            "--jlink", jlink_server, "--gdb", gdb,
+        ]
+        child_number = 0
+        for iteration in range(1, 4):
+            child_number += 1
+            child_report = _run_p0_child(
+                common_run + ["--oracle", "ncs-hello-world"],
+                run_dir / f"child-{child_number:02d}-hello-{iteration}.log",
+                args.gate_timeout,
+            )
+            report["child_reports"].append(child_report)
+            _stage(
+                run_dir, report, "hello-world",
+                iteration=iteration, child_report=child_report,
+            )
+        child_number += 1
+        bm_report = _run_p0_child(
+            common_run + ["--oracle", "nrf-bm-leds-s115"],
+            run_dir / f"child-{child_number:02d}-bare-metal.log",
+            args.gate_timeout,
+        )
+        report["child_reports"].append(bm_report)
+        _stage(run_dir, report, "bare-metal-s115", child_report=bm_report)
+
+        child_number += 1
+        manifest = (
+            project_root()
+            / ".work/reference/build/nrf-bm-leds-s115/image-manifest.json"
+        )
+        gdb_report = _run_p0_child([
+            public_cli, "gdb-smoke", "--manifest", str(manifest),
+            "--probe-serial", device["serialNumber"], "--nrfutil", nrfutil,
+            "--timeout", str(args.timeout), "--gdb", gdb, "--jlink", jlink_server,
+            "--verify-token", "--token-timeout", str(args.token_timeout),
+            "--serial-ready-delay", str(args.serial_ready_delay),
+        ], run_dir / f"child-{child_number:02d}-gdb-smoke.log", args.gate_timeout)
+        report["child_reports"].append(gdb_report)
+        _stage(run_dir, report, "gdb-smoke", child_report=gdb_report)
+        report["status"] = "ok"
+    except BaseException as error:
+        operation_error = error
+        report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
+    finally:
+        if restore_msd:
+            assert device is not None
+            try:
+                _set_probe_msd(
+                    jlink_commander, nrfutil, device, True,
+                    run_dir / "probe-msd", args.timeout,
+                )
+                _stage(run_dir, report, "probe-msd-restore", verified=True)
+            except BaseException as error:
+                restoration_error = error
+                report["status"] = "failed"
+                report["restoration_error"] = f"{type(error).__name__}: {error}"
+        report["cleanup"] = {
+            "probe_msd_restored": not restore_msd or restoration_error is None,
+        }
+        atomic_json(run_dir / "run.json", report)
+    if restoration_error is not None:
+        if operation_error is not None:
+            raise ToolError(
+                f"P0 gate failed ({operation_error}); MSD restoration also failed: "
+                f"{restoration_error}"
+            ) from restoration_error
+        raise restoration_error
+    if operation_error is not None:
+        raise operation_error
+    print(run_dir / "run.json")
+    return 0
+
+
 def add_device_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--probe-serial", default=os.environ.get("NRF_PROBE_SERIAL"))
@@ -758,9 +962,30 @@ def main(argv: list[str] | None = None) -> int:
     gdb.add_argument("--token-timeout", type=float, default=10)
     gdb.add_argument("--serial-ready-delay", type=float, default=0.5)
     gdb.set_defaults(handler=command_gdb_smoke)
+    p0_gate = subparsers.add_parser("p0-gate")
+    p0_gate.add_argument("--probe-serial", default=os.environ.get("NRF_PROBE_SERIAL"))
+    p0_gate.add_argument("--nrfutil", default=shutil.which("nrfutil") or "nrfutil")
+    p0_gate.add_argument("--jlink-commander", default=shutil.which("JLinkExe") or "JLinkExe")
+    p0_gate.add_argument(
+        "--jlink", default=shutil.which("JLinkGDBServerCLExe") or "JLinkGDBServerCLExe"
+    )
+    p0_gate.add_argument("--gdb", required=True)
+    p0_gate.add_argument("--cmake", default=shutil.which("cmake") or "cmake")
+    p0_gate.add_argument("--ninja", default=shutil.which("ninja") or "ninja")
+    p0_gate.add_argument("--west", default=shutil.which("west") or "west")
+    p0_gate.add_argument("--timeout", type=float, default=90)
+    p0_gate.add_argument("--build-timeout", type=float, default=900)
+    p0_gate.add_argument("--gate-timeout", type=float, default=1200)
+    p0_gate.add_argument("--token-timeout", type=float, default=10)
+    p0_gate.add_argument("--serial-ready-delay", type=float, default=0.5)
+    p0_gate.add_argument("--authorize-temporary-msd-disable", action="store_true")
+    p0_gate.set_defaults(handler=command_p0_gate)
     args = parser.parse_args(argv)
     if getattr(args, "timeout", 1) <= 0:
         parser.error("--timeout must be positive")
+    for name in ("build_timeout", "gate_timeout", "token_timeout"):
+        if getattr(args, name, 1) <= 0:
+            parser.error(f"--{name.replace('_', '-')} must be positive")
     if getattr(args, "serial_ready_delay", 0) < 0:
         parser.error("--serial-ready-delay must not be negative")
     try:
