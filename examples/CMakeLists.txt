@@ -96,6 +96,16 @@ foreach(variant IN ITEMS multirole peripheral central)
   nrfkit_finalize_target("${target}")
 endforeach()
 
+add_executable(m7_timeslot_validation m6-sdc-validation/main.c)
+nrfkit_configure_target(m7_timeslot_validation
+  SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
+)
+nrfkit_enable_sdc(m7_timeslot_validation VARIANT multirole)
+nrfkit_enable_mpsl_timeslot(m7_timeslot_validation)
+nrfkit_enable_nrfx(m7_timeslot_validation DRIVERS uarte)
+target_compile_definitions(m7_timeslot_validation PRIVATE NRFKIT_M7_TIMESLOT=1)
+nrfkit_finalize_target(m7_timeslot_validation)
+
 foreach(role IN ITEMS tx rx)
   set(target "m5_radio_${role}")
   add_executable("${target}" m5-radio-link/main.c)

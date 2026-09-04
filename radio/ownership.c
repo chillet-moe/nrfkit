@@ -26,7 +26,9 @@ static void critical_exit(uint32_t primask)
 
 static bool valid_owner(enum nrfkit_radio_owner owner)
 {
-    return owner == NRFKIT_RADIO_OWNER_PROPRIETARY || owner == NRFKIT_RADIO_OWNER_BLE;
+    return owner == NRFKIT_RADIO_OWNER_PROPRIETARY ||
+        owner == NRFKIT_RADIO_OWNER_BLE ||
+        owner == NRFKIT_RADIO_OWNER_TIMESLOT;
 }
 
 int nrfkit_radio_acquire(enum nrfkit_radio_owner owner)

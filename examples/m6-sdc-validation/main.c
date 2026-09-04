@@ -7,6 +7,9 @@
 #include <nrfkit/nrfx.h>
 #include <nrfkit/runtime.h>
 #include <nrfkit/sdc.h>
+#if defined(NRFKIT_M7_TIMESLOT)
+#include <nrfkit/timeslot.h>
+#endif
 #include <nrfx_uarte.h>
 
 #define PIN(port, pin) NRF_PIN_PORT_TO_PIN_NUMBER((pin), (port))
@@ -37,6 +40,62 @@ static volatile uint8_t acl_submissions;
 static volatile int32_t acl_put_result;
 volatile uint32_t nrfkit_m6_required_memory;
 volatile uint32_t nrfkit_m6_lifecycle_enables;
+
+#if defined(NRFKIT_M7_TIMESLOT)
+static volatile uint32_t timeslot_grants;
+static volatile uint32_t timeslot_deadlines;
+static volatile uint32_t timeslot_blocked;
+static volatile uint32_t timeslot_cancelled;
+static volatile uint32_t timeslot_closed;
+static volatile uint32_t timeslot_extend_succeeded;
+static volatile uint32_t timeslot_extend_failed;
+static volatile uint8_t timeslot_idle;
+static volatile uint8_t timeslot_extension_enabled;
+static volatile uint8_t timeslot_extension_requested;
+
+static struct nrfkit_timeslot_action timeslot_handler(
+    enum nrfkit_timeslot_signal signal, void *context)
+{
+    (void)context;
+    struct nrfkit_timeslot_action action = {
+        .kind = NRFKIT_TIMESLOT_ACTION_NONE,
+    };
+    if (signal == NRFKIT_TIMESLOT_SIGNAL_START) {
+        ++timeslot_grants;
+    } else if (signal == NRFKIT_TIMESLOT_SIGNAL_TIMER) {
+        ++timeslot_deadlines;
+        if (timeslot_extension_enabled != 0U &&
+            timeslot_extension_requested == 0U) {
+            timeslot_extension_requested = 1U;
+            action.kind = NRFKIT_TIMESLOT_ACTION_EXTEND;
+            action.length_us = 200U;
+        } else {
+            action.kind = NRFKIT_TIMESLOT_ACTION_END;
+        }
+    } else if (signal == NRFKIT_TIMESLOT_SIGNAL_EXTEND_SUCCEEDED) {
+        ++timeslot_extend_succeeded;
+    } else if (signal == NRFKIT_TIMESLOT_SIGNAL_EXTEND_FAILED) {
+        ++timeslot_extend_failed;
+    } else if (signal == NRFKIT_TIMESLOT_SIGNAL_BLOCKED) {
+        ++timeslot_blocked;
+    } else if (signal == NRFKIT_TIMESLOT_SIGNAL_CANCELLED) {
+        ++timeslot_cancelled;
+    } else if (signal == NRFKIT_TIMESLOT_SIGNAL_IDLE) {
+        timeslot_idle = 1U;
+    } else if (signal == NRFKIT_TIMESLOT_SIGNAL_CLOSED) {
+        ++timeslot_closed;
+    }
+    return action;
+}
+
+static void timeslot_request(void)
+{
+    timeslot_idle = 0U;
+    if (nrfkit_timeslot_request_earliest(1000U, 100000U, 150U) != 0) {
+        nrfkit_assert_fail();
+    }
+}
+#endif
 
 static void stack_watermark_initialize(void)
 {
@@ -137,12 +196,42 @@ int main(void)
     if (nrfkit_sdc_required_memory(&controller, &required_memory) != 0 ||
         required_memory > sizeof(controller_region.memory) ||
         nrfkit_sdc_enable(&controller, controller_region.memory,
+                          sizeof(controller_region.memory)) != 0) {
+        nrfkit_assert_fail();
+    }
+#if defined(NRFKIT_M7_TIMESLOT)
+    if (nrfkit_timeslot_open(timeslot_handler, NULL) != 0) {
+        nrfkit_assert_fail();
+    }
+    if (nrfkit_sdc_disable() != 0) {
+        nrfkit_assert_fail();
+    }
+    timeslot_request();
+    while (timeslot_grants == 0U || timeslot_idle == 0U) {
+        nrfkit_sdc_process();
+        __WFE();
+    }
+    if (nrfkit_timeslot_close() != 0) {
+        nrfkit_assert_fail();
+    }
+    while (timeslot_closed == 0U) {
+        nrfkit_sdc_process();
+        __WFE();
+    }
+    if (nrfkit_sdc_enable(&controller, controller_region.memory,
                           sizeof(controller_region.memory)) != 0 ||
-        nrfkit_sdc_disable() != 0 ||
+        nrfkit_timeslot_open(timeslot_handler, NULL) != 0) {
+        nrfkit_assert_fail();
+    }
+    timeslot_extension_enabled = 1U;
+    timeslot_request();
+#else
+    if (nrfkit_sdc_disable() != 0 ||
         nrfkit_sdc_enable(&controller, controller_region.memory,
                           sizeof(controller_region.memory)) != 0) {
         nrfkit_assert_fail();
     }
+#endif
     nrfkit_m6_required_memory = (uint32_t)required_memory;
     nrfkit_m6_lifecycle_enables = 2U;
 
@@ -150,6 +239,11 @@ int main(void)
     uint8_t output[260];
     for (;;) {
         nrfkit_sdc_process();
+#if defined(NRFKIT_M7_TIMESLOT)
+        if (timeslot_idle != 0U) {
+            timeslot_request();
+        }
+#endif
         if (uart_fault != 0U) {
             nrfkit_assert_fail();
         }
@@ -223,6 +317,30 @@ int main(void)
                 output[23] = controller_region.before == CONTROLLER_CANARY &&
                     controller_region.after == CONTROLLER_CANARY ? 1U : 0U;
                 event_size = 23U;
+#if defined(NRFKIT_M7_TIMESLOT)
+            } else if (command[0] == 0x01U && command[1] == 0xFCU &&
+                       command[2] == 0U) {
+                output[1] = 0x0EU;
+                output[2] = 32U;
+                output[3] = 1U;
+                output[4] = command[0];
+                output[5] = command[1];
+                output[6] = 0U;
+                uint32_t const counters[] = {
+                    timeslot_grants, timeslot_deadlines, timeslot_blocked,
+                    timeslot_cancelled, timeslot_closed,
+                    timeslot_extend_succeeded, timeslot_extend_failed,
+                };
+                size_t position = 7U;
+                for (size_t counter = 0U;
+                     counter < sizeof(counters) / sizeof(counters[0]); ++counter) {
+                    for (size_t byte = 0U; byte < sizeof(counters[0]); ++byte) {
+                        output[position++] =
+                            (uint8_t)(counters[counter] >> (byte * 8U));
+                    }
+                }
+                event_size = 34U;
+#endif
             } else if (nrfkit_sdc_hci_command(
                            command, packet_size - 1U, &output[1],
                            sizeof(output) - 1U, &event_size) != 0) {

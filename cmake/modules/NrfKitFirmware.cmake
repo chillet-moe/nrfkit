@@ -143,12 +143,43 @@ function(nrfkit_enable_sdc target)
     "  \"variant\": \"${ARG_VARIANT}\",\n"
     "  \"security_domain\": \"secure\",\n"
     "  \"float_abi\": \"hard-float\",\n"
+    "  \"timeslot\": $<IF:$<BOOL:$<TARGET_PROPERTY:${target},NRFKIT_MPSL_TIMESLOT_ENABLED>>,true,false>,\n"
     "  \"archives\": [\"${root}/mpsl/lib/nrf54lm/hard-float/libmpsl.a\", \"${root}/mpsl/fem/common/lib/nrf54lm/hard-float/libmpsl_fem_common.a\", \"${root}/softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_${ARG_VARIANT}.a\"],\n"
     "  \"resources\": [\"${resources_json}\"]\n"
     "}\n"
   )
   file(GENERATE OUTPUT "${config_dir}/sdc-target.json" CONTENT "${sdc_target_content}")
   set_target_properties("${target}" PROPERTIES NRFKIT_SDC_VARIANT "${ARG_VARIANT}")
+endfunction()
+
+function(nrfkit_enable_mpsl_timeslot target)
+  if(NOT TARGET "${target}")
+    message(FATAL_ERROR "nrfkit_enable_mpsl_timeslot: unknown target '${target}'")
+  endif()
+  get_target_property(variant "${target}" NRFKIT_SDC_VARIANT)
+  if(NOT variant)
+    message(FATAL_ERROR
+      "nrfkit_enable_mpsl_timeslot: enable SDC on '${target}' first"
+    )
+  endif()
+  get_target_property(finalized "${target}" NRFKIT_FINALIZED)
+  if(finalized)
+    message(FATAL_ERROR
+      "nrfkit_enable_mpsl_timeslot: '${target}' is already finalized"
+    )
+  endif()
+  get_target_property(enabled "${target}" NRFKIT_MPSL_TIMESLOT_ENABLED)
+  if(enabled)
+    message(FATAL_ERROR
+      "nrfkit_enable_mpsl_timeslot: '${target}' is already enabled"
+    )
+  endif()
+  target_sources("${target}" PRIVATE
+    "${NrfKit_ROOT}/radio/ownership.c"
+    "${NrfKit_ROOT}/radio/nrf54l/radio.c"
+    "${NrfKit_ROOT}/radio/timeslot/nrf54l/timeslot.c"
+  )
+  set_target_properties("${target}" PROPERTIES NRFKIT_MPSL_TIMESLOT_ENABLED TRUE)
 endfunction()
 
 function(_nrfkit_prepare_nrfx out_var)

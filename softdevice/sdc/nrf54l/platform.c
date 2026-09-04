@@ -15,6 +15,8 @@
 #include <sdc_hci.h>
 #include <sdc_soc.h>
 
+#include "platform_internal.h"
+
 volatile struct nrfkit_sdc_fault_record nrfkit_sdc_last_fault
     __attribute__((section(".noinit.sdc_fault")));
 
@@ -23,6 +25,8 @@ static volatile uint8_t hci_pending;
 static volatile uint8_t enabled;
 static volatile uint8_t low_latency_depth;
 static uint8_t controller_initialized;
+static uint8_t mpsl_initialized;
+static uint8_t timeslot_references;
 static uint8_t grtc_was_enabled;
 static uint32_t saved_rram_low_power;
 static size_t controller_memory_size;
@@ -96,7 +100,11 @@ static void disable_interrupts(void)
 
 static void release_mpsl(void)
 {
+    if (mpsl_initialized == 0U) {
+        return;
+    }
     mpsl_uninit();
+    mpsl_initialized = 0U;
     disable_interrupts();
     low_priority_pending = 0U;
     if (grtc_was_enabled == 0U) {
@@ -127,6 +135,9 @@ static int32_t initialize_libraries(const struct nrfkit_sdc_config *config)
     }
     if (controller_initialized != 0U && !config_equal(config, &locked_config)) {
         return -NRF_EPERM;
+    }
+    if (mpsl_initialized != 0U) {
+        return 0;
     }
     if (config->lfclk_source != NRFKIT_SDC_LFCLK_RC &&
         (config->rc_calibration_interval_250_ms != 0U ||
@@ -164,6 +175,7 @@ static int32_t initialize_libraries(const struct nrfkit_sdc_config *config)
         }
         return result;
     }
+    mpsl_initialized = 1U;
     result = mpsl_clock_hfclk_latency_set(config->hfclk_startup_time_us);
     if (result != 0) {
         release_mpsl();
@@ -212,7 +224,9 @@ int32_t nrfkit_sdc_required_memory(const struct nrfkit_sdc_config *config,
     if (result != 0) {
         return result;
     }
-    release_mpsl();
+    if (timeslot_references == 0U) {
+        release_mpsl();
+    }
     *required_memory = controller_memory_size;
     return 0;
 }
@@ -229,7 +243,9 @@ int32_t nrfkit_sdc_enable(const struct nrfkit_sdc_config *config,
         return result;
     }
     if (controller_memory_size > memory_size) {
-        release_mpsl();
+        if (timeslot_references == 0U) {
+            release_mpsl();
+        }
         return -NRF_ENOMEM;
     }
     static const sdc_rand_source_t entropy = {.rand_poll = entropy_poll};
@@ -242,7 +258,9 @@ int32_t nrfkit_sdc_enable(const struct nrfkit_sdc_config *config,
     }
     if (result != 0) {
         nrfx_cracen_uninit();
-        release_mpsl();
+        if (timeslot_references == 0U) {
+            release_mpsl();
+        }
         return result;
     }
     enabled = 1U;
@@ -251,9 +269,13 @@ int32_t nrfkit_sdc_enable(const struct nrfkit_sdc_config *config,
 
 void nrfkit_sdc_process(void)
 {
-    if (enabled != 0U && low_priority_pending != 0U) {
+    if (mpsl_initialized != 0U && low_priority_pending != 0U) {
         low_priority_pending = 0U;
         mpsl_low_priority_process();
+    }
+    if (mpsl_initialized != 0U && enabled == 0U &&
+        timeslot_references == 0U) {
+        release_mpsl();
     }
 }
 
@@ -291,10 +313,35 @@ int32_t nrfkit_sdc_disable(void)
     }
     enabled = 0U;
     hci_pending = 0U;
-    low_priority_pending = 0U;
+    if (timeslot_references == 0U) {
+        low_priority_pending = 0U;
+    }
     nrfx_cracen_uninit();
-    release_mpsl();
+    if (timeslot_references == 0U) {
+        release_mpsl();
+    }
     return 0;
+}
+
+bool nrfkit_mpsl_is_initialized(void)
+{
+    return mpsl_initialized != 0U;
+}
+
+int32_t nrfkit_mpsl_timeslot_retain(void)
+{
+    if (mpsl_initialized == 0U || timeslot_references != 0U) {
+        return -NRF_EPERM;
+    }
+    timeslot_references = 1U;
+    return 0;
+}
+
+void nrfkit_mpsl_timeslot_release(void)
+{
+    if (timeslot_references != 0U) {
+        timeslot_references = 0U;
+    }
 }
 
 void SWI00_IRQHandler(void)

@@ -13,6 +13,8 @@ enum nrfkit_radio_owner {
     NRFKIT_RADIO_OWNER_NONE = 0,
     NRFKIT_RADIO_OWNER_PROPRIETARY = 1,
     NRFKIT_RADIO_OWNER_BLE = 2,
+    /* Valid only while an MPSL Timeslot grant is active. */
+    NRFKIT_RADIO_OWNER_TIMESLOT = 3,
 };
 
 enum nrfkit_radio_result {

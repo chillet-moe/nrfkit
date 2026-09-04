@@ -231,6 +231,7 @@ def create_device_manifest(
             or variant not in {"multirole", "peripheral", "central"}
             or sdc_target.get("security_domain") != "secure"
             or sdc_target.get("float_abi") != "hard-float"
+            or not isinstance(sdc_target.get("timeslot"), bool)
             or archive_names != required_archives
             or not isinstance(resources, list)
             or not resources
@@ -243,6 +244,7 @@ def create_device_manifest(
         }
         manifest["build_evidence"] = {
             "status": "ok", "variant": variant,
+            "timeslot": sdc_target.get("timeslot") is True,
             "security_domain": "secure", "float_abi": "hard-float",
             "archives": sorted(required_archives),
             "resources": sorted(resources),

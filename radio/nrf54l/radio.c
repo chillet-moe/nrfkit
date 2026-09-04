@@ -7,7 +7,9 @@
 
 static int validate_owner(enum nrfkit_radio_owner owner)
 {
-    if (owner != NRFKIT_RADIO_OWNER_PROPRIETARY && owner != NRFKIT_RADIO_OWNER_BLE) {
+    if (owner != NRFKIT_RADIO_OWNER_PROPRIETARY &&
+        owner != NRFKIT_RADIO_OWNER_BLE &&
+        owner != NRFKIT_RADIO_OWNER_TIMESLOT) {
         return NRFKIT_RADIO_ERR_ARGUMENT;
     }
     if (nrfkit_radio_owner_get() != owner) {

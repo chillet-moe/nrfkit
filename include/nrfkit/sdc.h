@@ -59,7 +59,7 @@ int32_t nrfkit_sdc_enable(const struct nrfkit_sdc_config *config,
                           void *memory,
                           size_t memory_size);
 
-/** Run deferred MPSL/controller work from the application's main context. */
+/** Run deferred MPSL/controller/Timeslot work from main context. */
 void nrfkit_sdc_process(void);
 
 /** Return true when controller output may be available. */
@@ -84,7 +84,7 @@ int32_t nrfkit_sdc_hci_get(uint8_t *packet, uint8_t *message_type);
 /** Submit one raw HCI ACL packet to the controller. */
 int32_t nrfkit_sdc_hci_acl_put(const uint8_t *packet);
 
-/** Disable the controller and release MPSL. */
+/** Disable the controller; MPSL remains alive until any Timeslot closes. */
 int32_t nrfkit_sdc_disable(void);
 
 #ifdef __cplusplus

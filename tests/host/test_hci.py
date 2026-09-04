@@ -105,6 +105,10 @@ class HciTests(unittest.TestCase):
                         0x00, 0x00, 0x00, 0x00,
                         0x01,
                     )),
+                    0xFC01: b"".join(value.to_bytes(4, "little") for value in (
+                        4 + sum(1 for opcode, unused in self.commands if opcode == 0xFC01),
+                        4, 0, 0, 1, 1, 0,
+                    )),
                 }.get(opcode, b"")
 
             def command_status(
@@ -119,21 +123,26 @@ class HciTests(unittest.TestCase):
                 self.commands.append((0xFFFF, packet))
 
             def next_event(self, deadline: float):
-                if self.commands and self.commands[-1][0] == 0x200A:
+                last_control_opcode = next(
+                    (opcode for opcode, unused in reversed(self.commands)
+                     if opcode not in {0xFC00, 0xFC01}),
+                    None,
+                )
+                if last_control_opcode == 0x200A:
                     parameters = bytes.fromhex(
                         "0100010001010200000000c018000000f40100"
                     )
                     return H4EventParser().feed(
                         bytes((0x04, 0x3E, len(parameters))) + parameters
                     )[0]
-                if self.commands and self.commands[-1][0] == 0x200D:
+                if last_control_opcode == 0x200D:
                     parameters = bytes.fromhex(
                         "01000100000166554433221118000000f40100"
                     )
                     return H4EventParser().feed(
                         bytes((0x04, 0x3E, len(parameters))) + parameters
                     )[0]
-                if self.commands and self.commands[-1][0] == 0x0406:
+                if last_control_opcode == 0x0406:
                     return H4EventParser().feed(
                         bytes((0x04, 0x05, 0x04, 0x00, 0x01, 0x00, 0x16))
                     )[0]
@@ -154,7 +163,7 @@ class HciTests(unittest.TestCase):
             "hci_transport": {
                 "type": "H4", "baud": 1000000, "hardware_flow_control": True,
             },
-            "build_evidence": {"status": "ok"},
+            "build_evidence": {"status": "ok", "timeslot": True},
         }
         args = Namespace(
             manifest=Path("manifest.json"), nrfutil="nrfutil", timeout=5.0,
@@ -225,6 +234,7 @@ class HciTests(unittest.TestCase):
             self.assertIn(0x2005, opcodes)
             self.assertIn(0x0C01, opcodes)
             self.assertIn(0x2001, opcodes)
+            self.assertGreaterEqual(opcodes.count(0xFC01), 3)
             self.assertEqual(report["status"], "ok")
             self.assertEqual(opcodes[:4], [0x0C03, 0x1001, 0x1003, 0x2003])
 

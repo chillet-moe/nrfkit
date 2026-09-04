@@ -16,6 +16,7 @@ class RadioContractTests(unittest.TestCase):
             "NRFKIT_RADIO_OWNER_NONE",
             "NRFKIT_RADIO_OWNER_PROPRIETARY",
             "NRFKIT_RADIO_OWNER_BLE",
+            "NRFKIT_RADIO_OWNER_TIMESLOT",
             "nrfkit_radio_acquire",
             "nrfkit_radio_release",
             "nrfkit_radio_configure_packet",
@@ -83,6 +84,30 @@ class RadioContractTests(unittest.TestCase):
                     ROOT / f"tests/hardware/m5-radio-peer/configs/{role}-4m-{mode}.conf"
                 ).is_file())
         self.assertIn("CONFIG_NRFKIT_M7_PEER_PHY_4M", peer)
+
+    def test_timeslot_backend_enforces_grant_and_deadline_contract(self) -> None:
+        header = (ROOT / "include/nrfkit/timeslot.h").read_text(encoding="utf-8")
+        source = (ROOT / "radio/timeslot/nrf54l/timeslot.c").read_text(
+            encoding="utf-8"
+        )
+        module = (ROOT / "cmake/modules/NrfKitFirmware.cmake").read_text(
+            encoding="utf-8"
+        )
+        for token in (
+            "nrfkit_timeslot_open", "nrfkit_timeslot_request_earliest",
+            "nrfkit_timeslot_close", "NRFKIT_TIMESLOT_ACTION_EXTEND",
+            "NRFKIT_TIMESLOT_SIGNAL_BLOCKED", "NRFKIT_TIMESLOT_SIGNAL_CANCELLED",
+        ):
+            self.assertIn(token, header)
+        for token in (
+            "MPSL_TIMESLOT_HFCLK_CFG_XTAL_GUARANTEED",
+            "MPSL_TIMESLOT_EXTENSION_MARGIN_MIN_US",
+            "nrf_timer_cc_set", "cleanup_grant",
+            "NRFKIT_RADIO_OWNER_TIMESLOT",
+        ):
+            self.assertIn(token, source)
+        self.assertIn("function(nrfkit_enable_mpsl_timeslot target)", module)
+        self.assertIn("enable SDC on '${target}' first", module)
 
     def test_dual_board_harness_rejects_a_single_probe(self) -> None:
         cli = (ROOT / "tools/nrfkit_tools/cli.py").read_text(encoding="utf-8")

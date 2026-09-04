@@ -1173,6 +1173,31 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                     "memory_canaries_intact": bool(diagnostics[16]),
                 }
 
+            timeslot_enabled = manifest["build_evidence"].get("timeslot") is True
+
+            def read_timeslot_diagnostics() -> dict[str, int]:
+                payload = session.command(0xFC01, timeout=args.hci_timeout)
+                if len(payload) != 28:
+                    raise ToolError("Controller returned malformed Timeslot diagnostics")
+                names = (
+                    "grants", "deadlines", "blocked", "cancelled", "closed",
+                    "extend_succeeded", "extend_failed",
+                )
+                return {
+                    name: int.from_bytes(payload[index * 4:index * 4 + 4], "little")
+                    for index, name in enumerate(names)
+                }
+
+            def await_timeslot_progress(previous_grants: int) -> dict[str, int]:
+                deadline = time.monotonic() + args.hci_timeout
+                while True:
+                    current = read_timeslot_diagnostics()
+                    if current["grants"] > previous_grants:
+                        return current
+                    if time.monotonic() >= deadline:
+                        raise ToolError("Timeslot grants did not progress")
+                    time.sleep(0.01)
+
             session.command(0x0C03, timeout=args.hci_timeout)
             version = session.command(0x1001, timeout=args.hci_timeout)
             features = session.command(0x1003, timeout=args.hci_timeout)
@@ -1198,6 +1223,21 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
             _stage(
                 run_dir, report, "sdc-lifecycle-memory-stack", **diagnostics,
             )
+            timeslot_diagnostics: dict[str, int] | None = None
+            if timeslot_enabled:
+                timeslot_diagnostics = read_timeslot_diagnostics()
+                if (
+                    timeslot_diagnostics["grants"] < 1
+                    or timeslot_diagnostics["deadlines"] < 1
+                    or timeslot_diagnostics["closed"] < 1
+                    or timeslot_diagnostics["extend_succeeded"] < 1
+                    or timeslot_diagnostics["extend_failed"] != 0
+                ):
+                    raise ToolError("Timeslot lifecycle diagnostics are incomplete")
+                _stage(
+                    run_dir, report, "timeslot-sdc-disabled-lifecycle",
+                    **timeslot_diagnostics,
+                )
 
             # HCI Reset restores the default masks, which do not deliver LE Meta
             # events. Enable only Command Complete and LE Meta globally, then only
@@ -1253,6 +1293,14 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                         rssi_observed=observation["rssi_observed"],
                         cleanup=observation["cleanup"],
                     )
+                    if timeslot_diagnostics is not None:
+                        timeslot_diagnostics = await_timeslot_progress(
+                            timeslot_diagnostics["grants"]
+                        )
+                        _stage(
+                            run_dir, report, "timeslot-advertising",
+                            **timeslot_diagnostics,
+                        )
                     with host_le_connection(
                         bluetoothctl=args.bluetoothctl,
                         device_name=args.device_name,
@@ -1264,6 +1312,14 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                         while connection is None:
                             connection = le_connection_complete(
                                 session.next_event(deadline)
+                            )
+                        if timeslot_diagnostics is not None:
+                            timeslot_diagnostics = await_timeslot_progress(
+                                timeslot_diagnostics["grants"]
+                            )
+                            _stage(
+                                run_dir, report, "timeslot-active-connection",
+                                role=connection["role"], **timeslot_diagnostics,
                             )
                         advertising_enabled = False
                         handle = int(connection["handle"])
