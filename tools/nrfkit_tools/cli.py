@@ -1160,8 +1160,16 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
             advertising_data = bytes((2, 0x01, 0x06, len(device_name) + 1, 0x09)) + device_name
             if len(advertising_data) > 31:
                 raise ToolError("SDC oracle device name does not fit legacy advertising data")
+            # The HCI-only sample has no Host to initialize an identity address, and
+            # this LM20 oracle reports no public address. Use a fixed static random
+            # test address before any command whose Own_Address_Type refers to it.
+            session.command(
+                0x2005,
+                bytes((0x02, 0x00, 0x00, 0x00, 0x00, 0xC0)),
+                args.hci_timeout,
+            )
             advertising_parameters = struct.pack(
-                "<HHBBB6sBB", 0x00A0, 0x00A0, 0x03, 0x00, 0x00,
+                "<HHBBB6sBB", 0x00A0, 0x00A0, 0x03, 0x01, 0x00,
                 bytes(6), 0x07, 0x00,
             )
             session.command(0x2006, advertising_parameters, args.hci_timeout)
@@ -1189,7 +1197,7 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
 
             session.command(
                 0x200B,
-                struct.pack("<BHHBB", 0x01, 0x0060, 0x0030, 0x00, 0x00),
+                struct.pack("<BHHBB", 0x01, 0x0060, 0x0030, 0x01, 0x00),
                 args.hci_timeout,
             )
             scan_enabled = False
