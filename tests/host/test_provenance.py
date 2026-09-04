@@ -24,6 +24,7 @@ class ProvenanceTests(unittest.TestCase):
             {
                 "nrfx-4.5.0", "cmsis-6.3.0", "nrf-device-family-pack-8.44.1",
                 "trusted-firmware-m-ncs-3.4.0", "s115-10.0.1",
+                "cherryusb-1.6.1",
             },
         )
         for source_id, source in lock["audited_sources"].items():
@@ -66,6 +67,18 @@ class ProvenanceTests(unittest.TestCase):
         )
         self.assertEqual(check.returncode, 0, check.stdout)
 
+    def test_cherryusb_submodule_is_locked(self) -> None:
+        lock = json.loads(
+            (ROOT / "docs/provenance/sources.lock").read_text(encoding="utf-8")
+        )
+        expected = lock["audited_sources"]["cherryusb-1.6.1"]["commit"]
+        actual = subprocess.run(
+            ["git", "-C", str(ROOT / "external/cherryusb"), "rev-parse", "HEAD"],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False,
+        )
+        self.assertEqual(actual.returncode, 0, actual.stdout)
+        self.assertEqual(actual.stdout.strip(), expected)
+
     def test_vendor_import_manifest_covers_and_hashes_third_party_tree(self) -> None:
         lock = json.loads(
             (ROOT / "docs/provenance/sources.lock").read_text(encoding="utf-8")
@@ -101,6 +114,7 @@ class ProvenanceTests(unittest.TestCase):
         self.assertIn("SPDXRef-Package-nrfx", package_ids)
         self.assertIn("SPDXRef-Package-CMSIS", package_ids)
         self.assertIn("SPDXRef-Package-S115", package_ids)
+        self.assertIn("SPDXRef-Package-CherryUSB", package_ids)
         self.assertEqual(
             {item["licenseId"] for item in sbom["hasExtractedLicensingInfos"]},
             {

@@ -50,6 +50,15 @@ void *memset(void *destination, int value, size_t count)
     return destination;
 }
 
+size_t strlen(const char *string)
+{
+    const char *end = string;
+    while (*end != '\0') {
+        ++end;
+    }
+    return (size_t)(end - string);
+}
+
 void __aeabi_memcpy(void *destination, const void *source, size_t count)
 {
     (void)memcpy(destination, source, count);

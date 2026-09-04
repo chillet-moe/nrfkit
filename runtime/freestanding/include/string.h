@@ -12,6 +12,7 @@ extern "C" {
 void *memcpy(void *restrict destination, const void *restrict source, size_t count);
 void *memmove(void *destination, const void *source, size_t count);
 void *memset(void *destination, int value, size_t count);
+size_t strlen(const char *string);
 
 #ifdef __cplusplus
 }

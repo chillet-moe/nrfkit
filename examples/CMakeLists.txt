@@ -62,6 +62,15 @@ nrfkit_enable_nrfx(m3_power_validation DRIVERS
 )
 nrfkit_finalize_target(m3_power_validation)
 
+add_executable(m4_usb_validation m4-usb-validation/main.c)
+nrfkit_configure_target(m4_usb_validation
+  SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
+)
+nrfkit_claim_resources(m4_usb_validation OWNER usb_validation RESOURCES timer21)
+nrfkit_enable_usb_device(m4_usb_validation STACK cherryusb CLASSES hid)
+nrfkit_enable_nrfx(m4_usb_validation DRIVERS timer)
+nrfkit_finalize_target(m4_usb_validation)
+
 set(NRFKIT_BUILD_ID "development" CACHE STRING
   "Build identifier emitted by the hardware-validation firmware"
 )
@@ -125,6 +134,13 @@ if(NRFKIT_ENABLE_HARDWARE_TESTS)
       VERBATIM
     )
   endforeach()
+  add_custom_command(TARGET m4_usb_validation POST_BUILD
+    COMMAND "${NRFKIT_TOOL}" sdk manifest
+      --build-dir "$<TARGET_FILE_DIR:m4_usb_validation>"
+      --target m4_usb_validation
+      --expected-token NRFKIT_M4_USB
+    VERBATIM
+  )
   enable_testing()
   add_test(NAME m2_hardware_gate
     COMMAND "${NRFKIT_TOOL}" m2-gate
@@ -149,4 +165,13 @@ if(NRFKIT_ENABLE_HARDWARE_TESTS)
       TIMEOUT 180
     )
   endforeach()
+  add_test(NAME m4_hardware_usb
+    COMMAND "${NRFKIT_TOOL}" m4-usb-gate
+      --manifest "$<TARGET_FILE_DIR:m4_usb_validation>/m4_usb_validation.device-manifest.json"
+  )
+  set_tests_properties(m4_hardware_usb PROPERTIES
+    LABELS "hardware;root"
+    RESOURCE_LOCK nrf54lm20dk
+    TIMEOUT 600
+  )
 endif()

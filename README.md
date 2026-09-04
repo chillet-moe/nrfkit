@@ -4,9 +4,9 @@
 
 This project is not affiliated with or endorsed by Nordic Semiconductor. Nordic Semiconductor, nRF, and related marks belong to their respective owners.
 
-The project is in early bring-up. P0 through M3 now provide locked official reference builds, a guarded hardware workflow, an experimental nRF54LM20A freestanding runtime, real-board runtime/GDB validation, target-scoped nrfx drivers, DMA/IRQ tests, bounded RRAM scratch writes, and System ON sleep/retention validation. This is not yet a consumer SDK release; see [`PLAN.md`](PLAN.md) for the normative scope and completion gates.
+The project is in early bring-up. P0 through M3 now provide locked official reference builds, a guarded hardware workflow, an experimental nRF54LM20A freestanding runtime, real-board runtime/GDB validation, target-scoped nrfx drivers, DMA/IRQ tests, bounded RRAM scratch writes, and System ON sleep/retention validation. M4 USBHS device support is in validation. This is not yet a consumer SDK release; see [`PLAN.md`](PLAN.md) for the normative scope and completion gates.
 
-Clone with submodules initialized (`git clone --recurse-submodules`) before building. The complete nrfx tree remains an immutable, version-locked upstream submodule instead of ordinary project-owned source. NrfKit compiles only requested driver sources and prepares any project patches in an ignored consumer cache; configure never downloads or edits nrfx.
+Clone with submodules initialized (`git clone --recurse-submodules`) before building. The complete nrfx and CherryUSB trees remain immutable, version-locked upstream submodules instead of ordinary project-owned source. NrfKit compiles only requested sources and prepares nrfx project patches in an ignored consumer cache; configure never downloads or edits an upstream tree.
 
 The M0 source decision, current target status, and contribution contract are documented in [`docs/provenance/source-audit.md`](docs/provenance/source-audit.md), [`docs/support-matrix.md`](docs/support-matrix.md), and [`CONTRIBUTING.md`](CONTRIBUTING.md). Exact upstream identities remain machine-independent in `sources.lock`; local source paths and hardware identities never belong in tracked files.
 
@@ -36,6 +36,17 @@ nrfkit_configure_target(firmware
 )
 nrfkit_finalize_target(firmware)
 ```
+
+The experimental LM20 USBHS device integration is also target-scoped:
+
+```cmake
+nrfkit_enable_usb_device(firmware STACK cherryusb CLASSES hid)
+```
+
+It uses the pinned CherryUSB tree by default. `SOURCE_DIR` may select an explicitly
+managed compatible CherryUSB checkout. The port's evidence hierarchy and the exact
+CherryUSB documentation and newer DWC2 glue examples used during its design are
+recorded in [`docs/provenance/usbhs-port.md`](docs/provenance/usbhs-port.md).
 
 The package-discovery skeleton is also usable for ordinary host consumers:
 

@@ -1,6 +1,7 @@
 # Local machine context and generated work products
 /.local/
 /.work/
+/.vscode/
 
 # Conventional out-of-source build directories
 /build/

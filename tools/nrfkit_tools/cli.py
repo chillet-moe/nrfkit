@@ -35,6 +35,10 @@ from .reference import (
     oracle, prepare, sha256,
 )
 from .sdk import SdkContractError, create_device_manifest
+from .usb_validation import (
+    UsbValidationError, run_power_validation, run_reconnect_validation,
+    run_transfer_validation,
+)
 
 
 class ToolError(RuntimeError):
@@ -102,6 +106,16 @@ def _new_run(operation: str) -> tuple[Path, dict[str, Any]]:
         "schema": "nrfkit-run/v1", "operation": operation,
         "status": "running", "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
+    commit = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "HEAD"], text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False,
+    )
+    status = subprocess.run(
+        ["git", "-C", str(root), "status", "--porcelain"], text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False,
+    )
+    report["sdk_commit"] = commit.stdout.strip() if commit.returncode == 0 else None
+    report["sdk_dirty"] = status.returncode != 0 or bool(status.stdout.strip())
     atomic_json(run_dir / "run.json", report)
     return run_dir, report
 
@@ -446,6 +460,75 @@ def command_reset(args: argparse.Namespace) -> int:
                 duration_seconds=result.duration_seconds,
             )
         report["status"] = "ok"
+    except BaseException as error:
+        report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
+        atomic_json(run_dir / "run.json", report)
+        raise
+    atomic_json(run_dir / "run.json", report)
+    print(run_dir / "run.json")
+    return 0
+
+
+def command_m4_usb_gate(args: argparse.Namespace) -> int:
+    run_dir, report = _new_run("m4-usb-gate")
+    try:
+        manifest = load_manifest(args.manifest)
+        _initialize_device_report(run_dir, report, args.manifest, manifest, args)
+        device = _select(manifest, args, run_dir)
+        _stage(run_dir, report, "device-selection", board_version=manifest["board_version"])
+        with _probe_lock(device["serialNumber"], "m4-usb-gate"):
+            _stage(run_dir, report, "probe-lock")
+            snapshots = _snapshot_hexes(manifest, run_dir)
+            _stage(
+                run_dir, report, "image-snapshot",
+                sha256=[sha256(snapshot) for snapshot in snapshots],
+            )
+            for snapshot in snapshots:
+                _program(manifest, device, snapshot, args, run_dir)
+                _stage(run_dir, report, "program", image_sha256=sha256(snapshot))
+            reset_result = run_logged(
+                reset_argv(
+                    args.nrfutil, device["serialNumber"], manifest["device_family"],
+                    manifest["core"], args.reset_kind,
+                ),
+                run_dir / "reset.log", args.timeout,
+            )
+            if reset_result.returncode:
+                raise ToolError("device reset failed")
+            _stage(run_dir, report, "reset", duration_seconds=reset_result.duration_seconds)
+
+        reconnect = run_reconnect_validation(cycles=args.reconnect_cycles, timeout=args.timeout)
+        _stage(run_dir, report, "usb-reconnect", **reconnect)
+        transfers = run_transfer_validation(
+            stress_seconds=args.stress_seconds, timeout=args.timeout,
+        )
+        _stage(run_dir, report, "usb-control-bulk-hid", **transfers)
+        if args.skip_power:
+            power = {"status": "skipped", "reason": "requested by --skip-power"}
+            _stage(run_dir, report, "usb-suspend-remote-wakeup-skipped", **power)
+        else:
+            power = run_power_validation(timeout=args.timeout)
+            _stage(run_dir, report, "usb-suspend-remote-wakeup", **power)
+        report.update({
+            "status": "ok", "reconnect": reconnect, "transfers": transfers,
+            "power": power,
+        })
+    except BaseException as error:
+        report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
+        atomic_json(run_dir / "run.json", report)
+        raise
+    atomic_json(run_dir / "run.json", report)
+    print(run_dir / "run.json")
+    return 0
+
+
+def command_m4_usb_power(args: argparse.Namespace) -> int:
+    run_dir, report = _new_run("m4-usb-power")
+    report["stages"] = []
+    try:
+        power = run_power_validation(timeout=args.timeout)
+        _stage(run_dir, report, "usb-suspend-remote-wakeup", **power)
+        report.update({"status": "ok", "power": power})
     except BaseException as error:
         report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
         atomic_json(run_dir / "run.json", report)
@@ -1237,6 +1320,18 @@ def main(argv: list[str] | None = None) -> int:
     gdb.add_argument("--token-timeout", type=float, default=10)
     gdb.add_argument("--serial-ready-delay", type=float, default=0.5)
     gdb.set_defaults(handler=command_gdb_smoke)
+    m4_usb = subparsers.add_parser("m4-usb-gate")
+    add_device_arguments(m4_usb)
+    m4_usb.add_argument("--reconnect-cycles", type=int, default=100)
+    m4_usb.add_argument("--stress-seconds", type=float, default=60.0)
+    m4_usb.add_argument(
+        "--skip-power", action="store_true",
+        help="skip the root-only Linux runtime-PM check during development",
+    )
+    m4_usb.set_defaults(handler=command_m4_usb_gate)
+    m4_power = subparsers.add_parser("m4-usb-power")
+    m4_power.add_argument("--timeout", type=float, default=30.0)
+    m4_power.set_defaults(handler=command_m4_usb_power)
     probe_msd = subparsers.add_parser(
         "probe-msd",
         help="apply one fixed, explicitly authorized persistent J-Link MSD setting",
@@ -1294,6 +1389,10 @@ def main(argv: list[str] | None = None) -> int:
             parser.error(f"--{name.replace('_', '-')} must be positive")
     if getattr(args, "serial_ready_delay", 0) < 0:
         parser.error("--serial-ready-delay must not be negative")
+    if getattr(args, "reconnect_cycles", 1) <= 0:
+        parser.error("--reconnect-cycles must be positive")
+    if getattr(args, "stress_seconds", 1) <= 0:
+        parser.error("--stress-seconds must be positive")
     if getattr(args, "sdk_runtime_contract", False) and not args.post_main_break:
         parser.error("--sdk-runtime-contract requires --post-main-break")
     for symbol in getattr(args, "observe", []):
@@ -1303,6 +1402,6 @@ def main(argv: list[str] | None = None) -> int:
         return args.handler(args)
     except (
         DeviceContractError, ImageContractError, ReferenceContractError,
-        SdkContractError, ToolError, OSError,
+        SdkContractError, ToolError, UsbValidationError, OSError,
     ) as error:
         parser.exit(1, f"error: {error}\n")

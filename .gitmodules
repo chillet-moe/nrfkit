@@ -1,3 +1,6 @@
 [submodule "external/nrfx"]
 	path = external/nrfx
 	url = https://github.com/NordicSemiconductor/nrfx.git
+[submodule "external/cherryusb"]
+	path = external/cherryusb
+	url = https://github.com/cherry-embedded/CherryUSB.git

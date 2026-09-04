@@ -22,3 +22,16 @@ For the P0 oracle matrix, `tools/nrfkit p0-gate` treats an already-disabled MSD 
 For the standalone SDK, `sdk manifest` accepts only the versioned LM20 application layout and produces the same guarded manifest consumed by `inspect`, `flash`, `run`, and `gdb-smoke`. `m2-gate` is the aggregate acceptance entry point used by the opt-in CTest `hardware` test. It performs 20 exact build-ID program/reset/token cycles, the Reset Handler/main/single-step/RAM/observable-variable GDB contract, and deliberate HardFault capture. Its `finally` path always runs the guarded normal-image workflow; the gate is successful only when that recovery emits the expected normal boot token. CTest supplies a per-board `RESOURCE_LOCK` and an outer timeout, while every child retains its own probe lock, timeout, immutable snapshot, and structured run report.
 
 Local reports may contain probe identities and device paths. They remain below gitignored `.work/` and must not be copied into tracked documentation, commits, issues, or public artifacts.
+
+The M4 USB device gate is `tools/nrfkit m4-usb-gate`. Its default contract performs
+100 controlled reconnects, transfer/HID stress, and Linux runtime-PM suspend plus
+remote wake. USB access always requires Codex tool escalation. The runtime-PM portion
+also needs operating-system root permission to modify the selected device's sysfs
+power attributes; Codex escalation does not grant that permission. A maintainer must
+run that portion through an approved root-capable environment without sharing a
+password with Codex. `--skip-power` is development-only and its structured report
+explicitly records the skipped gate; it cannot be used as M4 completion evidence.
+After the transfer gate has programmed and verified the current image,
+`tools/nrfkit m4-usb-power` runs only the root-required suspend/remote-wakeup portion
+and writes its own structured report. The root environment must provide PyUSB; do not
+copy credentials or machine-specific Python paths into repository documentation.

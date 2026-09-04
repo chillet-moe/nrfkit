@@ -662,6 +662,17 @@ M3 于 2026-09-04 完成退出审计。nrfx v4.5.0 现以精确 commit 的只读
 - HID、低功耗和其他 nrfx 模块可共存；
 - 不存在只为一个下游项目写死的 API。
 
+M4 当前已完成 CherryUSB v1.6.1 DWC2 device port、control/bulk/HID 验证固件、
+host-side gate 与来源审计。port 的接口组织遵循 CherryUSB 官方移植文档，并对照该
+版本较新的 ESP、HC、Kendryte、Nation 和 ST glue；Nordic NCS 仅作为版本化比较
+证据，寄存器语义和 FIFO 选择以 LM20 文档、DWC2 capability register 与可复现
+实板行为为准。最终镜像已在 HS 下完成 100 次受控 reconnect 和 60 秒双向压力，
+331883 次传输、每方向 169924096 bytes 均无错误，HID 与 nrfx TIMER 同时工作；
+Other-Speed descriptor 也已实读确认其 full-speed bulk MPS 为 64。M4 尚未标记完成：
+Linux runtime-PM suspend/resume/remote-wakeup 门禁需要操作系统 root 写 sysfs，Codex
+工具提权本身不提供该权限。该项必须由 `m4-usb-power` 的成功结构化报告补齐，不能
+用 `--skip-power` 报告替代。
+
 ### M5：私有 2.4 GHz 基础
 
 交付：

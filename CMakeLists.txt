@@ -24,10 +24,15 @@ install(DIRECTORY
   patches
   runtime
   third_party
+  usb
   DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit
 )
 install(DIRECTORY external/nrfx/
   DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/nrfx
+  PATTERN ".git" EXCLUDE
+)
+install(DIRECTORY external/cherryusb/
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/cherryusb
   PATTERN ".git" EXCLUDE
 )
 install(DIRECTORY cmake/toolchains

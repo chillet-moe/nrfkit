@@ -96,6 +96,52 @@
         }
       }
     },
+    "cherryusb-1.6.1": {
+      "release": "CherryUSB v1.6.1",
+      "repository": "https://github.com/cherry-embedded/CherryUSB",
+      "commit": "c9625ffa773ad10b8824d1b5361bca2ccc1f3d1e",
+      "import_date": "2026-09-04",
+      "imported": true,
+      "patches": "none",
+      "files": {
+        "LICENSE": {
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "license": "Apache-2.0"
+        },
+        "core/usbd_core.c": {
+          "sha256": "409b74d21a58335d67c19e01cab99447c05443d408b94aad72d3627e34793f56",
+          "license": "Apache-2.0"
+        },
+        "class/hid/usbd_hid.c": {
+          "sha256": "ac421271e0f2e4b0a47507be66a9f0bfbec896eaff7d34c2ff7c2a16c7d3e312",
+          "license": "Apache-2.0"
+        },
+        "port/dwc2/usb_dc_dwc2.c": {
+          "sha256": "9811a628a60e06f9a19385ae5285e7a72ec4bd03d4f31b76b6cc5d1bc94be9a6",
+          "license": "Apache-2.0"
+        },
+        "port/dwc2/usb_glue_esp.c": {
+          "sha256": "cad1f185b22a9dfdb1b057dbd555e686a0bdc649dcd4e59dc26b75f4ffa6f30c",
+          "license": "Apache-2.0"
+        },
+        "port/dwc2/usb_glue_hc.c": {
+          "sha256": "9b11c16265b8793bfffb845b02532d4d21e84df543cf34eab76888a738220d01",
+          "license": "Apache-2.0"
+        },
+        "port/dwc2/usb_glue_kendryte.c": {
+          "sha256": "0c986b0b31fdc20086089f0f9fbcfbb63e0a81a50292ce0aed945f22d3f2b12b",
+          "license": "Apache-2.0"
+        },
+        "port/dwc2/usb_glue_nation.c": {
+          "sha256": "5c7ff65fbb090ebebbecd16bf30489f3c11adcbff9ed6200c7595f66344f14a7",
+          "license": "Apache-2.0"
+        },
+        "port/dwc2/usb_glue_st.c": {
+          "sha256": "04a5a30e0b221d708e9702a6682d21ef14315b1be1f2ffb547f42cf4d3a0f078",
+          "license": "Apache-2.0"
+        }
+      }
+    },
     "nrf-device-family-pack-8.44.1": {
       "release": "NordicSemiconductor.nRF_DeviceFamilyPack 8.44.1",
       "url": "https://developer.nordicsemi.com/nRF5_SDK/pieces/nRF_DeviceFamilyPack/NordicSemiconductor.nRF_DeviceFamilyPack.8.44.1.pack",
