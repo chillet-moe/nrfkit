@@ -775,20 +775,40 @@ token、fresh pairing、bond、受保护 HID Report Map 读取、断开和 bonde
 但没有到达下一条初始化或错误日志。随后 60 秒 BlueZ oracle 门禁仍未发现广播，并在
 超时路径停止 discovery。
 
-新的可观察分歧位于首条日志返回之后、下一条日志之前；中间的未修改官方顺序是 LED
-GPIO、`bm_buttons_init()`、`bm_buttons_enable()`、button 状态读取及
-`nrf_sdh_enable_request()`。单次结果尚不能区分 button/GPIOTE platform boundary 与
-首次 S115 API 入口，因此仍不能判断 S115 ABI、IRQ、LESC、Peer Manager、HIDS 或
-持久化。此次改动没有修改 S115、IRQ forwarding、Peer Manager、LESC、HIDS 或锁定
-配置，官方 273-source/43-nRF-BM-source/681-config equivalence audit 保持通过。
+随后只读审计定位出两项尚未进入实板的新候选修正。第一项是官方 autoconf 的
+`CONFIG_NRFX_GPIOTE_NUM_OF_EVT_HANDLERS=1` 在 nrfx 的 Zephyr bridge 中应映射为
+`NRFX_GPIOTE_CONFIG_NUM_OF_EVT_HANDLERS`，而 consumer 原先落入 LM20 template 默认值
+2；consumer 现在直接引用锁定 autoconf 值，不手填近似配置。第二项更早且更关键：
+官方 `kernel/init.c` 在 `board_late_init_hook()` 使能 VREG_MAIN 后才运行 APPLICATION
+级初始化，已通过 oracle 的 ELF 则精确排列为 `bm_gpiote_init()`、
+`bm_timer_sys_init()`、`sd_irq_init()`、`irq_init()`。consumer 原先将 board 初始化放在
+这些 constructor 之后，并在 prepared view 中删除了 `irq_init()` 的 `SYS_INIT` 注册，
+导致包含 `CallSoftDeviceResetHandler()` 的官方 IRQ forwarding 初始化从未执行。
+
+纯 CMake compatibility layer 现用明确 constructor priority 复现该官方顺序，保留
+`irq_connect.c` 的原始静态函数和 `SYS_INIT` 语句，并递增 adapter cache key，防止旧
+prepared view 掩盖转换变化。链接后门禁逐项检查 `.init_array.101/201/202/203/204`
+的对象顺序以及 `CallSoftDeviceResetHandler` 的存在；当前候选 ELF 已通过该门禁，官方
+273-source/43-nRF-BM-source/681-config equivalence audit 仍通过。这里没有修改 S115、
+Peer Manager、LESC、HIDS 或应用 handler，也没有把离线链接成功描述为实板成功。
 
 精确源码/config receipt、consumer ELF/HEX hash、最小 patch/shim 清单和结构化门禁
 结果记录在 `docs/provenance/nrf-bm-hids-s115-equivalence.json`、
 `docs/provenance/m6-s115-equivalence-checkpoint.json` 与
-`docs/architecture/m6-official-baseline-failure.md`。当前检查点不再刷写或进行随机 GDB
-差分、局部对象替换；下一步只审计 button/GPIOTE platform boundary，且下一次运行前
-最多修改这一层。后续继续按单一 platform shim 逐层定位；只有证明存在不可剥离依赖
-时才转入完整 LM20-only 底层路线。
+`docs/architecture/m6-official-baseline-failure.md`。最后一次首日志成功镜像与 lifecycle
+候选的唯一一次实板结果在结构化报告中分栏保存。候选以精确 LM20 选择、逐探针锁、
+`ERASE_NONE`、read-back verify 和硬超时完成烧写与复位，但串口为 0 字节，60 秒 BlueZ
+门禁也未发现广播。旧门禁确实在 `finally` 调用 `StopDiscovery`，但没有把读回验证写入
+失败报告；随后只读 controller info 通过，且门禁已修为所有 discovery 超时记录停止尝试、
+错误列表和 `Discovering=false` 验证，没有为此重复硬件测试。
+
+静态审计确认所有由官方 `irq_init()` 注册的 IRQ 都落入相同 MDK vector slot 和官方
+forwarding handler，SD_EVT 也正确落入 SWI01。先前镜像已执行 board/GPIOTE/timer/
+sd_irq 并到达 main；候选唯一新增的执行项是官方 `irq_init()`。因此首个行为分歧已经
+缩小到 `irq_init()` 内首个日志可见之前或 `CallSoftDeviceResetHandler()` 返回之前。
+继续区分需要另一轮 GDB/插桩或复制更广泛的 Zephyr pre-main SoC 生命周期，已经超出
+薄 source-equivalent adapter。按本里程碑的停止条件，S115 适配实验在此停止，不再扩大
+试错范围；后续转入 LM20-only 底层路线，同时保留官方 S115 HIDS 为行为 oracle。
 
 当前检查点不自行实现 BLE Link Layer、L2CAP、ATT、GATT、SMP、LESC 或 HOGP。
 一次受限的 LM20 RADIO 广播诊断曾用规范固定的 advertising access address、CRC、
@@ -801,8 +821,9 @@ S115 不可用。
 通用 `m6-ble-scan` 门禁保留，用于有硬超时地验证广播，并在所有退出路径停止由其
 启动的 discovery、删除或确认 BlueZ 已自行删除临时设备对象。
 
-严格等价官方应用检查点当前停在 button/GPIOTE 与首次 S115 API 入口之间。应先完成
-上述单层差分；仅在证明存在不可剥离依赖后，才按广播、明文单连接、Link Layer 控制
+严格等价官方应用的最终检查点已证明失败位于官方 pre-main reset/IRQ forwarding
+生命周期边界，继续复制官方 Zephyr SoC lifecycle 不再属于薄适配。后续按广播、明文
+单连接、Link Layer 控制
 过程、链路加密、L2CAP/ATT/GATT/SMP/LESC/HOGP、BlueZ/功耗/soak 的固定顺序进入
 LM20-only 底层路线。
 每一阶段仍必须有 LM20 实板和可靠空口证据，且不得臆测寄存器或协议行为。

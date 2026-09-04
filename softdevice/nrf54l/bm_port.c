@@ -38,7 +38,8 @@ static struct k_timer *active_timer;
 static atomic_t log_busy;
 static uint8_t log_buffer[NRFKIT_BM_LOG_BUFFER_SIZE] __attribute__((aligned(4)));
 
-static void nrfkit_bm_platform_init(void) __attribute__((constructor));
+static void nrfkit_bm_platform_init(void)
+	__attribute__((constructor(NRFKIT_BM_BOARD_INIT_PRIORITY)));
 
 static void nrfkit_bm_platform_init(void)
 {

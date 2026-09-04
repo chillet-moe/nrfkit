@@ -10,8 +10,10 @@ The result does **not** show that S115 cannot run outside the official build
 system. The first bounded run stopped in the repository log shim before the
 first S115 API call. A single-variable correction made that first log call
 return, but the next bounded run still stopped before the next observable
-initialization message. The version-locked ABI question therefore remains
-unresolved.
+initialization message. A subsequent offline audit found that this tested image
+never invoked the official SoftDevice reset-handler forwarding setup. The
+version-locked ABI question therefore remains unresolved, and a corrected
+offline candidate is kept separate from the last hardware result.
 
 ## Locked official truth
 
@@ -54,8 +56,9 @@ The prepared view applies only these audited source transformations:
 - express nRF-BM observer priorities through the equivalent static priority
   macro used by the freestanding port;
 - make the assembly `.balign` value explicit for Clang's assembler;
-- export the official IRQ setup function instead of registering it through
-  Zephyr `SYS_INIT`;
+- translate the four official APPLICATION `SYS_INIT` entries into ordered
+  freestanding constructors while leaving their static functions and
+  registration statements intact;
 - bind the official SoftDevice event dispatcher to the static MDK vector with
   the Cortex-M interrupt calling convention instead of Zephyr's dynamic ISR
   table; and
@@ -123,6 +126,37 @@ boundary from entry into the first S115 API. It must not be used as evidence
 that the S115 ABI, IRQ forwarding, LESC, Peer Manager, HIDS, or persistence is
 broken.
 
+## Offline lifecycle correction after the hardware checkpoint
+
+The official Zephyr kernel executes `board_late_init_hook()` before the
+APPLICATION init level. The passed official HIDS ELF records the APPLICATION
+entries in this exact order: `bm_gpiote_init`, `bm_timer_sys_init`,
+`sd_irq_init`, and `irq_init`. The last hardware-tested consumer instead ran
+`sd_irq_init`, `bm_gpiote_init`, `bm_timer_sys_init`, and only then its board
+constructor. Worse, its prepared `irq_connect.c` exported `irq_init` and deleted
+the `SYS_INIT` statement, but no caller existed; linker garbage collection
+removed the routine that calls `CallSoftDeviceResetHandler`.
+
+The current offline candidate fixes only this platform lifecycle boundary. The
+board constructor uses priority 101, and the four official APPLICATION entries
+use priorities 201 through 204 in the official ELF order. The preparation step
+no longer changes `irq_connect.c`, and its adapter cache key was incremented so
+an old transformed view cannot survive a transformation change. A post-link
+audit fails unless all five map entries are present in order and
+`CallSoftDeviceResetHandler` remains reachable. The candidate also maps the
+official generated `CONFIG_NRFX_GPIOTE_NUM_OF_EVT_HANDLERS` value through the
+same nrfx bridge used by Zephyr instead of accepting the LM20 template default.
+
+The candidate builds, passes the post-link lifecycle audit and retains the
+official source/config equivalence receipt. Its one guarded hardware run used
+explicit LM20 selection, `ERASE_NONE`, read-back verification, a per-probe
+lock, hard timeouts, and serial cleanup. The serial transcript was empty and a
+single 60-second BlueZ gate did not discover the target. The old discovery
+failure path called `StopDiscovery` in `finally` but did not record its result;
+a subsequent bounded controller-info check passed, and the gate was corrected
+to record and verify discovery cleanup on every timeout without repeating the
+hardware experiment.
+
 ## Current decision boundary
 
 No GDB comparison, local object substitution, or simultaneous BLE-layer change
@@ -130,9 +164,17 @@ was performed. The corrected image was programmed exactly once with explicit
 LM20 selection, per-probe locking, `ERASE_NONE`, read-back verification, reset,
 and hard timeouts. The official source/config equivalence audit remained green.
 
-The next checkpoint must first audit the button/GPIOTE platform boundary and
-must change at most that one shim before another bounded run. Do not modify
-S115, IRQ forwarding, Peer Manager, LESC, HIDS, or the locked configuration at
-the same time. Only a demonstrated indispensable dependency may end this
-strict-baseline localization and select the PLAN's LM20-only lower-layer route.
-M6 remains incomplete.
+The previous image executed the board, GPIOTE, timer, and SoftDevice event IRQ
+constructors and reached `main`; the restored official `irq_init` is the only
+new executable init entry. Static audit confirms that every IRQ it registers
+resolves to the matching MDK vector slot and official forwarding handler,
+including SD_EVT on SWI01. The first observable divergence is therefore inside
+the official `irq_init` path, before its first log becomes visible or before
+`CallSoftDeviceResetHandler` returns.
+
+Separating those cases would require another instrumented/GDB run or importing
+more of the official Zephyr pre-main SoC lifecycle. That is no longer a thin
+source-equivalent platform adapter. Under the experiment's stop condition, the
+S115 adaptation stops at this reproducible checkpoint. The official HIDS image
+remains the behavioral oracle, while implementation proceeds through the
+PLAN-defined LM20-only lower-layer route. M6 remains incomplete.

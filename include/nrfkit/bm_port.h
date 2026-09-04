@@ -144,13 +144,21 @@ void nrfkit_bm_log(const char *format, ...);
 	} while (false)
 #define BM_IRQ_SET_PRIORITY(irqn, priority) NVIC_SetPriority((irqn), (priority))
 #define irq_enable(irqn) NVIC_EnableIRQ((irqn))
+#define NRFKIT_BM_BOARD_INIT_PRIORITY 101
+#define NRFKIT_BM_SYS_INIT_PRIORITY_bm_gpiote_init 201
+#define NRFKIT_BM_SYS_INIT_PRIORITY_bm_timer_sys_init 202
+#define NRFKIT_BM_SYS_INIT_PRIORITY_sd_irq_init 203
+#define NRFKIT_BM_SYS_INIT_PRIORITY_irq_init 204
+#define _NRFKIT_BM_SYS_INIT_PRIORITY_INNER(function) \
+	NRFKIT_BM_SYS_INIT_PRIORITY_##function
+#define _NRFKIT_BM_SYS_INIT_PRIORITY(function) \
+	_NRFKIT_BM_SYS_INIT_PRIORITY_INNER(function)
 #define _NRFKIT_BM_SYS_INIT_NAME_INNER(function) nrfkit_sys_init_##function
 #define _NRFKIT_BM_SYS_INIT_NAME(function) _NRFKIT_BM_SYS_INIT_NAME_INNER(function)
 #define SYS_INIT(function, level, priority) \
-	static void _NRFKIT_BM_SYS_INIT_NAME(function)(void) __attribute__((constructor)); \
+	static void _NRFKIT_BM_SYS_INIT_NAME(function)(void) \
+		__attribute__((constructor(_NRFKIT_BM_SYS_INIT_PRIORITY(function)))); \
 	static void _NRFKIT_BM_SYS_INIT_NAME(function)(void) { (void)function(); }
-
-int nrfkit_nrf_bm_irq_init(void);
 
 typedef struct {
 	int64_t ticks;

@@ -201,7 +201,7 @@ function(_nrfkit_prepare_nrf_bm_hids nrf_bm_root out_var)
   list(SORT source_files)
 
   set(state
-    "nrf-bm=51484143c09199e19bccc16fa3b437f7a502a72b\nadapter=8\n")
+    "nrf-bm=51484143c09199e19bccc16fa3b437f7a502a72b\nadapter=9\n")
   foreach(relative IN LISTS source_files)
     set(source "${nrf_bm_root}/${relative}")
     if(NOT EXISTS "${source}")
@@ -255,11 +255,6 @@ function(_nrfkit_prepare_nrf_bm_hids nrf_bm_root out_var)
         contents "${contents}")
       if(relative STREQUAL "subsys/softdevice_handler/irq_forward.s")
         string(REPLACE ".balign\n" ".balign 4\n" contents "${contents}")
-      elseif(relative STREQUAL "subsys/softdevice_handler/irq_connect.c")
-        string(REPLACE "static int irq_init(void)"
-          "int nrfkit_nrf_bm_irq_init(void)" contents "${contents}")
-        string(REPLACE "SYS_INIT(irq_init, APPLICATION, 0);" ""
-          contents "${contents}")
       elseif(relative STREQUAL "subsys/softdevice_handler/nrf_sdh.c")
         # The MDK vector points directly at SD_EVT_IRQHandler. Zephyr instead
         # points it at an IRQ_DIRECT_CONNECT wrapper carrying Clang's Cortex-M
@@ -495,6 +490,12 @@ function(_nrfkit_enable_s115_baseline target)
     NRFKIT_SOFTDEVICE_VERSION "10.0.1"
     NRFKIT_SOFTDEVICE_HEX "${hex}"
     NRFKIT_LAYOUT "s115-10.0.1"
+  )
+  add_custom_command(TARGET "${target}" POST_BUILD
+    COMMAND "${CMAKE_COMMAND}"
+      "-DNRFKIT_MAP_FILE=$<TARGET_FILE_DIR:${target}>/$<TARGET_FILE_BASE_NAME:${target}>.map"
+      -P "${NrfKit_ROOT}/cmake/VerifyNrfBmInitOrder.cmake"
+    VERBATIM
   )
 endfunction()
 
@@ -743,6 +744,9 @@ function(_nrfkit_finalize_nrfx target)
   string(APPEND config_definitions
     "#define NRFX_GPIOTE20_CHANNELS_USED ${gpiote_20_channels}U\n"
     "#define NRFX_GPIOTE30_CHANNELS_USED ${gpiote_30_channels}U\n"
+    "#ifdef CONFIG_NRFX_GPIOTE_NUM_OF_EVT_HANDLERS\n"
+    "#define NRFX_GPIOTE_CONFIG_NUM_OF_EVT_HANDLERS CONFIG_NRFX_GPIOTE_NUM_OF_EVT_HANDLERS\n"
+    "#endif\n"
   )
   foreach(driver IN LISTS drivers)
     if(driver STREQUAL "watchdog")

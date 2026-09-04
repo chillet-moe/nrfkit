@@ -53,6 +53,20 @@ class BleValidationTests(unittest.TestCase):
         self.assertIn('"org.bluez.Error.DoesNotExist"', source)
         self.assertIn('"already-absent"', source)
 
+    def test_pairing_discovery_cleanup_reads_back_adapter_state(self) -> None:
+        source = (
+            Path(__file__).resolve().parents[2]
+            / "tools/nrfkit_tools/ble_validation.py"
+        ).read_text(encoding="utf-8")
+        validation = source[source.index("def run_ble_validation("):]
+        self.assertIn(
+            "adapter_property_interface = dbus.Interface(adapter_object, PROPERTIES)",
+            validation,
+        )
+        self.assertIn(
+            'adapter_property_interface.Get(ADAPTER, "Discovering")', validation
+        )
+
     def test_scan_command_preserves_failure_cleanup_evidence(self) -> None:
         with TemporaryDirectory() as directory:
             run_dir = Path(directory)
@@ -111,6 +125,41 @@ class BleValidationTests(unittest.TestCase):
             self.assertEqual(written["stages"][0]["name"], "ble-pairing")
             self.assertEqual(written["stages"][0]["status"], "failed")
             self.assertTrue(written["stages"][0]["cleanup"]["verified"])
+
+    def test_cli_preserves_discovery_timeout_cleanup_evidence(self) -> None:
+        with TemporaryDirectory() as directory:
+            run_dir = Path(directory)
+            report = {"schema": "nrfkit-run/v1", "status": "running"}
+            args = Namespace(
+                device_name="nrfkit-m6-p5",
+                timeout=45.0,
+                fresh_pairing=True,
+                hci_trace=False,
+                btmon="/usr/sbin/btmon",
+                phase="oracle",
+            )
+            error = BleValidationError(
+                "target not found",
+                details={
+                    "failure_stage": "ble-advertisement",
+                    "phase": "oracle",
+                    "cleanup": {
+                        "stop_discovery_attempted": True,
+                        "verified": True,
+                        "errors": [],
+                    },
+                },
+            )
+            with patch("nrfkit_tools.cli._new_run", return_value=(run_dir, report)), \
+                 patch("nrfkit_tools.cli.run_ble_validation", side_effect=error), \
+                 self.assertRaises(BleValidationError):
+                command_m6_ble_gate(args)
+
+            written = json.loads((run_dir / "run.json").read_text())
+            stage = written["stages"][0]
+            self.assertEqual(stage["name"], "ble-advertisement")
+            self.assertTrue(stage["cleanup"]["stop_discovery_attempted"])
+            self.assertTrue(stage["cleanup"]["verified"])
 
     def test_report_map_is_the_encryption_proof_attribute(self) -> None:
         self.assertEqual(HID_REPORT_MAP, "00002a4b-0000-1000-8000-00805f9b34fb")

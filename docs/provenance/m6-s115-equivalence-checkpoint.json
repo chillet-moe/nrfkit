@@ -1,5 +1,5 @@
 {
-  "schema": "nrfkit-m6-s115-equivalence-checkpoint/v2",
+  "schema": "nrfkit-m6-s115-equivalence-checkpoint/v3",
   "date": "2026-09-05",
   "scope": "nRF Connect SDK Bare Metal v2.0.1 ble_hids_mouse on nRF54LM20 with S115 10.0.1",
   "official_input": {
@@ -30,6 +30,7 @@
     "drift_audit": "pass"
   },
   "pure_cmake_consumer": {
+    "evidence_kind": "last_hardware_run",
     "oracle": "sdk-m6_ble_official_baseline",
     "source_receipt_sha256": "5f51a436b09bef862961b8e39ae18cfb72f10ddd4f5876eb785ce03ceebfe4cd",
     "elf_sha256": "fb7250a1b022eb2594674a6af87b509198fc9b99684bda4b78989474a138a260",
@@ -60,6 +61,63 @@
       "serial_bytes_before_timeout": "B"
     }
   },
+  "lifecycle_candidate": {
+    "evidence_kind": "single_hardware_run",
+    "source_receipt_sha256": "5f51a436b09bef862961b8e39ae18cfb72f10ddd4f5876eb785ce03ceebfe4cd",
+    "elf_sha256": "7ec22fb3e7910f5a2db9821a4035b1aad77797aab338f8628d431c17c6f6ffdf",
+    "application_hex_sha256": "5ed74c6dc442c9ab3c2e8fa5707ac5d5e6f2750d19f5a4f1d491b4e68fcc5eb8",
+    "softdevice_hex_sha256": "c2b5bcf2b436e11daa9a85e9dca12060052244c2eec50032bf54d87a4a77c3a2",
+    "adapter_inputs": {
+      "cmake/modules/NrfKitFirmware.cmake": "7ebaac7deb639e25b66661c385fbeb7a24669b5be3e06e0a88082c19829dca12",
+      "cmake/VerifyNrfBmInitOrder.cmake": "cdf718236616c7e4f8851dbd430e8fb4f4b279a27bf1d3ed124a6def4ae02e54",
+      "examples/CMakeLists.txt": "95dbed9b19fceba48a178fa5ad2bac84474f9a76ba16627f3406b50128066fd4",
+      "include/cracen_psa.h": "47da77ba26227b131a647864f25f8adf439edfdf24ebad13f3b14599ab5b710f",
+      "include/nrfkit/bm_port.h": "afd7de804070f675c289fd1684f0a4129f03d51c7a6a1598361ab877f2a0ed47",
+      "softdevice/nrf54l/bm_crypto.c": "8b6e7dfb5e71d0308af83e8e9a6ca10d0141b5b45ffb7ba9ad53f88c3ca398c0",
+      "softdevice/nrf54l/bm_port.c": "53cbf7c9b9b2c9da7c7fd68285f0538e91e1eba51ae45386ea629895ecea6f1f"
+    },
+    "official_config_bridge": {
+      "CONFIG_NRFX_GPIOTE_NUM_OF_EVT_HANDLERS": 1,
+      "mapped_macro": "NRFX_GPIOTE_CONFIG_NUM_OF_EVT_HANDLERS",
+      "status": "pass"
+    },
+    "initialization_order": {
+      "official_board_before_application": true,
+      "official_application_order": [
+        "bm_gpiote_init",
+        "bm_timer_sys_init",
+        "sd_irq_init",
+        "irq_init"
+      ],
+      "consumer_constructor_priorities": [101, 201, 202, 203, 204],
+      "post_link_order_audit": "pass",
+      "softdevice_reset_handler_reachable": true
+    },
+    "official_equivalence_audit": "pass",
+    "build": "pass",
+    "image_range_audit": "pass",
+    "guarded_program_and_verify": "pass",
+    "serial_cleanup": {
+      "serial_reader_stopped": true,
+      "serial_closed": true
+    },
+    "hardware_status": "failed",
+    "serial_initialization_token": false,
+    "serial_bytes_before_timeout": 0,
+    "bluez_oracle_gate": {
+      "status": "fail",
+      "failure": "advertising target not discovered before the 60 second hard timeout",
+      "cleanup_attempted_by_finally": true,
+      "cleanup_verification_recorded": false,
+      "post_failure_bounded_controller_info": "pass"
+    },
+    "gate_tool_followup": {
+      "change": "record and verify StopDiscovery on discovery-timeout paths",
+      "source": "tools/nrfkit_tools/ble_validation.py",
+      "source_sha256": "f3c103b681b925594a4f04957dfb2aa51e789ce84ce8f9688f9affa2b82924fc",
+      "hardware_gate_repeated": false
+    }
+  },
   "resolved_behavioral_divergence": {
     "stage": "first application log call, before button initialization and before nrf_sdh_enable_request",
     "observation": "the consumer emitted only the first byte of the first official log message and made no further visible progress",
@@ -67,16 +125,18 @@
     "correction": "copy one literal log line plus CRLF to an aligned RAM buffer, issue one EasyDMA transaction, use END-to-STOP, and bound polling for TXSTOPPED or BUSERROR"
   },
   "current_behavioral_divergence": {
-    "stage": "after the first application log returns and before the next observable initialization or error log",
-    "observation": "the complete first official log line is emitted, but the initialization token is absent and the BlueZ gate observes no advertisement",
-    "intervening_official_sequence": "LED GPIO setup; bm_buttons_init; bm_buttons_enable; button state read; nrf_sdh_enable_request",
-    "boundary": "the single run does not distinguish the button/GPIOTE platform path from entry into the first S115 API call",
-    "s115_abi_exercised": "not proven"
+    "evidence_kind": "lifecycle_candidate_single_hardware_run",
+    "stage": "after sd_irq_init and within the newly restored official irq_init path, before main",
+    "observation": "the serial transcript is empty, the initialization token is absent, and the BlueZ gate observes no advertisement",
+    "control_flow_evidence": "the prior image executed board, GPIOTE, timer and sd_irq constructors and reached main; the only newly restored executable init entry is official irq_init, which logs, calls CallSoftDeviceResetHandler and sets the forwarding magic",
+    "static_vector_audit": "all IRQs registered by official irq_init resolve to the same static MDK vector slots and official forwarding handlers; SD_EVT resolves to SWI01",
+    "boundary": "the first observable divergence is before the first irq_init log becomes visible or before CallSoftDeviceResetHandler returns; distinguishing those cases requires another instrumented or GDB run",
+    "indispensable_dependency_boundary": "the official SoftDevice reset/IRQ forwarding path depends on pre-main platform and SoC lifecycle state supplied by the official Zephyr build; reproducing more of that state is no longer a thin source-equivalent adapter"
   },
   "stopping_decision": {
     "m6_complete": false,
-    "s115_portability_conclusion": "unresolved because the next observable boundary spans the final button-platform calls and the first S115 API call",
-    "resume_condition": "audit the button/GPIOTE platform shim as one boundary before changing it; use one bounded, explicit-target run for the next single-variable checkpoint",
-    "next_route": "continue one-platform-shim-at-a-time strict-baseline localization; use the LM20-only lower-layer route only after an indispensable dependency is demonstrated"
+    "s115_portability_conclusion": "the locked S115 application and ABI remain valid in the official oracle, but the pure CMake experiment cannot reproduce the official pre-main reset/IRQ lifecycle with the bounded thin adapter",
+    "resume_condition": "do not resume S115 adaptation without a new plan that explicitly permits a wider official runtime dependency or a newly documented platform contract",
+    "next_route": "stop the S115 adaptation experiment and continue the PLAN-defined LM20-only lower-layer route"
   }
 }

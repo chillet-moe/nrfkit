@@ -187,6 +187,11 @@ class M1FirmwareTests(unittest.TestCase):
         self.assertNotEqual(minimal_config, all_config)
         self.assertNotIn("NRFX_TIMER_ENABLED 1", minimal_config)
         self.assertIn("NRFX_TIMER_ENABLED 1", all_config)
+        self.assertIn(
+            "#define NRFX_GPIOTE_CONFIG_NUM_OF_EVT_HANDLERS "
+            "CONFIG_NRFX_GPIOTE_NUM_OF_EVT_HANDLERS",
+            all_config,
+        )
 
         minimal = json.loads((minimal_dir / "nrfx-target.json").read_text())
         complete = json.loads((all_dir / "nrfx-target.json").read_text())

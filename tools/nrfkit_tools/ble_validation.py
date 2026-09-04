@@ -345,7 +345,9 @@ def run_ble_validation(
             f"expected exactly one powered Bluetooth adapter, found {len(adapters)}"
         )
     adapter_path, adapter_properties = adapters[0]
-    adapter = dbus.Interface(bus.get_object(BLUEZ, adapter_path), ADAPTER)
+    adapter_object = bus.get_object(BLUEZ, adapter_path)
+    adapter = dbus.Interface(adapter_object, ADAPTER)
+    adapter_property_interface = dbus.Interface(adapter_object, PROPERTIES)
 
     def matching_device() -> tuple[str, Any] | None:
         for path, interfaces in managed_objects().items():
@@ -364,17 +366,57 @@ def run_ble_validation(
         removed_existing_bond = True
         _wait_until(lambda: matching_device() is None, timeout, "old BLE device removal")
 
-    discovering = bool(adapter_properties.get("Discovering", False))
-    if not discovering:
-        adapter.StartDiscovery(timeout=10)
+    owned_discovery = not bool(adapter_properties.get("Discovering", False))
+    discovery_cleanup: dict[str, Any] = {
+        "stop_discovery_attempted": owned_discovery,
+        "errors": [],
+    }
+    discovery_failure: Exception | None = None
     try:
+        if owned_discovery:
+            adapter.StartDiscovery(timeout=10)
         device_path, _ = _wait_until(matching_device, timeout, device_name)
+    except Exception as error:
+        discovery_failure = error
     finally:
-        if not discovering:
+        if owned_discovery:
             try:
                 adapter.StopDiscovery(timeout=10)
-            except dbus.DBusException:
-                pass
+            except dbus.DBusException as error:
+                discovery_cleanup["errors"].append(f"StopDiscovery: {error}")
+        try:
+            discovery_cleanup["verified"] = (
+                not owned_discovery
+                or not bool(adapter_property_interface.Get(ADAPTER, "Discovering"))
+            )
+        except dbus.DBusException as error:
+            discovery_cleanup["errors"].append(f"VerifyDiscoveryStopped: {error}")
+            discovery_cleanup["verified"] = False
+        if discovery_cleanup["errors"]:
+            discovery_cleanup["verified"] = False
+
+    if discovery_failure is not None:
+        details: dict[str, Any] = {
+            "failure_stage": "ble-advertisement",
+            "phase": phase,
+            "device_name": device_name,
+            "cleanup": discovery_cleanup,
+        }
+        if isinstance(discovery_failure, dbus.DBusException):
+            details["dbus_error"] = discovery_failure.get_dbus_name()
+        raise BleValidationError(
+            str(discovery_failure), details=details
+        ) from discovery_failure
+    if not discovery_cleanup["verified"]:
+        raise BleValidationError(
+            "BLE discovery cleanup could not be verified",
+            details={
+                "failure_stage": "ble-advertisement-cleanup",
+                "phase": phase,
+                "device_name": device_name,
+                "cleanup": discovery_cleanup,
+            },
+        )
 
     device = dbus.Interface(bus.get_object(BLUEZ, device_path), DEVICE)
     device_properties = dbus.Interface(bus.get_object(BLUEZ, device_path), PROPERTIES)
@@ -628,6 +670,7 @@ def run_ble_validation(
         "adapter": adapter_path.rsplit("/", 1)[-1],
         "device_name": device_name,
         "phase": phase,
+        "discovery_cleanup": discovery_cleanup,
         "removed_existing_bond": removed_existing_bond,
         "pairing_performed": pairing_performed,
         "hci_trace": hci_trace_state if pairing_performed else {
