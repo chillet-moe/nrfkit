@@ -11,14 +11,14 @@ import time
 import unittest
 from unittest import mock
 
-from nrf_cmake_tools.cli import (
+from nrfkit_tools.cli import (
     ToolError, _probe_has_msd, _probe_lock, _serial_cleanup, _serial_open,
     _serial_reader, _serial_reader_stop, _set_probe_msd, command_flash,
     command_m2_gate, command_p0_gate, command_probe_msd, command_run, load_manifest,
 )
-from nrf_cmake_tools.device import program_argv, safe_backend_contract
-from nrf_cmake_tools.image import ImageContractError
-from nrf_cmake_tools.process import ProcessResult
+from nrfkit_tools.device import program_argv, reset_argv, safe_backend_contract
+from nrfkit_tools.image import ImageContractError
+from nrfkit_tools.process import ProcessResult
 
 
 class FlashCommandTests(unittest.TestCase):
@@ -44,21 +44,27 @@ class FlashCommandTests(unittest.TestCase):
         self.assertNotIn("ERASE_ALL", joined)
         self.assertNotIn("recover", argv)
 
+    def test_reset_command_can_request_a_pin_reset(self) -> None:
+        argv = reset_argv(
+            "nrfutil", "123", "NRF54L", "Application", "RESET_PIN"
+        )
+        self.assertEqual(argv[-2:], ["--reset-kind", "RESET_PIN"])
+
     def test_invalid_image_is_rejected_before_device_or_vendor_tool(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             run_dir = Path(directory)
-            report = {"schema": "nrf-cmake-sdk-run/v1", "status": "running"}
+            report = {"schema": "nrfkit-run/v1", "status": "running"}
             args = argparse.Namespace(manifest="invalid")
             with (
                 mock.patch(
-                    "nrf_cmake_tools.cli.load_manifest",
+                    "nrfkit_tools.cli.load_manifest",
                     side_effect=ImageContractError("forbidden UICR region"),
                 ),
                 mock.patch(
-                    "nrf_cmake_tools.cli._new_run", return_value=(run_dir, report)
+                    "nrfkit_tools.cli._new_run", return_value=(run_dir, report)
                 ),
-                mock.patch("nrf_cmake_tools.cli._enumerate") as enumerate_devices,
-                mock.patch("nrf_cmake_tools.cli._program") as program,
+                mock.patch("nrfkit_tools.cli._enumerate") as enumerate_devices,
+                mock.patch("nrfkit_tools.cli._program") as program,
             ):
                 with self.assertRaisesRegex(ImageContractError, "UICR"):
                     command_flash(args)
@@ -69,7 +75,7 @@ class FlashCommandTests(unittest.TestCase):
 
     def test_manifest_cannot_relax_backend_contract(self) -> None:
         manifest = {
-            "schema": "nrf-cmake-sdk-image/v1", "oracle": "test",
+            "schema": "nrfkit-image/v1", "oracle": "test",
             "source_receipt_sha256": "0" * 64, "soc": "test", "core": "Application",
             "board": "test", "board_version": "test", "device_family": "test",
             "expected_token": "test", "vcom": "VCOM1", "debug_allowlist": [[0, 1]],
@@ -96,12 +102,12 @@ class FlashCommandTests(unittest.TestCase):
 
     def test_serial_open_claims_exclusive_access_and_closes_on_failure(self) -> None:
         with (
-            mock.patch("nrf_cmake_tools.cli.os.open", return_value=17),
-            mock.patch("nrf_cmake_tools.cli.fcntl.ioctl") as ioctl,
+            mock.patch("nrfkit_tools.cli.os.open", return_value=17),
+            mock.patch("nrfkit_tools.cli.fcntl.ioctl") as ioctl,
             mock.patch(
-                "nrf_cmake_tools.cli.tty.setraw", side_effect=OSError("raw failed")
+                "nrfkit_tools.cli.tty.setraw", side_effect=OSError("raw failed")
             ),
-            mock.patch("nrf_cmake_tools.cli.os.close") as close,
+            mock.patch("nrfkit_tools.cli.os.close") as close,
         ):
             with self.assertRaisesRegex(OSError, "raw failed"):
                 _serial_open(Path("/dev/test-vcom"))
@@ -117,10 +123,10 @@ class FlashCommandTests(unittest.TestCase):
             reader = (mock.Mock(), thread, bytearray(b"partial output"), [])
             with (
                 mock.patch(
-                    "nrf_cmake_tools.cli._serial_reader_stop",
+                    "nrfkit_tools.cli._serial_reader_stop",
                     side_effect=ToolError("reader stuck"),
                 ),
-                mock.patch("nrf_cmake_tools.cli.os.close") as close,
+                mock.patch("nrfkit_tools.cli.os.close") as close,
             ):
                 cleanup, error = _serial_cleanup(run_dir, reader, 17)
             close.assert_called_once_with(17)
@@ -140,14 +146,14 @@ class FlashCommandTests(unittest.TestCase):
             output = "Probe configured successfully.\nRebooted successfully.\n"
             with (
                 mock.patch(
-                    "nrf_cmake_tools.cli._probe_lock", return_value=nullcontext()
+                    "nrfkit_tools.cli._probe_lock", return_value=nullcontext()
                 ),
                 mock.patch(
-                    "nrf_cmake_tools.cli.run_logged",
+                    "nrfkit_tools.cli.run_logged",
                     return_value=ProcessResult(0, False, 0.1, output),
                 ) as run_logged,
                 mock.patch(
-                    "nrf_cmake_tools.cli._wait_for_probe_msd_state",
+                    "nrfkit_tools.cli._wait_for_probe_msd_state",
                     return_value=self.probe_device(False),
                 ) as wait_for_state,
             ):
@@ -172,25 +178,25 @@ class FlashCommandTests(unittest.TestCase):
     def test_persistent_probe_msd_change_requires_explicit_authorization(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             run_dir = Path(directory)
-            report = {"schema": "nrf-cmake-sdk-run/v1", "status": "running"}
+            report = {"schema": "nrfkit-run/v1", "status": "running"}
             args = argparse.Namespace(
                 nrfutil="nrfutil", jlink_commander="JLinkExe", probe_serial=None,
                 timeout=10, enabled=False, authorize_persistent_change=False,
             )
             with (
-                mock.patch("nrf_cmake_tools.cli._new_run", return_value=(run_dir, report)),
+                mock.patch("nrfkit_tools.cli._new_run", return_value=(run_dir, report)),
                 mock.patch(
-                    "nrf_cmake_tools.cli.executable", side_effect=lambda value, _: value
+                    "nrfkit_tools.cli.executable", side_effect=lambda value, _: value
                 ),
                 mock.patch(
-                    "nrf_cmake_tools.cli.oracle",
+                    "nrfkit_tools.cli.oracle",
                     return_value={"board_version": "PCA10184"},
                 ),
                 mock.patch(
-                    "nrf_cmake_tools.cli._enumerate",
+                    "nrfkit_tools.cli._enumerate",
                     return_value=[self.probe_device(True)],
                 ),
-                mock.patch("nrf_cmake_tools.cli._set_probe_msd") as set_msd,
+                mock.patch("nrfkit_tools.cli._set_probe_msd") as set_msd,
             ):
                 with self.assertRaisesRegex(ToolError, "explicit .* is required"):
                     command_probe_msd(args)
@@ -201,7 +207,7 @@ class FlashCommandTests(unittest.TestCase):
     def test_persistent_probe_msd_disable_backs_up_and_verifies_state(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             run_dir = Path(directory)
-            report = {"schema": "nrf-cmake-sdk-run/v1", "status": "running"}
+            report = {"schema": "nrfkit-run/v1", "status": "running"}
             enabled = self.probe_device(True)
             disabled = self.probe_device(False)
             args = argparse.Namespace(
@@ -209,17 +215,17 @@ class FlashCommandTests(unittest.TestCase):
                 timeout=10, enabled=False, authorize_persistent_change=True,
             )
             with (
-                mock.patch("nrf_cmake_tools.cli._new_run", return_value=(run_dir, report)),
+                mock.patch("nrfkit_tools.cli._new_run", return_value=(run_dir, report)),
                 mock.patch(
-                    "nrf_cmake_tools.cli.executable", side_effect=lambda value, _: value
+                    "nrfkit_tools.cli.executable", side_effect=lambda value, _: value
                 ),
                 mock.patch(
-                    "nrf_cmake_tools.cli.oracle",
+                    "nrfkit_tools.cli.oracle",
                     return_value={"board_version": "PCA10184"},
                 ),
-                mock.patch("nrf_cmake_tools.cli._enumerate", return_value=[enabled]),
+                mock.patch("nrfkit_tools.cli._enumerate", return_value=[enabled]),
                 mock.patch(
-                    "nrf_cmake_tools.cli._set_probe_msd", return_value=disabled
+                    "nrfkit_tools.cli._set_probe_msd", return_value=disabled
                 ) as set_msd,
                 mock.patch("builtins.print"),
             ):
@@ -240,23 +246,23 @@ class FlashCommandTests(unittest.TestCase):
     def test_persistent_probe_msd_disable_is_idempotent_without_authorization(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             run_dir = Path(directory)
-            report = {"schema": "nrf-cmake-sdk-run/v1", "status": "running"}
+            report = {"schema": "nrfkit-run/v1", "status": "running"}
             disabled = self.probe_device(False)
             args = argparse.Namespace(
                 nrfutil="nrfutil", jlink_commander="JLinkExe", probe_serial=None,
                 timeout=10, enabled=False, authorize_persistent_change=False,
             )
             with (
-                mock.patch("nrf_cmake_tools.cli._new_run", return_value=(run_dir, report)),
+                mock.patch("nrfkit_tools.cli._new_run", return_value=(run_dir, report)),
                 mock.patch(
-                    "nrf_cmake_tools.cli.executable", side_effect=lambda value, _: value
+                    "nrfkit_tools.cli.executable", side_effect=lambda value, _: value
                 ),
                 mock.patch(
-                    "nrf_cmake_tools.cli.oracle",
+                    "nrfkit_tools.cli.oracle",
                     return_value={"board_version": "PCA10184"},
                 ),
-                mock.patch("nrf_cmake_tools.cli._enumerate", return_value=[disabled]),
-                mock.patch("nrf_cmake_tools.cli._set_probe_msd") as set_msd,
+                mock.patch("nrfkit_tools.cli._enumerate", return_value=[disabled]),
+                mock.patch("nrfkit_tools.cli._set_probe_msd") as set_msd,
                 mock.patch("builtins.print"),
             ):
                 self.assertEqual(command_probe_msd(args), 0)
@@ -267,26 +273,26 @@ class FlashCommandTests(unittest.TestCase):
     def test_p0_gate_refuses_msd_change_without_explicit_authorization(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             run_dir = Path(directory)
-            report = {"schema": "nrf-cmake-sdk-run/v1", "status": "running"}
+            report = {"schema": "nrfkit-run/v1", "status": "running"}
             args = argparse.Namespace(
                 nrfutil="nrfutil", jlink_commander="JLinkExe", gdb="gdb",
                 jlink="server", probe_serial=None, timeout=10,
                 authorize_temporary_msd_disable=False,
             )
             with (
-                mock.patch("nrf_cmake_tools.cli._new_run", return_value=(run_dir, report)),
+                mock.patch("nrfkit_tools.cli._new_run", return_value=(run_dir, report)),
                 mock.patch(
-                    "nrf_cmake_tools.cli.executable", side_effect=lambda value, _: value
+                    "nrfkit_tools.cli.executable", side_effect=lambda value, _: value
                 ),
                 mock.patch(
-                    "nrf_cmake_tools.cli.oracle",
+                    "nrfkit_tools.cli.oracle",
                     return_value={"board_version": "PCA10184"},
                 ),
                 mock.patch(
-                    "nrf_cmake_tools.cli._enumerate",
+                    "nrfkit_tools.cli._enumerate",
                     return_value=[self.probe_device(True)],
                 ),
-                mock.patch("nrf_cmake_tools.cli._set_probe_msd") as set_msd,
+                mock.patch("nrfkit_tools.cli._set_probe_msd") as set_msd,
             ):
                 with self.assertRaisesRegex(ToolError, "explicit .* is required"):
                     command_p0_gate(args)
@@ -296,7 +302,7 @@ class FlashCommandTests(unittest.TestCase):
     def test_p0_gate_restores_msd_after_child_failure(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             run_dir = Path(directory)
-            report = {"schema": "nrf-cmake-sdk-run/v1", "status": "running"}
+            report = {"schema": "nrfkit-run/v1", "status": "running"}
             enabled = self.probe_device(True)
             disabled = self.probe_device(False)
             args = argparse.Namespace(
@@ -307,21 +313,21 @@ class FlashCommandTests(unittest.TestCase):
                 authorize_temporary_msd_disable=True,
             )
             with (
-                mock.patch("nrf_cmake_tools.cli._new_run", return_value=(run_dir, report)),
+                mock.patch("nrfkit_tools.cli._new_run", return_value=(run_dir, report)),
                 mock.patch(
-                    "nrf_cmake_tools.cli.executable", side_effect=lambda value, _: value
+                    "nrfkit_tools.cli.executable", side_effect=lambda value, _: value
                 ),
                 mock.patch(
-                    "nrf_cmake_tools.cli.oracle",
+                    "nrfkit_tools.cli.oracle",
                     return_value={"board_version": "PCA10184"},
                 ),
-                mock.patch("nrf_cmake_tools.cli._enumerate", return_value=[enabled]),
+                mock.patch("nrfkit_tools.cli._enumerate", return_value=[enabled]),
                 mock.patch(
-                    "nrf_cmake_tools.cli._set_probe_msd",
+                    "nrfkit_tools.cli._set_probe_msd",
                     side_effect=(disabled, enabled),
                 ) as set_msd,
                 mock.patch(
-                    "nrf_cmake_tools.cli._run_p0_child",
+                    "nrfkit_tools.cli._run_p0_child",
                     side_effect=ToolError("child failed"),
                 ),
             ):
@@ -335,7 +341,7 @@ class FlashCommandTests(unittest.TestCase):
     def test_p0_gate_runs_complete_public_child_matrix(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             run_dir = Path(directory)
-            report = {"schema": "nrf-cmake-sdk-run/v1", "status": "running"}
+            report = {"schema": "nrfkit-run/v1", "status": "running"}
             device = self.probe_device(False)
             args = argparse.Namespace(
                 nrfutil="nrfutil", jlink_commander="JLinkExe", gdb="gdb",
@@ -346,18 +352,18 @@ class FlashCommandTests(unittest.TestCase):
             )
             child_reports = [f"/tmp/child-{index}.json" for index in range(5)]
             with (
-                mock.patch("nrf_cmake_tools.cli._new_run", return_value=(run_dir, report)),
+                mock.patch("nrfkit_tools.cli._new_run", return_value=(run_dir, report)),
                 mock.patch(
-                    "nrf_cmake_tools.cli.executable", side_effect=lambda value, _: value
+                    "nrfkit_tools.cli.executable", side_effect=lambda value, _: value
                 ),
                 mock.patch(
-                    "nrf_cmake_tools.cli.oracle",
+                    "nrfkit_tools.cli.oracle",
                     return_value={"board_version": "PCA10184"},
                 ),
-                mock.patch("nrf_cmake_tools.cli._enumerate", return_value=[device]),
-                mock.patch("nrf_cmake_tools.cli._set_probe_msd") as set_msd,
+                mock.patch("nrfkit_tools.cli._enumerate", return_value=[device]),
+                mock.patch("nrfkit_tools.cli._set_probe_msd") as set_msd,
                 mock.patch(
-                    "nrf_cmake_tools.cli._run_p0_child",
+                    "nrfkit_tools.cli._run_p0_child",
                     side_effect=child_reports,
                 ) as run_child,
                 mock.patch("builtins.print"),
@@ -376,7 +382,7 @@ class FlashCommandTests(unittest.TestCase):
     def test_m2_gate_runs_cycles_gdb_fault_and_restoration(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             run_dir = Path(directory)
-            report = {"schema": "nrf-cmake-sdk-run/v1", "status": "running"}
+            report = {"schema": "nrfkit-run/v1", "status": "running"}
             args = argparse.Namespace(
                 normal_manifest=Path("normal.json"), fault_manifest=Path("fault.json"),
                 nrfutil="nrfutil", gdb="gdb", jlink="server", probe_serial=None,
@@ -386,20 +392,20 @@ class FlashCommandTests(unittest.TestCase):
                 {
                     "oracle": "sdk-hardware_validation",
                     "source_receipt_sha256": "a",
-                    "expected_token": "NRF_CMAKE_SDK_BOOT test",
+                    "expected_token": "NRFKIT_BOOT test",
                 },
                 {"oracle": "sdk-fault", "source_receipt_sha256": "a"},
             )
             child_reports = [f"/tmp/m2-child-{index}.json" for index in range(24)]
             with (
-                mock.patch("nrf_cmake_tools.cli._new_run", return_value=(run_dir, report)),
-                mock.patch("nrf_cmake_tools.cli.load_manifest", side_effect=manifests),
+                mock.patch("nrfkit_tools.cli._new_run", return_value=(run_dir, report)),
+                mock.patch("nrfkit_tools.cli.load_manifest", side_effect=manifests),
                 mock.patch(
-                    "nrf_cmake_tools.cli.executable", side_effect=lambda value, _: value
+                    "nrfkit_tools.cli.executable", side_effect=lambda value, _: value
                 ),
-                mock.patch("nrf_cmake_tools.cli.sha256", return_value="a"),
+                mock.patch("nrfkit_tools.cli.sha256", return_value="a"),
                 mock.patch(
-                    "nrf_cmake_tools.cli._run_p0_child", side_effect=child_reports
+                    "nrfkit_tools.cli._run_p0_child", side_effect=child_reports
                 ) as run_child,
                 mock.patch("builtins.print"),
             ):
@@ -416,7 +422,7 @@ class FlashCommandTests(unittest.TestCase):
     def test_m2_gate_restores_normal_image_after_fault_contract_failure(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             run_dir = Path(directory)
-            report = {"schema": "nrf-cmake-sdk-run/v1", "status": "running"}
+            report = {"schema": "nrfkit-run/v1", "status": "running"}
             args = argparse.Namespace(
                 normal_manifest=Path("normal.json"), fault_manifest=Path("fault.json"),
                 nrfutil="nrfutil", gdb="gdb", jlink="server", probe_serial=None,
@@ -426,21 +432,21 @@ class FlashCommandTests(unittest.TestCase):
                 {
                     "oracle": "sdk-hardware_validation",
                     "source_receipt_sha256": "a",
-                    "expected_token": "NRF_CMAKE_SDK_BOOT test",
+                    "expected_token": "NRFKIT_BOOT test",
                 },
                 {"oracle": "sdk-fault", "source_receipt_sha256": "a"},
             )
             effects = [f"/tmp/m2-child-{index}.json" for index in range(22)]
             effects.extend((ToolError("fault contract failed"), "/tmp/restored.json"))
             with (
-                mock.patch("nrf_cmake_tools.cli._new_run", return_value=(run_dir, report)),
-                mock.patch("nrf_cmake_tools.cli.load_manifest", side_effect=manifests),
+                mock.patch("nrfkit_tools.cli._new_run", return_value=(run_dir, report)),
+                mock.patch("nrfkit_tools.cli.load_manifest", side_effect=manifests),
                 mock.patch(
-                    "nrf_cmake_tools.cli.executable", side_effect=lambda value, _: value
+                    "nrfkit_tools.cli.executable", side_effect=lambda value, _: value
                 ),
-                mock.patch("nrf_cmake_tools.cli.sha256", return_value="a"),
+                mock.patch("nrfkit_tools.cli.sha256", return_value="a"),
                 mock.patch(
-                    "nrf_cmake_tools.cli._run_p0_child", side_effect=effects
+                    "nrfkit_tools.cli._run_p0_child", side_effect=effects
                 ) as run_child,
             ):
                 with self.assertRaisesRegex(ToolError, "fault contract failed"):
@@ -460,7 +466,7 @@ class FlashCommandTests(unittest.TestCase):
     def test_oracle_run_orchestrates_doctor_build_and_manifest_audit(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             run_dir = Path(directory)
-            report = {"schema": "nrf-cmake-sdk-run/v1", "status": "running"}
+            report = {"schema": "nrfkit-run/v1", "status": "running"}
             args = argparse.Namespace(
                 manifest=None, oracle="ncs-hello-world", build_timeout=900,
                 west="west", timeout=90, token_timeout=10,
@@ -470,18 +476,18 @@ class FlashCommandTests(unittest.TestCase):
                 "oracle": "ncs-hello-world", "board_version": "PCA10184",
             }
             with (
-                mock.patch("nrf_cmake_tools.cli._new_run", return_value=(run_dir, report)),
+                mock.patch("nrfkit_tools.cli._new_run", return_value=(run_dir, report)),
                 mock.patch(
-                    "nrf_cmake_tools.cli._doctor",
+                    "nrfkit_tools.cli._doctor",
                     return_value=({"tools": {"all": {"returncode": 0}}}, True),
                 ) as doctor,
                 mock.patch(
-                    "nrf_cmake_tools.cli.build", return_value=run_dir / "image-manifest.json"
+                    "nrfkit_tools.cli.build", return_value=run_dir / "image-manifest.json"
                 ) as reference_build,
-                mock.patch("nrf_cmake_tools.cli.load_manifest", return_value=manifest) as audit,
-                mock.patch("nrf_cmake_tools.cli._initialize_device_report"),
+                mock.patch("nrfkit_tools.cli.load_manifest", return_value=manifest) as audit,
+                mock.patch("nrfkit_tools.cli._initialize_device_report"),
                 mock.patch(
-                    "nrf_cmake_tools.cli._select", side_effect=ToolError("stop before hardware")
+                    "nrfkit_tools.cli._select", side_effect=ToolError("stop before hardware")
                 ),
             ):
                 with self.assertRaisesRegex(ToolError, "before hardware"):

@@ -17,7 +17,7 @@ class SdkContractError(RuntimeError):
     pass
 
 
-STANDALONE_RRAM_ALLOWLIST = [[0x00000000, 0x001FD000]]
+STANDALONE_RRAM_ALLOWLIST = [[0x00000000, 0x001FCF00]]
 
 
 def _merged(ranges: tuple[tuple[int, int], ...]) -> tuple[tuple[int, int], ...]:
@@ -64,11 +64,12 @@ def create_device_manifest(
     except (OSError, json.JSONDecodeError) as error:
         raise SdkContractError(f"invalid SDK layout manifest: {error}") from error
     expected_layout = {
-        "schema": "nrf-cmake-sdk-image-layout/v1",
+        "schema": "nrfkit-image-layout/v1",
         "target": target,
         "soc": "nrf54lm20a",
         "core": "cpuapp",
-        "rram": {"origin": 0, "length": 0x001FD000},
+        "rram": {"origin": 0, "length": 0x001FCF00},
+        "rram_scratch": {"origin": 0x001FCF00, "length": 0x100, "write_unit": 16},
         "ram": {"origin": 0x20000000, "length": 0x00040000},
         "configuration_regions_allowed": False,
     }
@@ -88,7 +89,7 @@ def create_device_manifest(
         raise SdkContractError("SDK ELF entry is outside its load image")
     source_lock = project / "docs/provenance/sources.lock"
     manifest = {
-        "schema": "nrf-cmake-sdk-image/v1",
+        "schema": "nrfkit-image/v1",
         "oracle": f"sdk-{target}",
         "source_receipt_sha256": sha256(source_lock),
         "soc": "nrf54lm20a",

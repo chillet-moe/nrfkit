@@ -2,53 +2,58 @@
 
 cmake_minimum_required(VERSION 3.25)
 
-project(NrfCMakeSdk VERSION 0.0.0 LANGUAGES NONE)
+project(NrfKit VERSION 0.0.0 LANGUAGES NONE)
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
-add_library(nrf_cmake_sdk_core INTERFACE)
-add_library(NrfCMakeSdk::core ALIAS nrf_cmake_sdk_core)
-set_target_properties(nrf_cmake_sdk_core PROPERTIES EXPORT_NAME core)
-target_include_directories(nrf_cmake_sdk_core INTERFACE
+add_library(nrfkit_core INTERFACE)
+add_library(NrfKit::core ALIAS nrfkit_core)
+set_target_properties(nrfkit_core PROPERTIES EXPORT_NAME core)
+target_include_directories(nrfkit_core INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-install(TARGETS nrf_cmake_sdk_core EXPORT NrfCMakeSdkTargets)
+install(TARGETS nrfkit_core EXPORT NrfKitTargets)
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(DIRECTORY
   include
   boards
   linker
+  patches
   runtime
   third_party
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrf-cmake-sdk
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit
+)
+install(DIRECTORY external/nrfx/
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/nrfx
+  PATTERN ".git" EXCLUDE
 )
 install(DIRECTORY cmake/toolchains
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrf-cmake-sdk/cmake
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/cmake
 )
-install(FILES cmake/modules/NrfSdkFirmware.cmake
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/NrfCMakeSdk
+install(FILES cmake/modules/NrfKitFirmware.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/NrfKit
 )
-install(EXPORT NrfCMakeSdkTargets
-  FILE NrfCMakeSdkTargets.cmake
-  NAMESPACE NrfCMakeSdk::
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/NrfCMakeSdk
+install(EXPORT NrfKitTargets
+  FILE NrfKitTargets.cmake
+  NAMESPACE NrfKit::
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/NrfKit
 )
 
 configure_package_config_file(
-  cmake/NrfCMakeSdkConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/NrfCMakeSdkConfig.cmake
-  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/NrfCMakeSdk
+  cmake/NrfKitConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/NrfKitConfig.cmake
+  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/NrfKit
 )
 write_basic_package_version_file(
-  ${CMAKE_CURRENT_BINARY_DIR}/NrfCMakeSdkConfigVersion.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/NrfKitConfigVersion.cmake
   VERSION ${PROJECT_VERSION}
   COMPATIBILITY SameMajorVersion
 )
 install(FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/NrfCMakeSdkConfig.cmake
-  ${CMAKE_CURRENT_BINARY_DIR}/NrfCMakeSdkConfigVersion.cmake
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/NrfCMakeSdk
+  ${CMAKE_CURRENT_BINARY_DIR}/NrfKitConfig.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/NrfKitConfigVersion.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/NrfKit
 )

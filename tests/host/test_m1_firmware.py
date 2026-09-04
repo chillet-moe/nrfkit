@@ -11,9 +11,9 @@ import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 
-from nrf_cmake_tools.image import parse_elf, parse_ihex, require_allowed
-from nrf_cmake_tools.cli import load_manifest
-from nrf_cmake_tools.sdk import SdkContractError, create_device_manifest
+from nrfkit_tools.image import parse_elf, parse_ihex, require_allowed
+from nrfkit_tools.cli import load_manifest
+from nrfkit_tools.sdk import SdkContractError, create_device_manifest
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -67,7 +67,7 @@ class M1FirmwareTests(unittest.TestCase):
         for build in (cls.build_a, cls.build_b):
             run([
                 cls.cmake, "-S", str(EXAMPLES), "-B", str(build), "-G", "Ninja",
-                f"-DNrfCMakeSdk_DIR={ROOT / 'cmake'}",
+                f"-DNrfKit_DIR={ROOT / 'cmake'}",
                 f"-DCMAKE_TOOLCHAIN_FILE={ROOT / 'cmake/toolchains/arm-clang.cmake'}",
                 f"-DNRF_LLVM_ROOT={llvm_root}",
             ])
@@ -79,7 +79,10 @@ class M1FirmwareTests(unittest.TestCase):
             cls.temporary.cleanup()
 
     def test_load_images_are_reproducible_across_absolute_build_paths(self) -> None:
-        for name in ("empty", "blinky", "fault", "constructors", "hardware_validation"):
+        for name in (
+            "empty", "blinky", "fault", "constructors", "hardware_validation",
+            "nrfx_minimal", "nrfx_all",
+        ):
             with self.subTest(name=name):
                 self.assertEqual(
                     (self.build_a / f"{name}.hex").read_bytes(),
@@ -144,7 +147,7 @@ class M1FirmwareTests(unittest.TestCase):
             "__StackTop", "__StackLimit", "__HeapBase", "__HeapLimit",
             "__data_load_start", "__data_start", "__data_end",
             "__bss_start__", "__bss_end__", "__noinit_start", "__noinit_end",
-            "nrf_cmake_sdk_last_fault",
+            "nrfkit_last_fault",
         ):
             self.assertIn(symbol, empty_symbols)
         self.assertRegex(empty_symbols, r"20040000\s+0\s+NOTYPE\s+GLOBAL.*__StackTop")
@@ -162,7 +165,10 @@ class M1FirmwareTests(unittest.TestCase):
         self.assertIn("constructor_observation", constructors_symbols)
 
     def test_artifacts_and_load_ranges_exclude_configuration_regions(self) -> None:
-        for name in ("empty", "blinky", "fault", "constructors", "hardware_validation"):
+        for name in (
+            "empty", "blinky", "fault", "constructors", "hardware_validation",
+            "nrfx_minimal", "nrfx_all",
+        ):
             with self.subTest(name=name):
                 elf = parse_elf(self.build_a / f"{name}.elf")
                 ihex = parse_ihex(self.build_a / f"{name}.hex")
@@ -171,13 +177,49 @@ class M1FirmwareTests(unittest.TestCase):
                 self.assertTrue((self.build_a / f"{name}.map").is_file())
                 self.assertTrue((self.build_a / f"{name}.image-layout.json").is_file())
 
+    def test_nrfx_configuration_and_sources_are_target_scoped(self) -> None:
+        import json
+
+        minimal_dir = self.build_a / "nrfkit/nrfx_minimal"
+        all_dir = self.build_a / "nrfkit/nrfx_all"
+        minimal_config = (minimal_dir / "nrfx_config.h").read_text(encoding="utf-8")
+        all_config = (all_dir / "nrfx_config.h").read_text(encoding="utf-8")
+        self.assertNotEqual(minimal_config, all_config)
+        self.assertNotIn("NRFX_TIMER_ENABLED 1", minimal_config)
+        self.assertIn("NRFX_TIMER_ENABLED 1", all_config)
+
+        minimal = json.loads((minimal_dir / "nrfx-target.json").read_text())
+        complete = json.loads((all_dir / "nrfx-target.json").read_text())
+        self.assertEqual(minimal["drivers"], ["gpio", "reset"])
+        self.assertEqual(minimal["sources"], [])
+        self.assertIn("drivers/src/nrfx_timer.c", complete["sources"])
+        self.assertNotIn("drivers/src/nrfx_timer.c", minimal["sources"])
+        self.assertTrue(all("zephyr" not in source.lower() for source in complete["sources"]))
+
+    def test_nrfx_resource_conflicts_and_bounds_fail_at_configure_time(self) -> None:
+        fixture = ROOT / "tests/consumer/nrfx-contract"
+        for case, expected in (
+            ("conflict", "already owned by 'first'"),
+            ("out-of-range", "is out of range"),
+        ):
+            build = Path(self.temporary.name) / f"nrfx-{case}"
+            result = subprocess.run([
+                self.cmake, "-S", str(fixture), "-B", str(build), "-G", "Ninja",
+                f"-DNrfKit_DIR={ROOT / 'cmake'}",
+                f"-DCMAKE_TOOLCHAIN_FILE={ROOT / 'cmake/toolchains/arm-clang.cmake'}",
+                f"-DNRF_LLVM_ROOT={self.llvm_root}",
+                f"-DCONTRACT_CASE={case}",
+            ], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+            self.assertIn(expected, result.stdout)
+
     def test_sdk_artifacts_form_a_guarded_device_manifest(self) -> None:
         path = create_device_manifest(
-            ROOT, self.build_a, "hardware_validation", "NRF_SDK_TEST build-id"
+            ROOT, self.build_a, "hardware_validation", "NRFKIT_TEST build-id"
         )
         manifest = load_manifest(path)
         self.assertEqual(manifest["oracle"], "sdk-hardware_validation")
-        self.assertEqual(manifest["expected_token"], "NRF_SDK_TEST build-id")
+        self.assertEqual(manifest["expected_token"], "NRFKIT_TEST build-id")
         self.assertEqual(manifest["images"][0]["domain"], "hardware_validation")
 
     def test_sdk_manifest_rejects_unsafe_names_and_tokens_before_artifact_access(self) -> None:
@@ -201,7 +243,7 @@ class M1FirmwareTests(unittest.TestCase):
         build = Path(self.temporary.name) / "gnu-arm-smoke"
         run([
             self.cmake, "-S", str(EXAMPLES), "-B", str(build), "-G", "Ninja",
-            f"-DNrfCMakeSdk_DIR={ROOT / 'cmake'}",
+            f"-DNrfKit_DIR={ROOT / 'cmake'}",
             f"-DCMAKE_TOOLCHAIN_FILE={ROOT / 'cmake/toolchains/arm-gcc.cmake'}",
         ])
         run([self.cmake, "--build", str(build), "--target", "empty"])
@@ -220,11 +262,11 @@ class M1FirmwareTests(unittest.TestCase):
         run([
             self.cmake, "-S", str(EXAMPLES), "-B", str(build), "-G", "Ninja",
             f"-DCMAKE_PREFIX_PATH={prefix}",
-            f"-DCMAKE_TOOLCHAIN_FILE={prefix / 'share/nrf-cmake-sdk/cmake/toolchains/arm-clang.cmake'}",
+            f"-DCMAKE_TOOLCHAIN_FILE={prefix / 'share/nrfkit/cmake/toolchains/arm-clang.cmake'}",
             f"-DNRF_LLVM_ROOT={self.llvm_root}",
         ])
-        run([self.cmake, "--build", str(build), "--target", "empty"])
-        self.assertTrue((build / "empty.elf").is_file())
+        run([self.cmake, "--build", str(build), "--target", "m3_power_validation"])
+        self.assertTrue((build / "m3_power_validation.elf").is_file())
 
 
 if __name__ == "__main__":

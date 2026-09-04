@@ -38,7 +38,7 @@ class CMakePackageTests(unittest.TestCase):
             source_build = temporary / "source-consumer"
             self.run_command([
                 cmake, "-S", str(CONSUMER), "-B", str(source_build), "-G", "Ninja",
-                f"-DNrfCMakeSdk_DIR={ROOT / 'cmake'}",
+                f"-DNrfKit_DIR={ROOT / 'cmake'}",
             ], environment)
             self.run_command([cmake, "--build", str(source_build)], environment)
 

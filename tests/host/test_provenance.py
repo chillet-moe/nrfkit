@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import re
+import subprocess
 import unittest
 
 
@@ -17,7 +18,7 @@ class ProvenanceTests(unittest.TestCase):
         lock = json.loads(
             (ROOT / "docs/provenance/sources.lock").read_text(encoding="utf-8")
         )
-        self.assertEqual(lock["schema"], "nrf-cmake-sdk-sources/v1")
+        self.assertEqual(lock["schema"], "nrfkit-sources/v1")
         self.assertEqual(
             set(lock["audited_sources"]),
             {
@@ -25,10 +26,16 @@ class ProvenanceTests(unittest.TestCase):
                 "trusted-firmware-m-ncs-3.4.0", "s115-10.0.1",
             },
         )
-        for source in lock["audited_sources"].values():
+        for source_id, source in lock["audited_sources"].items():
             self.assertEqual(source["import_date"], "2026-09-04")
             self.assertIsInstance(source["imported"], bool)
-            self.assertEqual(source["patches"], "none")
+            if source_id == "nrfx-4.5.0":
+                self.assertEqual(
+                    source["patches"],
+                    ["patches/nrfx/0001-grtc-enable-compare-after-programming.patch"],
+                )
+            else:
+                self.assertEqual(source["patches"], "none")
             if "commit" in source:
                 self.assertRegex(source["commit"], r"^[0-9a-f]{40}$")
             if "sha256" in source:
@@ -39,6 +46,26 @@ class ProvenanceTests(unittest.TestCase):
                 if isinstance(file_value, dict):
                     self.assertTrue(file_value["license"])
 
+    def test_nrfx_submodule_and_patch_are_locked_and_immutable(self) -> None:
+        lock = json.loads(
+            (ROOT / "docs/provenance/sources.lock").read_text(encoding="utf-8")
+        )
+        expected = lock["audited_sources"]["nrfx-4.5.0"]["commit"]
+        actual = subprocess.run(
+            ["git", "-C", str(ROOT / "external/nrfx"), "rev-parse", "HEAD"],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False,
+        )
+        self.assertEqual(actual.returncode, 0, actual.stdout)
+        self.assertEqual(actual.stdout.strip(), expected)
+        check = subprocess.run(
+            [
+                "git", "-C", str(ROOT / "external/nrfx"), "apply", "--check",
+                str(ROOT / "patches/nrfx/0001-grtc-enable-compare-after-programming.patch"),
+            ],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False,
+        )
+        self.assertEqual(check.returncode, 0, check.stdout)
+
     def test_vendor_import_manifest_covers_and_hashes_third_party_tree(self) -> None:
         lock = json.loads(
             (ROOT / "docs/provenance/sources.lock").read_text(encoding="utf-8")
@@ -48,7 +75,7 @@ class ProvenanceTests(unittest.TestCase):
         import hashlib
         self.assertEqual(hashlib.sha256(import_path.read_bytes()).hexdigest(), import_ref["sha256"])
         manifest = json.loads(import_path.read_text(encoding="utf-8"))
-        self.assertEqual(manifest["schema"], "nrf-cmake-sdk-vendor-imports/v1")
+        self.assertEqual(manifest["schema"], "nrfkit-vendor-imports/v1")
         entries = {item["destination"]: item for item in manifest["files"]}
         actual = {
             path.relative_to(ROOT).as_posix(): path
@@ -70,7 +97,7 @@ class ProvenanceTests(unittest.TestCase):
         self.assertEqual(sbom["spdxVersion"], "SPDX-2.3")
         self.assertEqual(sbom["dataLicense"], "CC0-1.0")
         package_ids = {package["SPDXID"] for package in sbom["packages"]}
-        self.assertIn("SPDXRef-Package-nrf-cmake-sdk", package_ids)
+        self.assertIn("SPDXRef-Package-nrfkit", package_ids)
         self.assertIn("SPDXRef-Package-nrfx", package_ids)
         self.assertIn("SPDXRef-Package-CMSIS", package_ids)
         self.assertIn("SPDXRef-Package-S115", package_ids)

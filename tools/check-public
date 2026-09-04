@@ -7,7 +7,7 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EXCLUDED = {".git", ".local", ".work", "build", "third_party"}
+EXCLUDED = {".git", ".local", ".work", "build", "external", "third_party"}
 PATTERNS = (
     ("absolute home path", re.compile(r"/(?:home|Users)/[^/\s]+/")),
     ("Linux serial device", re.compile(r"/dev/tty(?:ACM|USB)\d+")),

@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/NrfKitTargets.cmake")
+set(NrfKit_ROOT "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_DATADIR@/nrfkit")
+include("${CMAKE_CURRENT_LIST_DIR}/NrfKitFirmware.cmake")
+check_required_components(NrfKit)

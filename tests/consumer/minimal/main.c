@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include <nrf_cmake_sdk/version.h>
+#include <nrfkit/version.h>
 
-#if NRF_CMAKE_SDK_VERSION_MAJOR != 0
-#error "unexpected nrf-cmake-sdk major version"
+#if NRFKIT_VERSION_MAJOR != 0
+#error "unexpected nrfkit major version"
 #endif
 
 int main(void)
 {
-    return NRF_CMAKE_SDK_VERSION_MINOR;
+    return NRFKIT_VERSION_MINOR;
 }

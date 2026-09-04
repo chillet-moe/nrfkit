@@ -1,10 +1,10 @@
-# nrf-cmake-sdk：目标与执行计划
+# nrfkit：目标与执行计划
 
-> 状态：P0、M0、M1、M2 已完成；M3 nrfx 与低功耗基础进行中<br>
+> 状态：P0、M0、M1、M2、M3 已完成；M4 USBHS device 进行中<br>
 > 计划基线：2026-09-04<br>
 > 首要目标：nRF54LM20A / nRF54LM20 DK<br>
 > 次要目标：nRF54L15 / nRF54L15 DK<br>
-> 本地工作目录：`$HOME/Projects/nrf-cmake-sdk`
+> 推荐的本地工作目录：`$HOME/Projects/nrfkit`
 
 本文是项目的约束性执行文件，面向后续维护者和自动化 agent。除非新的实板证据、官方文档或用户明确决定推翻某项结论，否则实现应按本文推进。文中的“必须”“禁止”“验收”不是建议。
 
@@ -37,7 +37,7 @@
 
 ### 2.1 项目名与定位
 
-项目名采用 `nrf-cmake-sdk`。名称直接表达范围，未暗示 Nordic 官方身份。公开 README 必须显著注明：这是社区项目，与 Nordic Semiconductor 无隶属或背书关系；nRF 等商标归各自权利人所有。
+项目名采用 `nrfkit`，以避免仓库名、CMake 函数和 C/C++ 宏出现冗长前缀。公开标识统一为 CLI `nrfkit`、CMake package `NrfKit`、函数前缀 `nrfkit_`、宏前缀 `NRFKIT_` 和头文件目录 `nrfkit/`。公开 README 必须显著注明：这是社区项目，与 Nordic Semiconductor 无隶属或背书关系；nRF 等商标归各自权利人所有。
 
 自有代码默认采用 BSD-3-Clause。第三方文件保留各自许可证，不得用项目许可证覆盖：
 
@@ -50,13 +50,13 @@
 
 ### 2.2 构建与依赖模型
 
-面向 SDK 使用者的默认体验必须满足：一次普通 Git clone 后即可离线配置和编译，不在 CMake configure 阶段访问网络，也不要求运行包管理器。
+面向 SDK 使用者的默认体验必须满足：一次包含已初始化 submodule 的 checkout（例如 `git clone --recurse-submodules`）或完整 release archive 后即可离线配置和编译，不在 CMake configure 阶段访问网络，也不要求运行包管理器。
 
 因此采用以下策略：
 
-1. 将经过审计、固定到精确版本的 nrfx/MDK 源码快照放在 `third_party/nrfx`；维护者可用普通 Git/curl 脚本升级，但使用者不需要 west。
+1. nrfx 作为 `external/nrfx` 中固定到精确 commit 的只读 Git submodule；本仓库不把完整 nrfx 源码树作为普通文件提交。项目只跟踪逐文件选择清单、自有适配层和 `patches/nrfx/` 下的可审查补丁。需要修改上游时，在 consumer workspace 的 ignored shared cache 中复制被选文件并以普通 `git apply` 应用补丁，绝不直接修改 submodule。
 2. SoftDevice 按 SoC 和版本分别存放，并保留原始 license/attribution；若审计结论不允许仓库分发，则使用 `NRF_SOFTDEVICE_ROOT` 指向官方包并校验版本与 hash。
-3. SDK 构建不能搜索或隐式借用 `$HOME/ncs`。本机 NCS 目录只允许被显式的开发者对照测试使用。
+3. SDK 构建不能搜索或隐式借用 `$HOME/ncs`。本机 NCS 目录只允许被显式的开发者对照测试使用。缺失或 commit 不匹配的 nrfx submodule 必须给出明确诊断；普通 configure/build 不得自行联网更新它。
 4. Python 可以用于维护者工具、HEX 检查和硬件测试，但不得成为编译一个普通应用的必需依赖。核心构建只要求 CMake、构建器、编译器及 binutils 等效工具。
 5. 不引入 west manifest 的替代品，也不实现 Kconfig 或 Devicetree 的小型克隆。
 6. 官方参考样例允许在 `tools/reference/` 的显式维护者流程中调用其原生 west、sysbuild、Kconfig、Devicetree 和 Zephyr；该例外只能用于建立可运行的官方 oracle，不能进入 SDK consumer 的 configure/build dependency graph。
@@ -84,27 +84,27 @@ SDK 既支持源码方式加入，也支持安装后的 `find_package`。建议�
 cmake_minimum_required(VERSION 3.25)
 project(example C CXX ASM)
 
-list(PREPEND CMAKE_PREFIX_PATH "${NRF_CMAKE_SDK_ROOT}")
-find_package(NrfCMakeSdk CONFIG REQUIRED)
+list(PREPEND CMAKE_PREFIX_PATH "${NRFKIT_ROOT}")
+find_package(NrfKit CONFIG REQUIRED)
 
 add_executable(firmware src/main.cpp)
-nrf_sdk_configure_target(firmware
+nrfkit_configure_target(firmware
   SOC nrf54lm20a
   CORE cpuapp
   BOARD nrf54lm20dk
   RUNTIME freestanding
 )
-nrf_sdk_enable_nrfx(firmware
+nrfkit_enable_nrfx(firmware
   DRIVERS clock gpio gpiote grtc dppi uarte
 )
-nrf_sdk_finalize_target(firmware)
+nrfkit_finalize_target(firmware)
 ```
 
 必须遵守的 API 原则：
 
 - 一个 ELF target 明确绑定一个 SoC、core、security domain、board 和 memory layout；
 - board 是普通 CMake target 加普通 C/C++ header，不是 YAML/DTS 输入；
-- `nrf_sdk_enable_nrfx()` 只把列出的 driver 及依赖加入当前 target；
+- `nrfkit_enable_nrfx()` 只把列出的 driver 及依赖加入当前 target；
 - 同一个构建树可以包含多个不同配置的 firmware target，不使用全局 `NRFX_CONFIG_*` 污染；
 - 应用可以只链接 CMSIS/MDK/HAL，而不强制使用 SDK runtime 或 nrfx driver；
 - 所有自动选择都要能打印为一份确定的 target report；
@@ -115,7 +115,7 @@ nrf_sdk_finalize_target(firmware)
 ```sh
 cmake -S examples/blinky -B build/lm20 -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE="$SDK_ROOT/cmake/toolchains/arm-clang.cmake" \
-  -DNRF_CMAKE_SDK_ROOT="$SDK_ROOT" \
+  -DNRFKIT_ROOT="$SDK_ROOT" \
   -DNRF_SOC=nrf54lm20a \
   -DNRF_BOARD=nrf54lm20dk
 cmake --build build/lm20
@@ -130,17 +130,19 @@ cmake --build build/lm20 --target gdbserver
 预期目录结构：
 
 ```text
-nrf-cmake-sdk/
+nrfkit/
 ├── AGENTS.md
 ├── PLAN.md
 ├── LICENSE
 ├── README.md
 ├── CMakeLists.txt
 ├── cmake/
-│   ├── NrfCMakeSdkConfig.cmake
+│   ├── NrfKitConfig.cmake
 │   ├── modules/
 │   └── toolchains/
-├── include/nrf_cmake_sdk/
+├── external/
+│   └── nrfx/                  # immutable, version-locked submodule
+├── include/nrfkit/
 ├── runtime/
 │   ├── common/
 │   └── cortex-m/
@@ -154,6 +156,8 @@ nrf-cmake-sdk/
 ├── linker/
 │   ├── common/
 │   └── layouts/
+├── patches/
+│   └── nrfx/                  # project-owned, evidence-backed patches
 ├── wireless/
 │   ├── proprietary/
 │   └── softdevice/
@@ -164,7 +168,7 @@ nrf-cmake-sdk/
 │   ├── link/
 │   └── hardware/
 ├── tools/
-│   ├── nrf-cmake-sdk
+│   ├── nrfkit
 │   ├── image/
 │   ├── hardware/
 │   └── reference/
@@ -326,7 +330,7 @@ $HOME/Documents/Datasheets/NORDIC/nRF54LM20A_nRF54LM20B_Datasheet_v1.0.pdf
 
 ### 4.3 烧写防线
 
-对外只提供稳定入口 `tools/nrf-cmake-sdk`；烧写子命令由内部 `tools/hardware/flash-safe` 实现，并在调用 vendor tool 前完成独立校验：
+对外只提供稳定入口 `tools/nrfkit`；烧写子命令由内部 `tools/hardware/flash-safe` 实现，并在调用 vendor tool 前完成独立校验：
 
 1. 只接受 ELF/HEX；BIN 必须同时提供由构建生成并签名/校验的 layout manifest；
 2. 解析全部 load segment/HEX record；
@@ -527,7 +531,7 @@ BLE 实板验收至少包括：
 
 交付：
 
-- 一个稳定公共 CLI `tools/nrf-cmake-sdk`，至少提供 `doctor`、`reference prepare`、`reference build`、`inspect`、`flash`、`reset`、`run` 和 `gdb-smoke`；对外文档只依赖这个入口，内部按 project/reference/image/device/process 职责拆分；
+- 一个稳定公共 CLI `tools/nrfkit`，至少提供 `doctor`、`reference prepare`、`reference build`、`inspect`、`flash`、`reset`、`run` 和 `gdb-smoke`；对外文档只依赖这个入口，内部按 project/reference/image/device/process 职责拆分；
 - `docs/development-inputs.md` 定义公开的输入接口，`.local/AVAILABLE_INPUTS.md` 记录当前机器的实际输入；工具只读取本地清单作为显式开发者上下文，不能把其中的路径或私有标识复制到 tracked 输出；
 - 在 gitignored 的 P0 工作记录中确认已检查本地输入清单列出的相关实现参考；公开设计说明只记录采用的通用机制、理由和本项目实现，不出现参考仓库身份；
 - tracked 的官方来源锁定文件，记录 release/module commit、sample、board target、必要源文件 hash、期望启动 token 和产物选择规则，但不记录本地绝对路径；
@@ -638,6 +642,8 @@ M2 于 2026-09-04 完成退出审计。自研 SDK 的 ELF/HEX/layout artifacts �
 - sleep/wake、timer 精度、DMA、IRQ 和 retained/noinit 行为通过实板测试；
 - RRAM scratch test 遵守写次数限制；
 - 不使用任何 Zephyr header、symbol 或 generated file。
+
+M3 于 2026-09-04 完成退出审计。nrfx v4.5.0 现以精确 commit 的只读 submodule 提供，完整源码树不再作为本仓库普通文件导入；target-scoped 配置只编译所请求的 driver source，项目补丁在 consumer build tree 的共享缓存中应用。实板证据确认 nrfx 的 GRTC legacy setter 在该 LM20 上需要显式恢复 `CCEN`，因此加入了同时由 Datasheet 寄存器语义与最小实板复现支撑的补丁，没有把库实现当成硬件规范。core 验证覆盖 clock、GPIO/GPIOTE、GRTC/TIMER、DPPI、UARTE、IRQ、timer 精度与复位后 `.noinit` retention；peripheral 验证覆盖 SPIM、TWIM、PWM、SAADC、RRAMC 与 watchdog，并只在保留的 256-byte RRAM scratch 区追加一个 16-byte 记录；power 验证覆盖 100 ms GRTC System ON 睡眠/中断唤醒与 RAM retention。三份最终硬件报告 `.work/runs/20260904-120941-run-1069062/run.json`、`.work/runs/20260904-120952-run-1069135/run.json` 和 `.work/runs/20260904-121003-run-1069212/run.json` 均为 `ok`。真实 System OFF 未被宣称通过：Datasheet 明确说明 Debug Interface mode 下 System OFF 会被仿真，当前工作流保持调试连接；其 detached wake 验证留给能够先退出 DIF 的后续工作流。51 个 host tests、public hygiene、diff check、source-tree/installed package 以及同树双 nrfx 配置全部通过。
 
 ### M4：USBHS device
 

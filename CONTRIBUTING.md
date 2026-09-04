@@ -14,6 +14,6 @@ tools/check-public
 git diff --check
 ```
 
-Real-board work must use `tools/nrf-cmake-sdk` and the hardware workflow. USB, serial, debug-probe, and programmer access requires Codex tool escalation. Persistent probe/controller changes need a separate explicit user authorization. Never infer authorization for mass erase, recover, provisioning, protection changes, controller firmware updates, or configuration/one-time memory writes.
+Real-board work must use `tools/nrfkit` and the hardware workflow. USB, serial, debug-probe, and programmer access requires Codex tool escalation. Persistent probe/controller changes need a separate explicit user authorization. Never infer authorization for mass erase, recover, provisioning, protection changes, controller firmware updates, or configuration/one-time memory writes.
 
 Keep local paths, probe identities, private downstream names, and raw logs in ignored `.local/` or `.work/` files. Commit messages use English Conventional Commits.

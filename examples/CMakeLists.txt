@@ -1,19 +1,22 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 cmake_minimum_required(VERSION 3.25)
-project(nrf_cmake_sdk_m1_examples LANGUAGES C CXX ASM)
+project(nrfkit_m1_examples LANGUAGES C CXX ASM)
 
-find_package(NrfCMakeSdk CONFIG REQUIRED)
+find_package(NrfKit CONFIG REQUIRED)
 
 function(add_m1_example name source)
   add_executable("${name}" "${source}")
-  nrf_sdk_configure_target("${name}"
+  nrfkit_configure_target("${name}"
     SOC nrf54lm20a
     CORE cpuapp
     BOARD nrf54lm20dk
     RUNTIME freestanding
   )
-  nrf_sdk_finalize_target("${name}")
+  if(ARGN)
+    nrfkit_enable_nrfx("${name}" DRIVERS ${ARGN})
+  endif()
+  nrfkit_finalize_target("${name}")
 endfunction()
 
 add_m1_example(empty empty/main.c)
@@ -22,62 +25,128 @@ add_m1_example(fault fault/main.c)
 add_m1_example(constructors constructors/main.cpp)
 target_compile_features(constructors PRIVATE cxx_std_23)
 
-set(NRF_CMAKE_SDK_BUILD_ID "development" CACHE STRING
+add_m1_example(nrfx_minimal nrfx-minimal/main.c gpio reset)
+
+add_m1_example(nrfx_all nrfx-all/main.c
+  clock gpio gpiote grtc timer dppi uarte spim twim pwm saadc rramc watchdog
+  reset retention
+)
+
+add_executable(m3_core_validation m3-core-validation/main.c)
+nrfkit_configure_target(m3_core_validation
+  SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
+)
+nrfkit_claim_resources(m3_core_validation OWNER validation RESOURCES
+  timer21
+)
+nrfkit_enable_nrfx(m3_core_validation DRIVERS
+  clock gpio gpiote grtc timer dppi uarte reset retention
+)
+nrfkit_finalize_target(m3_core_validation)
+
+add_executable(m3_peripheral_validation m3-peripheral-validation/main.c)
+nrfkit_configure_target(m3_peripheral_validation
+  SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
+)
+nrfkit_enable_nrfx(m3_peripheral_validation DRIVERS
+  spim twim pwm saadc rramc watchdog
+)
+nrfkit_finalize_target(m3_peripheral_validation)
+
+add_executable(m3_power_validation m3-power-validation/main.c)
+nrfkit_configure_target(m3_power_validation
+  SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
+)
+nrfkit_enable_nrfx(m3_power_validation DRIVERS
+  clock grtc reset retention
+)
+nrfkit_finalize_target(m3_power_validation)
+
+set(NRFKIT_BUILD_ID "development" CACHE STRING
   "Build identifier emitted by the hardware-validation firmware"
 )
-if(NOT NRF_CMAKE_SDK_BUILD_ID MATCHES "^[A-Za-z0-9._-]+$")
-  message(FATAL_ERROR "NRF_CMAKE_SDK_BUILD_ID contains an unsafe character")
+if(NOT NRFKIT_BUILD_ID MATCHES "^[A-Za-z0-9._-]+$")
+  message(FATAL_ERROR "NRFKIT_BUILD_ID contains an unsafe character")
 endif()
 add_m1_example(hardware_validation hardware-validation/main.c)
 target_compile_definitions(hardware_validation PRIVATE
-  NRF_CMAKE_SDK_BUILD_ID="${NRF_CMAKE_SDK_BUILD_ID}"
+  NRFKIT_BUILD_ID="${NRFKIT_BUILD_ID}"
 )
 
 add_executable(linker_overlap EXCLUDE_FROM_ALL linker-overlap/main.c)
-nrf_sdk_configure_target(linker_overlap
+nrfkit_configure_target(linker_overlap
   SOC nrf54lm20a
   CORE cpuapp
   BOARD nrf54lm20dk
   RUNTIME freestanding
 )
 
-option(NRF_CMAKE_SDK_ENABLE_HARDWARE_TESTS
-  "Register the destructive-to-application-RRAM M2 hardware gate" OFF
+option(NRFKIT_ENABLE_HARDWARE_TESTS
+  "Register the guarded M2 and M3 real-board gates" OFF
 )
-if(NRF_CMAKE_SDK_ENABLE_HARDWARE_TESTS)
-  if(NOT NRF_CMAKE_SDK_TOOL)
-    get_filename_component(NRF_CMAKE_SDK_TOOL
-      "${CMAKE_CURRENT_LIST_DIR}/../tools/nrf-cmake-sdk" ABSOLUTE
+if(NRFKIT_ENABLE_HARDWARE_TESTS)
+  if(NOT NRFKIT_TOOL)
+    get_filename_component(NRFKIT_TOOL
+      "${CMAKE_CURRENT_LIST_DIR}/../tools/nrfkit" ABSOLUTE
     )
   endif()
-  if(NOT NRF_CMAKE_SDK_GDB)
-    message(FATAL_ERROR "NRF_CMAKE_SDK_GDB is required for hardware tests")
+  if(NOT NRFKIT_GDB)
+    message(FATAL_ERROR "NRFKIT_GDB is required for hardware tests")
   endif()
-  set(normal_token "NRF_CMAKE_SDK_BOOT ${NRF_CMAKE_SDK_BUILD_ID}")
+  set(normal_token "NRFKIT_BOOT ${NRFKIT_BUILD_ID}")
   add_custom_command(TARGET hardware_validation POST_BUILD
-    COMMAND "${NRF_CMAKE_SDK_TOOL}" sdk manifest
+    COMMAND "${NRFKIT_TOOL}" sdk manifest
       --build-dir "$<TARGET_FILE_DIR:hardware_validation>"
       --target hardware_validation
       --expected-token "${normal_token}"
     VERBATIM
   )
   add_custom_command(TARGET fault POST_BUILD
-    COMMAND "${NRF_CMAKE_SDK_TOOL}" sdk manifest
+    COMMAND "${NRFKIT_TOOL}" sdk manifest
       --build-dir "$<TARGET_FILE_DIR:fault>"
       --target fault
-      --expected-token NRF_CMAKE_SDK_FAULT
+      --expected-token NRFKIT_FAULT
     VERBATIM
   )
+  foreach(m3_target IN ITEMS
+      m3_core_validation m3_peripheral_validation m3_power_validation)
+    if(m3_target STREQUAL "m3_core_validation")
+      set(m3_token "NRFKIT_M3_CORE PASS")
+    elseif(m3_target STREQUAL "m3_peripheral_validation")
+      set(m3_token "NRFKIT_M3_PERIPHERALS PASS")
+    else()
+      set(m3_token "NRFKIT_M3_POWER PASS")
+    endif()
+    add_custom_command(TARGET "${m3_target}" POST_BUILD
+      COMMAND "${NRFKIT_TOOL}" sdk manifest
+        --build-dir "$<TARGET_FILE_DIR:${m3_target}>"
+        --target "${m3_target}"
+        --expected-token "${m3_token}"
+      VERBATIM
+    )
+  endforeach()
   enable_testing()
   add_test(NAME m2_hardware_gate
-    COMMAND "${NRF_CMAKE_SDK_TOOL}" m2-gate
+    COMMAND "${NRFKIT_TOOL}" m2-gate
       --normal-manifest "$<TARGET_FILE_DIR:hardware_validation>/hardware_validation.device-manifest.json"
       --fault-manifest "$<TARGET_FILE_DIR:fault>/fault.device-manifest.json"
-      --gdb "${NRF_CMAKE_SDK_GDB}"
+      --gdb "${NRFKIT_GDB}"
   )
   set_tests_properties(m2_hardware_gate PROPERTIES
     LABELS hardware
     RESOURCE_LOCK nrf54lm20dk
     TIMEOUT 2400
   )
+  foreach(m3_case IN ITEMS core peripheral power)
+    set(m3_target "m3_${m3_case}_validation")
+    add_test(NAME "m3_hardware_${m3_case}"
+      COMMAND "${NRFKIT_TOOL}" run
+        --manifest "$<TARGET_FILE_DIR:${m3_target}>/${m3_target}.device-manifest.json"
+    )
+    set_tests_properties("m3_hardware_${m3_case}" PROPERTIES
+      LABELS hardware
+      RESOURCE_LOCK nrf54lm20dk
+      TIMEOUT 180
+    )
+  endforeach()
 endif()

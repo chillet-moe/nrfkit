@@ -76,8 +76,12 @@ def program_argv(
     ]
 
 
-def reset_argv(executable: str, serial: str, family: str, core: str) -> list[str]:
+def reset_argv(
+    executable: str, serial: str, family: str, core: str,
+    reset_kind: str = "RESET_DEFAULT",
+) -> list[str]:
     return nrfutil_prefix(executable) + [
         "device", "reset", "--serial-number", serial, "--traits", "jlink",
         "--family", family.lower(), "--core", core.lower(),
+        "--reset-kind", reset_kind,
     ]

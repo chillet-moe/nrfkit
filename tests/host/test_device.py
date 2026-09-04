@@ -3,7 +3,7 @@
 import json
 import unittest
 
-from nrf_cmake_tools.device import DeviceContractError, parse_json_lines, select_device
+from nrfkit_tools.device import DeviceContractError, parse_json_lines, select_device
 
 
 class DeviceTests(unittest.TestCase):

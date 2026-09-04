@@ -4,9 +4,13 @@ ENTRY(Reset_Handler)
 
 MEMORY
 {
-  RRAM (rx)  : ORIGIN = 0x00000000, LENGTH = 0x001FD000
-  RAM  (rwx) : ORIGIN = 0x20000000, LENGTH = 0x00040000
+  RRAM         (rx)  : ORIGIN = 0x00000000, LENGTH = 0x001FCF00
+  RRAM_SCRATCH (rw)  : ORIGIN = 0x001FCF00, LENGTH = 0x00000100
+  RAM          (rwx) : ORIGIN = 0x20000000, LENGTH = 0x00040000
 }
+
+__rram_scratch_start = ORIGIN(RRAM_SCRATCH);
+__rram_scratch_end = ORIGIN(RRAM_SCRATCH) + LENGTH(RRAM_SCRATCH);
 
 SECTIONS
 {
@@ -15,6 +19,14 @@ SECTIONS
     __vector_start = .;
     KEEP(*(.isr_vector))
     __vector_end = .;
+  } > RRAM
+
+  /* Keep the load image contiguous when a compiler emits 16-byte-aligned code. */
+  .vector_padding : ALIGN(4)
+  {
+    FILL(0xFF)
+    BYTE(0xFF)
+    . = ALIGN(16);
   } > RRAM
 
   .text : ALIGN(4)
@@ -106,3 +118,5 @@ ASSERT(__noinit_end <= __StackLimit, "noinit RAM overlaps stack")
 ASSERT(__HeapLimit <= __StackLimit, "heap overlaps stack")
 ASSERT(__StackTop == ORIGIN(RAM) + LENGTH(RAM), "stack must end at conservative RAM boundary")
 ASSERT(LOADADDR(.data) + SIZEOF(.data) <= ORIGIN(RRAM) + LENGTH(RRAM), "RRAM image overflow")
+ASSERT(ORIGIN(RRAM) + LENGTH(RRAM) == ORIGIN(RRAM_SCRATCH), "RRAM image overlaps scratch")
+ASSERT(ORIGIN(RRAM_SCRATCH) + LENGTH(RRAM_SCRATCH) == 0x001FD000, "unexpected RRAM scratch boundary")

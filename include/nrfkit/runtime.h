@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 
-#ifndef NRF_CMAKE_SDK_RUNTIME_H
-#define NRF_CMAKE_SDK_RUNTIME_H
+#ifndef NRFKIT_RUNTIME_H
+#define NRFKIT_RUNTIME_H
 
 #include <stdint.h>
 
@@ -9,9 +9,9 @@
 extern "C" {
 #endif
 
-#define NRF_CMAKE_SDK_FAULT_MAGIC UINT32_C(0x4E524646)
+#define NRFKIT_FAULT_MAGIC UINT32_C(0x4E524646)
 
-struct nrf_cmake_sdk_fault_record {
+struct nrfkit_fault_record {
     uint32_t magic;
     uint32_t exc_return;
     uint32_t r0;
@@ -24,9 +24,10 @@ struct nrf_cmake_sdk_fault_record {
     uint32_t xpsr;
 };
 
-extern volatile struct nrf_cmake_sdk_fault_record nrf_cmake_sdk_last_fault;
+extern volatile struct nrfkit_fault_record nrfkit_last_fault;
 
-void nrf_sdk_start(void) __attribute__((noreturn));
+void nrfkit_start(void) __attribute__((noreturn));
+void nrfkit_assert_fail(void) __attribute__((noreturn));
 
 #ifdef __cplusplus
 }

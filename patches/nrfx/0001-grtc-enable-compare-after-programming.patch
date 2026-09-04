@@ -1,0 +1,19 @@
+diff --git a/drivers/src/nrfx_grtc.c b/drivers/src/nrfx_grtc.c
+index a37cd46..9702dd6 100644
+--- a/drivers/src/nrfx_grtc.c
++++ b/drivers/src/nrfx_grtc.c
+@@ -739,5 +739,6 @@ int nrfx_grtc_syscounter_cc_absolute_set(nrfx_grtc_channel_t * p_chan_data,
+     nrfy_grtc_sys_counter_compare_event_clear(NRF_GRTC, p_chan_data->channel);
+     nrfy_grtc_sys_counter_cc_set(NRF_GRTC, p_chan_data->channel, val);
++    nrfy_grtc_sys_counter_compare_event_enable(NRF_GRTC, p_chan_data->channel);
+     NRFX_CRITICAL_SECTION_EXIT();
+ 
+     if (enable_irq)
+@@ -821,6 +822,7 @@ int nrfx_grtc_syscounter_cc_relative_set(nrfx_grtc_channel_t *             p_cha
+                                          val,
+                                          (nrf_grtc_cc_add_reference_t)reference);
+     }
++    nrfy_grtc_sys_counter_compare_event_enable(NRF_GRTC, p_chan_data->channel);
+     NRFX_CRITICAL_SECTION_EXIT();
+ 
+     if (enable_irq)

@@ -93,7 +93,7 @@ def load_lock(project: Path) -> dict[str, Any]:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         raise ReferenceContractError(f"cannot read source lock: {error}") from error
-    if value.get("schema") != "nrf-cmake-sdk-sources/v1":
+    if value.get("schema") != "nrfkit-sources/v1":
         raise ReferenceContractError("unsupported source lock schema")
     return value
 
@@ -162,7 +162,7 @@ def prepare(project: Path, oracle_id: str, root: Path, toolchain: Path) -> Path:
         file_receipts[relative] = actual
     lock_path = project / "docs/provenance/sources.lock"
     receipt = {
-        "schema": "nrf-cmake-sdk-source-receipt/v1",
+        "schema": "nrfkit-source-receipt/v1",
         "oracle": oracle_id,
         "root": str(root),
         "toolchain": str(toolchain),
@@ -185,7 +185,7 @@ def load_receipt(project: Path, oracle_id: str) -> tuple[Path, Path, dict[str, A
         raise ReferenceContractError(
             f"source receipt is missing or invalid; run reference prepare: {error}"
         ) from error
-    if receipt.get("schema") != "nrf-cmake-sdk-source-receipt/v1" or receipt.get("oracle") != oracle_id:
+    if receipt.get("schema") != "nrfkit-source-receipt/v1" or receipt.get("oracle") != oracle_id:
         raise ReferenceContractError("source receipt has an invalid identity")
     lock_hash = sha256(project / "docs/provenance/sources.lock")
     if receipt.get("source_lock_sha256") != lock_hash:
@@ -237,7 +237,7 @@ def _build_manifest(
             "allowlist": image_allowlist,
         })
     manifest = {
-        "schema": "nrf-cmake-sdk-image/v1", "oracle": oracle_id,
+        "schema": "nrfkit-image/v1", "oracle": oracle_id,
         "source_receipt_sha256": source_receipt_sha256,
         "soc": contract["soc"], "core": contract["core"], "board": contract["board"],
         "board_version": contract["board_version"], "device_family": contract["device_family"],
@@ -259,7 +259,7 @@ def build(project: Path, oracle_id: str, timeout: float, west: str = "west") -> 
     run_dir = project / ".work/runs" / f"{time.strftime('%Y%m%d-%H%M%S')}-reference-build-{oracle_id}-{os.getpid()}"
     run_dir.mkdir(parents=True, exist_ok=False)
     report: dict[str, Any] = {
-        "schema": "nrf-cmake-sdk-run/v1", "operation": "reference-build",
+        "schema": "nrfkit-run/v1", "operation": "reference-build",
         "oracle": oracle_id, "status": "running",
     }
     atomic_json(run_dir / "run.json", report)

@@ -1,5 +1,5 @@
 {
-  "schema": "nrf-cmake-sdk-toolchains/v1",
+  "schema": "nrfkit-toolchains/v1",
   "tools": {
     "arm-gnu-gdb": {
       "release": "Arm GNU Toolchain 15.3.Rel1",

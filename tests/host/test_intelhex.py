@@ -5,7 +5,7 @@ import struct
 import unittest
 from pathlib import Path
 
-from nrf_cmake_tools.image import ImageContractError, parse_elf, parse_ihex, require_allowed
+from nrfkit_tools.image import ImageContractError, parse_elf, parse_ihex, require_allowed
 
 
 def record(address: int, kind: int, payload: bytes) -> str:

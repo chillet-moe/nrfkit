@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import select
 import shutil
 import signal
@@ -61,7 +62,7 @@ def load_manifest(path: Path, *, artifacts: bool = True) -> dict[str, Any]:
         "board_version", "device_family", "expected_token", "vcom", "debug_allowlist",
         "debug_elf", "images", "backend",
     }
-    if value.get("schema") != "nrf-cmake-sdk-image/v1" or set(value) != required:
+    if value.get("schema") != "nrfkit-image/v1" or set(value) != required:
         raise ToolError("image manifest schema or fields are invalid")
     if value["backend"] != safe_backend_contract():
         raise ToolError("image manifest backend contract is invalid")
@@ -98,7 +99,7 @@ def _new_run(operation: str) -> tuple[Path, dict[str, Any]]:
     run_dir = root / ".work/runs" / f"{time.strftime('%Y%m%d-%H%M%S')}-{operation}-{os.getpid()}"
     run_dir.mkdir(parents=True, exist_ok=False)
     report: dict[str, Any] = {
-        "schema": "nrf-cmake-sdk-run/v1", "operation": operation,
+        "schema": "nrfkit-run/v1", "operation": operation,
         "status": "running", "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     atomic_json(run_dir / "run.json", report)
@@ -181,7 +182,7 @@ def _doctor(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
         tools["official_toolchain"] = {
             "returncode": None, "error": "an official reference toolchain was not selected",
         }
-    payload = {"schema": "nrf-cmake-sdk-doctor/v1", "tools": tools}
+    payload = {"schema": "nrfkit-doctor/v1", "tools": tools}
     required = ("cmake", "ninja", "west", "nrfutil", "jlink_gdb_server", "gdb")
     healthy = all(tools[name].get("returncode") == 0 for name in required)
     toolchain_healthy = tools["official_toolchain"].get("returncode") == 0
@@ -267,7 +268,7 @@ def _enumerate(nrfutil: str, log: Path, timeout: float) -> list[dict[str, Any]]:
 @contextmanager
 def _probe_lock(serial: str, operation: str) -> Iterator[None]:
     digest = hashlib.sha256(serial.encode()).hexdigest()[:20]
-    path = Path(tempfile.gettempdir()) / f"nrf-cmake-sdk-{os.getuid()}-{digest}.lock"
+    path = Path(tempfile.gettempdir()) / f"nrfkit-{os.getuid()}-{digest}.lock"
     with path.open("a+", encoding="utf-8") as stream:
         try:
             fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -434,7 +435,7 @@ def command_reset(args: argparse.Namespace) -> int:
             result = run_logged(
                 reset_argv(
                     args.nrfutil, device["serialNumber"],
-                    manifest["device_family"], manifest["core"],
+                    manifest["device_family"], manifest["core"], args.reset_kind,
                 ),
                 run_dir / "reset.log", args.timeout,
             )
@@ -603,7 +604,7 @@ def command_run(args: argparse.Namespace) -> int:
             reset = run_logged(
                 reset_argv(
                     args.nrfutil, device["serialNumber"],
-                    manifest["device_family"], manifest["core"],
+                    manifest["device_family"], manifest["core"], args.reset_kind,
                 ),
                 run_dir / "reset.log", args.timeout,
             )
@@ -711,8 +712,8 @@ def command_gdb_smoke(args: argparse.Namespace) -> int:
                         "printf \"M2_RESET_HANDLER_REACHED\\n\"",
                         "break main", "continue", "printf \"P0_MAIN_REACHED\\n\"",
                         "stepi", "printf \"M2_SINGLE_STEP_COMPLETE\\n\"",
-                        "set *(unsigned int*)&nrf_cmake_sdk_gdb_scratch = 0xa55a5aa5",
-                        "printf \"M2_RAM=0x%x\\n\", *(unsigned int*)&nrf_cmake_sdk_gdb_scratch",
+                        "set *(unsigned int*)&nrfkit_gdb_scratch = 0xa55a5aa5",
+                        "printf \"M2_RAM=0x%x\\n\", *(unsigned int*)&nrfkit_gdb_scratch",
                     ))
                 else:
                     commands.extend((
@@ -721,20 +722,25 @@ def command_gdb_smoke(args: argparse.Namespace) -> int:
                     ))
                 if args.fault_contract:
                     commands.extend((
-                        "break nrf_cmake_sdk_fault_observed", "continue",
-                        "printf \"M2_FAULT_MAGIC=0x%x\\n\", *(unsigned int*)&nrf_cmake_sdk_last_fault",
-                        "printf \"M2_FAULT_PC=0x%x\\n\", *((unsigned int*)&nrf_cmake_sdk_last_fault + 8)",
+                        "break nrfkit_fault_observed", "continue",
+                        "printf \"M2_FAULT_MAGIC=0x%x\\n\", *(unsigned int*)&nrfkit_last_fault",
+                        "printf \"M2_FAULT_PC=0x%x\\n\", *((unsigned int*)&nrfkit_last_fault + 8)",
                     ))
                 if args.post_main_break:
                     commands.extend((
-                        f"break {args.post_main_break}", "continue",
+                        "delete breakpoints", f"break {args.post_main_break}", "continue",
                         "printf \"P0_POST_MAIN_BREAK_REACHED\\n\"",
                     ))
                     if args.sdk_runtime_contract:
                         commands.extend((
-                            "printf \"M2_MAIN_OBSERVED=0x%x\\n\", *(unsigned int*)&nrf_cmake_sdk_main_observed",
-                            "printf \"M2_RESET_REASON=0x%x\\n\", *(unsigned int*)&nrf_cmake_sdk_reset_reason",
+                            "printf \"M2_MAIN_OBSERVED=0x%x\\n\", *(unsigned int*)&nrfkit_main_observed",
+                            "printf \"M2_RESET_REASON=0x%x\\n\", *(unsigned int*)&nrfkit_reset_reason",
                         ))
+                for symbol in args.observe:
+                    commands.append(
+                        f'printf "OBSERVE {symbol}=0x%x\\n", '
+                        f'*(unsigned int*)&{symbol}'
+                    )
                 commands.extend(("detach", "quit"))
                 argv = [gdb, "--nx", "--batch"]
                 for command in commands:
@@ -933,7 +939,7 @@ def command_p0_gate(args: argparse.Namespace) -> int:
             )
             _stage(run_dir, report, "probe-msd-disable", verified=True)
 
-        public_cli = str(project_root() / "tools/nrf-cmake-sdk")
+        public_cli = str(project_root() / "tools/nrfkit")
         common_run = [
             public_cli, "run", "--probe-serial", device["serialNumber"],
             "--nrfutil", nrfutil, "--timeout", str(args.timeout),
@@ -1036,7 +1042,7 @@ def command_m2_gate(args: argparse.Namespace) -> int:
         "stages": [],
     })
     atomic_json(run_dir / "run.json", report)
-    public_cli = str(project_root() / "tools/nrf-cmake-sdk")
+    public_cli = str(project_root() / "tools/nrfkit")
     try:
         normal = load_manifest(args.normal_manifest)
         fault = load_manifest(args.fault_manifest)
@@ -1049,7 +1055,7 @@ def command_m2_gate(args: argparse.Namespace) -> int:
         source_lock_hash = sha256(project_root() / "docs/provenance/sources.lock")
         if normal["source_receipt_sha256"] != source_lock_hash:
             raise ToolError("M2 manifests are stale relative to the current source lock")
-        if not normal["expected_token"].startswith("NRF_CMAKE_SDK_BOOT "):
+        if not normal["expected_token"].startswith("NRFKIT_BOOT "):
             raise ToolError("M2 normal manifest does not contain a build-ID boot token")
         normal_audited = True
         nrfutil = executable(args.nrfutil, "nrfutil")
@@ -1083,7 +1089,7 @@ def command_m2_gate(args: argparse.Namespace) -> int:
             public_cli, "gdb-smoke", "--manifest", str(args.normal_manifest),
             *common, "--gdb", gdb, "--jlink", jlink,
             "--sdk-runtime-contract", "--verify-token", *run_options,
-            "--post-main-break", "nrf_cmake_sdk_post_main",
+            "--post-main-break", "nrfkit_post_main",
         ], run_dir / f"child-{child_number:02d}-gdb-runtime.log", args.gate_timeout)
         report["child_reports"].append(normal_gdb)
         _stage(run_dir, report, "gdb-runtime-contract", child_report=normal_gdb)
@@ -1148,6 +1154,10 @@ def add_device_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--probe-serial", default=os.environ.get("NRF_PROBE_SERIAL"))
     parser.add_argument("--nrfutil", default=shutil.which("nrfutil") or "nrfutil")
     parser.add_argument("--timeout", type=float, default=90)
+    parser.add_argument(
+        "--reset-kind", choices=("RESET_DEFAULT", "RESET_PIN"),
+        default="RESET_DEFAULT",
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1201,6 +1211,10 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--build-timeout", type=float, default=900)
     run.add_argument("--token-timeout", type=float, default=10)
     run.add_argument("--serial-ready-delay", type=float, default=0.5)
+    run.add_argument(
+        "--reset-kind", choices=("RESET_DEFAULT", "RESET_PIN"),
+        default="RESET_DEFAULT",
+    )
     run.add_argument("--cmake", default=shutil.which("cmake") or "cmake")
     run.add_argument("--ninja", default=shutil.which("ninja") or "ninja")
     run.add_argument("--west", default=shutil.which("west") or "west")
@@ -1216,6 +1230,7 @@ def main(argv: list[str] | None = None) -> int:
     gdb.add_argument("--jlink", default=shutil.which("JLinkGDBServerCLExe") or "JLinkGDBServerCLExe")
     gdb.add_argument("--verify-token", action="store_true")
     gdb.add_argument("--post-main-break")
+    gdb.add_argument("--observe", action="append", default=[])
     contract = gdb.add_mutually_exclusive_group()
     contract.add_argument("--sdk-runtime-contract", action="store_true")
     contract.add_argument("--fault-contract", action="store_true")
@@ -1281,6 +1296,9 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--serial-ready-delay must not be negative")
     if getattr(args, "sdk_runtime_contract", False) and not args.post_main_break:
         parser.error("--sdk-runtime-contract requires --post-main-break")
+    for symbol in getattr(args, "observe", []):
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", symbol) is None:
+            parser.error("--observe must name a C identifier")
     try:
         return args.handler(args)
     except (

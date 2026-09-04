@@ -18,7 +18,7 @@ The local inventory is useful context, not authority. Every path, source identit
 | Nordic nRF Connect SDK workspace | Official build/run oracle and implementation evidence | No | Release plus exact module commits |
 | nRF Connect SDK Bare Metal workspace | Bare-metal, SoftDevice, startup, linker, and integration evidence | No | Release plus exact module commits |
 | Nordic product documentation | Memory, reset, security, power, peripheral, and errata facts | No | Document title, revision, URL or file hash |
-| Vendored public source snapshots | Inputs shipped by this SDK | Yes | Upstream path, commit, file hashes, license, patches |
+| Version-locked upstream submodules and selected snapshots | Inputs shipped by this SDK | Yes | Upstream path, commit, selected-file hashes, license, patches |
 | Wireless binary packages | Optional runtime components | Yes, when selected | Exact version, binary/header/spec hashes, license, ABI checks |
 | Local read-only implementation references | General tooling and architecture patterns | No | Local-only identity; never publish its name or path |
 | Development kits and probes | Hardware validation | No | Dynamically detected family, board type, capabilities, and local-only identity |
@@ -36,6 +36,8 @@ Tools must resolve inputs in this order:
 There must be no baked-in home-directory path. Multiple matching SDK workspaces, probes, serial ports, or executables are an error unless the caller makes the choice explicit. A discovered directory name is not a version check; Git identities and required file hashes must match the tracked source lock.
 
 Normal consumer configure and build paths must not consult the local inventory, discover an NCS installation, access the network, or invoke west. Official workspaces are available only to explicit maintainer/reference commands.
+
+Vendor libraries are implementation evidence, not hardware specifications. For register semantics, timing, reset, power, memory, security, and errata, the matching product documentation and reproducible silicon behavior take precedence over nrfx or NCS. A disagreement requires a minimal reproduction and a recorded evidence trail. Adaptations belong in project-owned wrappers or reviewable patches applied to a generated cache; never edit an upstream submodule in place.
 
 ## Official reference inputs
 

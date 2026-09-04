@@ -1,5 +1,5 @@
 {
-  "schema": "nrf-cmake-sdk-vendor-imports/v1",
+  "schema": "nrfkit-vendor-imports/v1",
   "import_date": "2026-09-04",
   "files": [
     {
@@ -596,5 +596,3 @@
     }
   ]
 }
-
-

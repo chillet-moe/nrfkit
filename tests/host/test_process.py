@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from nrf_cmake_tools.process import atomic_json, run_logged
+from nrfkit_tools.process import atomic_json, run_logged
 
 
 class ProcessTests(unittest.TestCase):

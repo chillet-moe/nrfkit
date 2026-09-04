@@ -6,8 +6,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from nrf_cmake_tools.process import ProcessResult
-from nrf_cmake_tools.reference import (
+from nrfkit_tools.process import ProcessResult
+from nrfkit_tools.reference import (
     ReferenceContractError, build, official_toolchain_compiler,
 )
 
@@ -45,18 +45,18 @@ class ReferenceBuildTests(unittest.TestCase):
             contract = {"sample": "sample", "board": "board"}
             with (
                 mock.patch(
-                    "nrf_cmake_tools.reference.load_receipt",
+                    "nrfkit_tools.reference.load_receipt",
                     return_value=(project / "source", project / "toolchain", {
                         "toolchain_variant": "zephyr",
                     }),
                 ),
-                mock.patch("nrf_cmake_tools.reference.oracle", return_value=contract),
+                mock.patch("nrfkit_tools.reference.oracle", return_value=contract),
                 mock.patch(
-                    "nrf_cmake_tools.reference.run_logged",
+                    "nrfkit_tools.reference.run_logged",
                     return_value=ProcessResult(0, False, 0.1, "built"),
                 ),
                 mock.patch(
-                    "nrf_cmake_tools.reference._build_manifest",
+                    "nrfkit_tools.reference._build_manifest",
                     side_effect=ReferenceContractError("invalid runner metadata"),
                 ),
             ):
