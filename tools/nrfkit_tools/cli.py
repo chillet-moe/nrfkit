@@ -935,11 +935,13 @@ def command_m5_radio_dual(args: argparse.Namespace) -> int:
             while not ready_file.is_file():
                 if receiver.poll() is not None:
                     raise ToolError(
-                        f"M5 receiver exited before ready in round {round_number}; "
+                        f"{milestone} receiver exited before ready in round {round_number}; "
                         f"see {receiver_log.name}"
                     )
                 if time.monotonic() >= ready_deadline:
-                    raise ToolError(f"M5 receiver ready timeout in round {round_number}")
+                    raise ToolError(
+                        f"{milestone} receiver ready timeout in round {round_number}"
+                    )
                 time.sleep(0.05)
             _stage(run_dir, report, "receiver-ready", round=round_number)
             tx_report = _run_p0_child(
@@ -954,12 +956,15 @@ def command_m5_radio_dual(args: argparse.Namespace) -> int:
             receiver_stream = None
             if receiver.returncode:
                 raise ToolError(
-                    f"M5 receiver child failed in round {round_number}; see {receiver_log.name}"
+                    f"{milestone} receiver child failed in round {round_number}; "
+                    f"see {receiver_log.name}"
                 )
             lines = [line for line in receiver_log.read_text(encoding="utf-8").splitlines()
                      if line.strip()]
             if len(lines) != 1 or not Path(lines[0]).is_file():
-                raise ToolError("M5 receiver child did not return one run report")
+                raise ToolError(
+                    f"{milestone} receiver child did not return one run report"
+                )
             rx_report = str(Path(lines[0]).resolve())
             report["child_reports"].extend((rx_report, tx_report))
             _stage(run_dir, report, "airborne-link", round=round_number,

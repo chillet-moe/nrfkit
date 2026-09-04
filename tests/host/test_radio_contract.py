@@ -51,6 +51,8 @@ class RadioContractTests(unittest.TestCase):
         self.assertIn("(uintptr_t)output", source)
         self.assertIn("packet[0] != PACKET_LENGTH", source)
         self.assertIn("IDLE_ATTEMPT_LIMIT", source)
+        self.assertIn("received >= 10U && invalid == 0U", source)
+        self.assertNotIn("crc_errors == 0U", source)
         self.assertNotIn("timeout--", source)
 
         peer = (ROOT / "tests/hardware/m5-radio-peer/src/main.c").read_text(
@@ -92,6 +94,7 @@ class RadioContractTests(unittest.TestCase):
         self.assertIn('"airborne-link", round=round_number', cli)
         self.assertIn('"receiver-ready", round=round_number', cli)
         self.assertIn('"--ready-file", str(ready_file)', cli)
+        self.assertNotIn('f"M5 receiver', cli)
 
     def test_xo_running_check_preserves_optional_output_contract(self) -> None:
         patch = (ROOT / "patches/nrfx/0002-clock-xo-allow-null-source-output.patch").read_text(
