@@ -3,6 +3,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#if defined(NRFKIT_M7_TIMESLOT)
+#include <hal/nrf_radio.h>
+#include <nrfkit/radio.h>
+#endif
 #include <nrfkit/board.h>
 #include <nrfkit/nrfx.h>
 #include <nrfkit/runtime.h>
@@ -54,6 +58,8 @@ static volatile uint8_t timeslot_extension_enabled;
 static volatile uint8_t timeslot_extension_requested;
 static volatile uint8_t timeslot_burst_remaining;
 static volatile uint8_t timeslot_retry_budget;
+static volatile uint32_t timeslot_private_packets;
+static uint8_t timeslot_packet[17] __attribute__((aligned(4)));
 
 static struct nrfkit_timeslot_action timeslot_handler(
     enum nrfkit_timeslot_signal signal, void *context)
@@ -64,6 +70,42 @@ static struct nrfkit_timeslot_action timeslot_handler(
     };
     if (signal == NRFKIT_TIMESLOT_SIGNAL_START) {
         ++timeslot_grants;
+        uint32_t const sequence = timeslot_private_packets;
+        struct nrfkit_radio_packet_config const config = {
+            .phy = NRFKIT_RADIO_PHY_4MBIT,
+            .mode_4mbit = NRFKIT_RADIO_4MBIT_BT_0_6,
+            .channel = 16U,
+            .maximum_payload = 16U,
+            .whitening_iv = 0x53U,
+            .whitening_polynomial = 0x89U,
+            .access_address = UINT32_C(0x71764567),
+            .crc_initial = UINT32_C(0x555555),
+            .crc_polynomial = UINT32_C(0x00065B),
+        };
+        timeslot_packet[0] = 16U;
+        timeslot_packet[1] = (uint8_t)sequence;
+        timeslot_packet[2] = (uint8_t)(sequence >> 8U);
+        for (size_t index = 3U; index < sizeof(timeslot_packet); ++index) {
+            timeslot_packet[index] = (uint8_t)(sequence + index);
+        }
+        if (nrfkit_radio_configure_packet(
+                NRFKIT_RADIO_OWNER_TIMESLOT, &config) != NRFKIT_RADIO_OK) {
+            action.kind = NRFKIT_TIMESLOT_ACTION_END;
+            return action;
+        }
+        nrf_radio_packetptr_set(NRF_RADIO, timeslot_packet);
+        nrf_radio_shorts_set(NRF_RADIO,
+            NRF_RADIO_SHORT_READY_START_MASK |
+            NRF_RADIO_SHORT_PHYEND_DISABLE_MASK);
+        nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_END);
+        nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_TXEN);
+        while (!nrf_radio_event_check(NRF_RADIO, NRF_RADIO_EVENT_END) &&
+               !nrfkit_timeslot_deadline_pending()) {
+            __NOP();
+        }
+        if (nrf_radio_event_check(NRF_RADIO, NRF_RADIO_EVENT_END)) {
+            ++timeslot_private_packets;
+        }
     } else if (signal == NRFKIT_TIMESLOT_SIGNAL_TIMER) {
         ++timeslot_deadlines;
         if (timeslot_extension_enabled != 0U &&
@@ -335,7 +377,7 @@ int main(void)
             } else if (command[0] == 0x01U && command[1] == 0xFCU &&
                        command[2] == 0U) {
                 output[1] = 0x0EU;
-                output[2] = 32U;
+                output[2] = 36U;
                 output[3] = 1U;
                 output[4] = command[0];
                 output[5] = command[1];
@@ -344,6 +386,7 @@ int main(void)
                     timeslot_grants, timeslot_deadlines, timeslot_blocked,
                     timeslot_cancelled, timeslot_closed,
                     timeslot_extend_succeeded, timeslot_extend_failed,
+                    timeslot_private_packets,
                 };
                 size_t position = 7U;
                 for (size_t counter = 0U;
@@ -353,7 +396,7 @@ int main(void)
                             (uint8_t)(counters[counter] >> (byte * 8U));
                     }
                 }
-                event_size = 34U;
+                event_size = 38U;
             } else if (command[0] == 0x02U && command[1] == 0xFCU &&
                        command[2] == 0U) {
                 output[1] = 0x0EU;
@@ -364,8 +407,8 @@ int main(void)
                 output[6] = timeslot_idle != 0U ? 0U : 0x0CU;
                 event_size = 6U;
                 if (timeslot_idle != 0U) {
-                    timeslot_burst_remaining = 3U;
-                    timeslot_retry_budget = 8U;
+                    timeslot_burst_remaining = 8U;
+                    timeslot_retry_budget = 16U;
                     timeslot_request();
                 }
 #endif

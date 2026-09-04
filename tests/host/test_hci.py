@@ -106,8 +106,9 @@ class HciTests(unittest.TestCase):
                         0x01,
                     )),
                     0xFC01: b"".join(value.to_bytes(4, "little") for value in (
-                        4 + 3 * sum(1 for opcode, unused in self.commands if opcode == 0xFC02),
+                        4 + 8 * sum(1 for opcode, unused in self.commands if opcode == 0xFC02),
                         4, 0, 0, 1, 1, 0,
+                        4 + 8 * sum(1 for opcode, unused in self.commands if opcode == 0xFC02),
                     )),
                     0xFC02: b"",
                 }.get(opcode, b"")

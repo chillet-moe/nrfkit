@@ -1248,23 +1248,28 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
 
             def read_timeslot_diagnostics() -> dict[str, int]:
                 payload = session.command(0xFC01, timeout=args.hci_timeout)
-                if len(payload) != 28:
+                if len(payload) != 32:
                     raise ToolError("Controller returned malformed Timeslot diagnostics")
                 names = (
                     "grants", "deadlines", "blocked", "cancelled", "closed",
                     "extend_succeeded", "extend_failed",
+                    "private_packets",
                 )
                 return {
                     name: int.from_bytes(payload[index * 4:index * 4 + 4], "little")
                     for index, name in enumerate(names)
                 }
 
-            def run_timeslot_burst(previous_grants: int) -> dict[str, int]:
+            def run_timeslot_burst(previous: dict[str, int]) -> dict[str, int]:
                 session.command(0xFC02, timeout=args.hci_timeout)
                 deadline = time.monotonic() + args.hci_timeout
                 while True:
                     current = read_timeslot_diagnostics()
-                    if current["grants"] >= previous_grants + 3:
+                    if (
+                        current["grants"] >= previous["grants"] + 8
+                        and current["private_packets"] >=
+                            previous["private_packets"] + 8
+                    ):
                         return current
                     if time.monotonic() >= deadline:
                         raise ToolError(
@@ -1369,7 +1374,7 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                     )
                     if timeslot_diagnostics is not None:
                         timeslot_diagnostics = run_timeslot_burst(
-                            timeslot_diagnostics["grants"]
+                            timeslot_diagnostics
                         )
                         _stage(
                             run_dir, report, "timeslot-advertising",
@@ -1389,7 +1394,7 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                             )
                         if timeslot_diagnostics is not None:
                             timeslot_diagnostics = run_timeslot_burst(
-                                timeslot_diagnostics["grants"]
+                                timeslot_diagnostics
                             )
                             _stage(
                                 run_dir, report, "timeslot-active-connection",
