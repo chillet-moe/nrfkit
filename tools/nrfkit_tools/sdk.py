@@ -22,6 +22,7 @@ STANDALONE_RRAM_ALLOWLIST = [[0x00000000, 0x001FCF00]]
 S115_APP_RRAM_ALLOWLIST = [[0x00000000, 0x001E1800]]
 S115_RRAM_ALLOWLIST = [[0x001E3800, 0x001FCC00]]
 S115_HEX_SHA256 = "c2b5bcf2b436e11daa9a85e9dca12060052244c2eec50032bf54d87a4a77c3a2"
+FREESTANDING_STACK_BYTES = 0x4000
 
 
 def _merged(ranges: tuple[tuple[int, int], ...]) -> tuple[tuple[int, int], ...]:
@@ -72,9 +73,13 @@ def _elf_load_budget(
             if physical + file_size > rram_length:
                 raise SdkContractError("SDC ELF LOAD segment exceeds RRAM")
             rram_file += file_size
+    total_reserved = ram_allocated + FREESTANDING_STACK_BYTES
     return {
         "ram_allocated_bytes": ram_allocated,
         "ram_initialized_bytes": ram_initialized,
+        "stack_reserved_bytes": FREESTANDING_STACK_BYTES,
+        "ram_total_reserved_bytes": total_reserved,
+        "ram_headroom_bytes": ram_length - total_reserved,
         "ram_capacity_bytes": ram_length,
         "rram_file_bytes": rram_file,
     }

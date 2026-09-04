@@ -165,9 +165,10 @@ class SdcCmakeTests(unittest.TestCase):
             self.assertIn("radio0", evidence["resources"])
             self.assertGreater(evidence["elf_budget"]["rram_file_bytes"], 0)
             self.assertLessEqual(
-                evidence["elf_budget"]["ram_allocated_bytes"],
+                evidence["elf_budget"]["ram_total_reserved_bytes"],
                 evidence["elf_budget"]["ram_capacity_bytes"],
             )
+            self.assertEqual(evidence["elf_budget"]["stack_reserved_bytes"], 0x4000)
             link_map = (build / "m6_sdc_validation.map").read_text(encoding="utf-8")
             for symbol in (
                 "nrfkit_sdc_hci_command", "RADIO_0_IRQHandler",
