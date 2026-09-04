@@ -585,6 +585,10 @@ function(nrfkit_configure_target target)
   )
   if(CMAKE_C_COMPILER_ID MATCHES "Clang")
     target_link_options("${target}" PRIVATE -fuse-ld=lld)
+  elseif(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    # -nostdlib intentionally omits the C library and startup files, but GCC may
+    # still lower ordinary C operations such as 64-bit division to libgcc.
+    target_link_libraries("${target}" PRIVATE gcc)
   endif()
   set_target_properties("${target}" PROPERTIES
     SUFFIX ".elf"

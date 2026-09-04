@@ -34,7 +34,7 @@ static void require_stage(int condition, uint32_t stage)
 
 #define REQUIRE(condition, stage) require_stage((condition), (stage))
 
-static void wake_handler(int event, uint64_t compare_value, void *context)
+static void wake_handler(int32_t event, uint64_t compare_value, void *context)
 {
     (void)event;
     (void)compare_value;
