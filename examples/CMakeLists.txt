@@ -81,6 +81,14 @@ nrfkit_claim_resources(m5_radio_validation OWNER radio_validation RESOURCES
 nrfkit_enable_radio(m5_radio_validation)
 nrfkit_finalize_target(m5_radio_validation)
 
+add_executable(m6_sdc_validation m6-sdc-validation/main.c)
+nrfkit_configure_target(m6_sdc_validation
+  SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
+)
+nrfkit_enable_sdc(m6_sdc_validation VARIANT multirole)
+nrfkit_enable_nrfx(m6_sdc_validation DRIVERS uarte)
+nrfkit_finalize_target(m6_sdc_validation)
+
 foreach(role IN ITEMS tx rx)
   set(target "m5_radio_${role}")
   add_executable("${target}" m5-radio-link/main.c)
@@ -196,6 +204,14 @@ if(NRFKIT_ENABLE_HARDWARE_TESTS)
       --build-dir "$<TARGET_FILE_DIR:m5_radio_validation>"
       --target m5_radio_validation
       --expected-token NRFKIT_M5_RADIO
+    VERBATIM
+  )
+  add_custom_command(TARGET m6_sdc_validation POST_BUILD
+    COMMAND "${NRFKIT_TOOL}" sdk manifest
+      --build-dir "$<TARGET_FILE_DIR:m6_sdc_validation>"
+      --target m6_sdc_validation
+      --expected-token NRFKIT_M6_SDC
+      --hci-h4-hwfc-1m
     VERBATIM
   )
   foreach(role IN ITEMS tx rx)

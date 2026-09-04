@@ -65,6 +65,19 @@ void nrfkit_sdc_process(void);
 /** Return true when controller output may be available. */
 bool nrfkit_sdc_hci_pending(void);
 
+/**
+ * Dispatch one raw HCI command packet and encode its Command Complete event.
+ *
+ * @p command starts with the little-endian opcode and parameter length (the H4
+ * packet-type byte is not included). The event uses the standard HCI event
+ * packet format without an H4 packet-type byte.
+ */
+int32_t nrfkit_sdc_hci_command(const uint8_t *command,
+                               size_t command_size,
+                               uint8_t *event,
+                               size_t event_capacity,
+                               size_t *event_size);
+
 /** Retrieve one controller event or ACL packet; returns -NRF_EAGAIN when empty. */
 int32_t nrfkit_sdc_hci_get(uint8_t *packet, uint8_t *message_type);
 

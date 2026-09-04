@@ -46,6 +46,7 @@ def create_device_manifest(
     build_dir: Path,
     target: str,
     expected_token: str,
+    hci_h4_hwfc_1m: bool = False,
 ) -> Path:
     if not re.fullmatch(r"[A-Za-z0-9_.-]+", target):
         raise SdkContractError("SDK target is not a safe artifact basename")
@@ -165,6 +166,37 @@ def create_device_manifest(
         },
         "images": images,
     }
+    if hci_h4_hwfc_1m:
+        sdc_target_path = build_dir / "nrfkit" / target / "sdc-target.json"
+        map_path = build_dir / f"{target}.map"
+        try:
+            sdc_target = json.loads(sdc_target_path.read_text(encoding="utf-8"))
+            link_map = map_path.read_text(encoding="utf-8")
+        except (OSError, json.JSONDecodeError) as error:
+            raise SdkContractError(f"invalid SDC build evidence: {error}") from error
+        required_archives = {
+            "libmpsl.a", "libmpsl_fem_common.a",
+            "libsoftdevice_controller_multirole.a",
+        }
+        archive_names = {Path(value).name for value in sdc_target.get("archives", [])}
+        if (
+            sdc_target.get("schema") != "nrfkit-sdc-target/v1"
+            or sdc_target.get("target") != target
+            or sdc_target.get("variant") != "multirole"
+            or sdc_target.get("security_domain") != "secure"
+            or sdc_target.get("float_abi") != "hard-float"
+            or archive_names != required_archives
+            or not all(name in link_map for name in required_archives)
+        ):
+            raise SdkContractError("SDC build evidence does not match the locked link contract")
+        manifest["hci_transport"] = {
+            "type": "H4", "baud": 1000000, "hardware_flow_control": True,
+        }
+        manifest["build_evidence"] = {
+            "status": "ok", "variant": "multirole",
+            "security_domain": "secure", "float_abi": "hard-float",
+            "archives": sorted(required_archives),
+        }
     output = build_dir / f"{target}.device-manifest.json"
     atomic_json(output, manifest)
     return output

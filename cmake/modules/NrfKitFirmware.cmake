@@ -122,6 +122,7 @@ function(nrfkit_enable_sdc target)
   nrfkit_enable_nrfx("${target}" DRIVERS cracen)
   target_sources("${target}" PRIVATE
     "${NrfKit_ROOT}/softdevice/sdc/nrf54l/platform.c"
+    "${NrfKit_ROOT}/softdevice/sdc/nrf54l/hci.c"
   )
   string(TOUPPER "${ARG_VARIANT}" variant_upper)
   target_compile_definitions("${target}" PRIVATE

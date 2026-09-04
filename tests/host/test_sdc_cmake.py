@@ -133,6 +133,42 @@ class SdcCmakeTests(unittest.TestCase):
                 self.assertIn("libmpsl_fem_common.a", link_map)
                 self.assertIn("libmpsl.a", link_map)
 
+    def test_validation_firmware_emits_guarded_hci_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            build = Path(directory)
+            configured = subprocess.run([
+                self.cmake, "-S", str(ROOT / "examples"), "-B", str(build),
+                "-G", "Ninja", f"-DNrfKit_DIR={ROOT / 'cmake'}",
+                f"-DCMAKE_TOOLCHAIN_FILE={ROOT / 'cmake/toolchains/arm-clang.cmake'}",
+                f"-DNRF_LLVM_ROOT={self.llvm_root}",
+            ], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+            self.assertEqual(configured.returncode, 0, configured.stdout)
+            built = subprocess.run([
+                self.cmake, "--build", str(build), "--target", "m6_sdc_validation",
+            ], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+            self.assertEqual(built.returncode, 0, built.stdout)
+            generated = subprocess.run([
+                str(ROOT / "tools/nrfkit"), "sdk", "manifest",
+                "--build-dir", str(build), "--target", "m6_sdc_validation",
+                "--expected-token", "NRFKIT_M6_SDC", "--hci-h4-hwfc-1m",
+            ], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+            self.assertEqual(generated.returncode, 0, generated.stdout)
+            manifest = json.loads((
+                build / "m6_sdc_validation.device-manifest.json"
+            ).read_text(encoding="utf-8"))
+            self.assertEqual(manifest["hci_transport"], {
+                "type": "H4", "baud": 1000000, "hardware_flow_control": True,
+            })
+            self.assertEqual(manifest["build_evidence"]["status"], "ok")
+            link_map = (build / "m6_sdc_validation.map").read_text(encoding="utf-8")
+            for symbol in (
+                "nrfkit_sdc_hci_command", "RADIO_0_IRQHandler",
+                "TIMER10_IRQHandler", "GRTC_3_IRQHandler", "SWI00_IRQHandler",
+                "mpsl_low_latency_acquire_callback",
+                "mpsl_low_latency_release_callback",
+            ):
+                self.assertIn(symbol, link_map)
+
 
 if __name__ == "__main__":
     unittest.main()
