@@ -106,9 +106,10 @@ class HciTests(unittest.TestCase):
                         0x01,
                     )),
                     0xFC01: b"".join(value.to_bytes(4, "little") for value in (
-                        4 + sum(1 for opcode, unused in self.commands if opcode == 0xFC01),
+                        4 + 3 * sum(1 for opcode, unused in self.commands if opcode == 0xFC02),
                         4, 0, 0, 1, 1, 0,
                     )),
+                    0xFC02: b"",
                 }.get(opcode, b"")
 
             def command_status(
@@ -125,7 +126,7 @@ class HciTests(unittest.TestCase):
             def next_event(self, deadline: float):
                 last_control_opcode = next(
                     (opcode for opcode, unused in reversed(self.commands)
-                     if opcode not in {0xFC00, 0xFC01}),
+                     if opcode not in {0xFC00, 0xFC01, 0xFC02}),
                     None,
                 )
                 if last_control_opcode == 0x200A:
@@ -235,6 +236,7 @@ class HciTests(unittest.TestCase):
             self.assertIn(0x0C01, opcodes)
             self.assertIn(0x2001, opcodes)
             self.assertGreaterEqual(opcodes.count(0xFC01), 3)
+            self.assertEqual(opcodes.count(0xFC02), 2)
             self.assertEqual(report["status"], "ok")
             self.assertEqual(opcodes[:4], [0x0C03, 0x1001, 0x1003, 0x2003])
 

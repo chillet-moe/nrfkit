@@ -52,7 +52,8 @@ static volatile uint32_t timeslot_extend_failed;
 static volatile uint8_t timeslot_idle;
 static volatile uint8_t timeslot_extension_enabled;
 static volatile uint8_t timeslot_extension_requested;
-static volatile uint8_t timeslot_periodic_enabled;
+static volatile uint8_t timeslot_burst_remaining;
+static volatile uint8_t timeslot_retry_budget;
 
 static struct nrfkit_timeslot_action timeslot_handler(
     enum nrfkit_timeslot_signal signal, void *context)
@@ -70,11 +71,13 @@ static struct nrfkit_timeslot_action timeslot_handler(
             timeslot_extension_requested = 1U;
             action.kind = NRFKIT_TIMESLOT_ACTION_EXTEND;
             action.length_us = 200U;
-        } else if (timeslot_periodic_enabled != 0U) {
+        } else if (timeslot_burst_remaining > 1U) {
+            --timeslot_burst_remaining;
             action.kind = NRFKIT_TIMESLOT_ACTION_REQUEST_NORMAL;
             action.length_us = 1000U;
             action.distance_us = 10000U;
         } else {
+            timeslot_burst_remaining = 0U;
             action.kind = NRFKIT_TIMESLOT_ACTION_END;
         }
     } else if (signal == NRFKIT_TIMESLOT_SIGNAL_EXTEND_SUCCEEDED) {
@@ -229,7 +232,7 @@ int main(void)
         nrfkit_assert_fail();
     }
     timeslot_extension_enabled = 1U;
-    timeslot_periodic_enabled = 1U;
+    timeslot_burst_remaining = 1U;
     timeslot_request();
 #else
     if (nrfkit_sdc_disable() != 0 ||
@@ -246,8 +249,13 @@ int main(void)
     for (;;) {
         nrfkit_sdc_process();
 #if defined(NRFKIT_M7_TIMESLOT)
-        if (timeslot_idle != 0U) {
-            timeslot_request();
+        if (timeslot_idle != 0U && timeslot_burst_remaining != 0U) {
+            if (timeslot_retry_budget == 0U) {
+                timeslot_burst_remaining = 0U;
+            } else {
+                --timeslot_retry_budget;
+                timeslot_request();
+            }
         }
 #endif
         if (uart_fault != 0U) {
@@ -346,6 +354,20 @@ int main(void)
                     }
                 }
                 event_size = 34U;
+            } else if (command[0] == 0x02U && command[1] == 0xFCU &&
+                       command[2] == 0U) {
+                output[1] = 0x0EU;
+                output[2] = 4U;
+                output[3] = 1U;
+                output[4] = command[0];
+                output[5] = command[1];
+                output[6] = timeslot_idle != 0U ? 0U : 0x0CU;
+                event_size = 6U;
+                if (timeslot_idle != 0U) {
+                    timeslot_burst_remaining = 3U;
+                    timeslot_retry_budget = 8U;
+                    timeslot_request();
+                }
 #endif
             } else if (nrfkit_sdc_hci_command(
                            command, packet_size - 1U, &output[1],

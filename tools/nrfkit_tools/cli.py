@@ -1188,14 +1188,17 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                     for index, name in enumerate(names)
                 }
 
-            def await_timeslot_progress(previous_grants: int) -> dict[str, int]:
+            def run_timeslot_burst(previous_grants: int) -> dict[str, int]:
+                session.command(0xFC02, timeout=args.hci_timeout)
                 deadline = time.monotonic() + args.hci_timeout
                 while True:
                     current = read_timeslot_diagnostics()
-                    if current["grants"] > previous_grants:
+                    if current["grants"] >= previous_grants + 3:
                         return current
                     if time.monotonic() >= deadline:
-                        raise ToolError("Timeslot grants did not progress")
+                        raise ToolError(
+                            f"Timeslot grants did not progress: {current}"
+                        )
                     time.sleep(0.01)
 
             session.command(0x0C03, timeout=args.hci_timeout)
@@ -1294,7 +1297,7 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                         cleanup=observation["cleanup"],
                     )
                     if timeslot_diagnostics is not None:
-                        timeslot_diagnostics = await_timeslot_progress(
+                        timeslot_diagnostics = run_timeslot_burst(
                             timeslot_diagnostics["grants"]
                         )
                         _stage(
@@ -1314,7 +1317,7 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                                 session.next_event(deadline)
                             )
                         if timeslot_diagnostics is not None:
-                            timeslot_diagnostics = await_timeslot_progress(
+                            timeslot_diagnostics = run_timeslot_burst(
                                 timeslot_diagnostics["grants"]
                             )
                             _stage(
