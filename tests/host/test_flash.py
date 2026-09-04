@@ -5,13 +5,14 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import termios
 import time
 import unittest
 from unittest import mock
 
 from nrf_cmake_tools.cli import (
-    ToolError, _probe_lock, _serial_reader, _serial_reader_stop, command_flash,
-    command_run, load_manifest,
+    ToolError, _probe_lock, _serial_open, _serial_reader, _serial_reader_stop,
+    command_flash, command_run, load_manifest,
 )
 from nrf_cmake_tools.device import program_argv, safe_backend_contract
 from nrf_cmake_tools.image import ImageContractError
@@ -76,6 +77,21 @@ class FlashCommandTests(unittest.TestCase):
         while b"startup token" not in reader[2] and time.monotonic() < deadline:
             time.sleep(0.01)
         self.assertEqual(_serial_reader_stop(reader), b"startup token")
+
+    def test_serial_open_claims_exclusive_access_and_closes_on_failure(self) -> None:
+        with (
+            mock.patch("nrf_cmake_tools.cli.os.open", return_value=17),
+            mock.patch("nrf_cmake_tools.cli.fcntl.ioctl") as ioctl,
+            mock.patch(
+                "nrf_cmake_tools.cli.tty.setraw", side_effect=OSError("raw failed")
+            ),
+            mock.patch("nrf_cmake_tools.cli.os.close") as close,
+        ):
+            with self.assertRaisesRegex(OSError, "raw failed"):
+                _serial_open(Path("/dev/test-vcom"))
+        if hasattr(termios, "TIOCEXCL"):
+            ioctl.assert_called_once_with(17, termios.TIOCEXCL, 0)
+        close.assert_called_once_with(17)
 
     def test_probe_lock_rejects_contention_and_can_be_reacquired(self) -> None:
         identity = f"host-test-{os.getpid()}"

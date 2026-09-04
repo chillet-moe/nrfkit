@@ -11,4 +11,6 @@ Run host-side source, manifest, ELF, and HEX checks first. Use `tools/nrf-cmake-
 
 Escalation is host-access permission, not broader hardware authorization. Preserve the image guard, immutable snapshot, dynamic probe selection, per-probe lock, timeout, cleanup, and ignored run report. Never use escalation to mass erase, recover, provision, change protection, update board-controller firmware, or write UICR, SICR, OTP, KMU, Root-of-Trust, BOOTCONF, or other configuration/one-time regions.
 
+Persistent probe or interface-controller settings are a separate authorization boundary. VCOM, HWFC, MSD, J-Link, and similar configuration changes require a new explicit user authorization even when the command already has Codex escalation. Before a temporary change, record the exact original state below `.work/`; constrain the allowed delta, read it back, restore it in cleanup on success or failure, and verify the full restored state. Do not treat a request to approve tool escalation as approval for the configuration change.
+
 If the public workflow fails, classify and repair the infrastructure before retrying. A direct vendor command is permitted only during the explicitly allowed P0 bring-up described by `PLAN.md`; any successful ground-truth command must be encoded, tested, and rerun through the public CLI in the same task.

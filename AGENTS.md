@@ -5,6 +5,7 @@
 - Keep the public repository downstream-neutral. Never add private downstream names, product names, local paths, probe serial numbers, or raw private logs to files, commits, issues, artifacts, or release notes.
 - Normal application RRAM and RAM operations are allowed only through the planned safety guard. Never write UICR, SICR, OTP, Root-of-Trust data, KMU slots, BOOTCONF, debug protection, or erase protection in unattended work.
 - Never run mass erase, recover, protection-setting, provisioning, or board-controller firmware update commands without a new explicit user authorization.
+- Never change persistent probe or interface-controller settings, including VCOM, HWFC, MSD, or J-Link configuration, without a new explicit user authorization. Back up the exact original state, constrain and read back every change, and restore and verify the original state after a temporary experiment.
 - Startup, vector, `SystemInit`, memory maps, linker layouts, errata, and binary wireless ABI must remain traceable to versioned official sources. Do not guess missing hardware facts.
 - The consumer build must not depend on west, sysbuild, Devicetree, Kconfig, Zephyr, an installed NCS tree, or network access during CMake configure.
 - Official west/Zephyr/sysbuild flows are permitted only behind the explicit opt-in reference-tool commands defined by `PLAN.md`. Normal configure, build, and test commands must not prepare or mutate an official SDK tree.

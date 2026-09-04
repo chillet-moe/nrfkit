@@ -377,25 +377,31 @@ def _serial_port(device: dict[str, Any], vcom: int) -> Path:
 
 def _serial_open(path: Path) -> int:
     descriptor = os.open(path, os.O_RDWR | os.O_NONBLOCK | os.O_NOCTTY)
-    tty.setraw(descriptor)
-    attributes = termios.tcgetattr(descriptor)
-    attributes[2] |= termios.CLOCAL | termios.CREAD
-    if hasattr(termios, "CRTSCTS"):
-        attributes[2] &= ~termios.CRTSCTS
-    attributes[4] = termios.B115200
-    attributes[5] = termios.B115200
-    attributes[6][termios.VMIN] = 0
-    attributes[6][termios.VTIME] = 0
-    termios.tcsetattr(descriptor, termios.TCSANOW, attributes)
-    if hasattr(termios, "TIOCMBIS") and hasattr(termios, "TIOCMBIC"):
-        control_lines = struct.pack("I", termios.TIOCM_DTR | termios.TIOCM_RTS)
-        fcntl.ioctl(descriptor, termios.TIOCMBIC, control_lines)
-        time.sleep(0.05)
-        fcntl.ioctl(
-            descriptor, termios.TIOCMBIS, control_lines,
-        )
-    termios.tcflush(descriptor, termios.TCIFLUSH)
-    return descriptor
+    try:
+        if hasattr(termios, "TIOCEXCL"):
+            fcntl.ioctl(descriptor, termios.TIOCEXCL, 0)
+        tty.setraw(descriptor)
+        attributes = termios.tcgetattr(descriptor)
+        attributes[2] |= termios.CLOCAL | termios.CREAD
+        if hasattr(termios, "CRTSCTS"):
+            attributes[2] &= ~termios.CRTSCTS
+        attributes[4] = termios.B115200
+        attributes[5] = termios.B115200
+        attributes[6][termios.VMIN] = 0
+        attributes[6][termios.VTIME] = 0
+        termios.tcsetattr(descriptor, termios.TCSANOW, attributes)
+        if hasattr(termios, "TIOCMBIS") and hasattr(termios, "TIOCMBIC"):
+            control_lines = struct.pack("I", termios.TIOCM_DTR | termios.TIOCM_RTS)
+            fcntl.ioctl(descriptor, termios.TIOCMBIC, control_lines)
+            time.sleep(0.05)
+            fcntl.ioctl(
+                descriptor, termios.TIOCMBIS, control_lines,
+            )
+        termios.tcflush(descriptor, termios.TCIFLUSH)
+        return descriptor
+    except BaseException:
+        os.close(descriptor)
+        raise
 
 
 def _serial_reader(descriptor: int) -> tuple[threading.Event, threading.Thread, bytearray, list[OSError]]:
