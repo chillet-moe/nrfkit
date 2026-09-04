@@ -11,8 +11,8 @@ import unittest
 from unittest import mock
 
 from nrf_cmake_tools.cli import (
-    ToolError, _probe_lock, _serial_open, _serial_reader, _serial_reader_stop,
-    command_flash, command_run, load_manifest,
+    ToolError, _probe_lock, _serial_cleanup, _serial_open, _serial_reader,
+    _serial_reader_stop, command_flash, command_run, load_manifest,
 )
 from nrf_cmake_tools.device import program_argv, safe_backend_contract
 from nrf_cmake_tools.image import ImageContractError
@@ -92,6 +92,26 @@ class FlashCommandTests(unittest.TestCase):
         if hasattr(termios, "TIOCEXCL"):
             ioctl.assert_called_once_with(17, termios.TIOCEXCL, 0)
         close.assert_called_once_with(17)
+
+    def test_serial_cleanup_closes_descriptor_after_reader_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory)
+            thread = mock.Mock()
+            thread.is_alive.return_value = False
+            reader = (mock.Mock(), thread, bytearray(b"partial output"), [])
+            with (
+                mock.patch(
+                    "nrf_cmake_tools.cli._serial_reader_stop",
+                    side_effect=ToolError("reader stuck"),
+                ),
+                mock.patch("nrf_cmake_tools.cli.os.close") as close,
+            ):
+                cleanup, error = _serial_cleanup(run_dir, reader, 17)
+            close.assert_called_once_with(17)
+            self.assertTrue(cleanup["serial_reader_stopped"])
+            self.assertTrue(cleanup["serial_closed"])
+            self.assertIn("reader stuck", str(error))
+            self.assertEqual((run_dir / "serial.log").read_bytes(), b"partial output")
 
     def test_probe_lock_rejects_contention_and_can_be_reacquired(self) -> None:
         identity = f"host-test-{os.getpid()}"

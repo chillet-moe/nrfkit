@@ -436,10 +436,44 @@ def _serial_reader_stop(
     return transcript
 
 
+def _serial_cleanup(
+    run_dir: Path,
+    reader: tuple[threading.Event, threading.Thread, bytearray, list[OSError]] | None,
+    descriptor: int | None,
+) -> tuple[dict[str, Any], ToolError | None]:
+    cleanup: dict[str, Any] = {
+        "serial_reader_stopped": reader is None,
+        "serial_closed": descriptor is None,
+    }
+    errors: list[str] = []
+    if reader is not None:
+        try:
+            transcript = _serial_reader_stop(reader)
+        except BaseException as error:
+            transcript = reader[2]
+            errors.append(f"serial reader cleanup failed: {error}")
+        try:
+            (run_dir / "serial.log").write_bytes(transcript)
+        except BaseException as error:
+            errors.append(f"serial transcript write failed: {error}")
+        cleanup["serial_reader_stopped"] = not reader[1].is_alive()
+    if descriptor is not None:
+        try:
+            os.close(descriptor)
+            cleanup["serial_closed"] = True
+        except BaseException as error:
+            errors.append(f"serial close failed: {error}")
+    if errors:
+        cleanup["errors"] = errors
+        return cleanup, ToolError("; ".join(errors))
+    return cleanup, None
+
+
 def command_run(args: argparse.Namespace) -> int:
     run_dir, report = _new_run("run")
     descriptor: int | None = None
     reader: tuple[threading.Event, threading.Thread, bytearray, list[OSError]] | None = None
+    cleanup_error: ToolError | None = None
     try:
         manifest_path = getattr(args, "manifest", None)
         if getattr(args, "oracle", None):
@@ -512,13 +546,15 @@ def command_run(args: argparse.Namespace) -> int:
         atomic_json(run_dir / "run.json", report)
         raise
     finally:
-        if reader is not None:
-            transcript = _serial_reader_stop(reader)
-            (run_dir / "serial.log").write_bytes(transcript)
-        if descriptor is not None:
-            os.close(descriptor)
-        report["cleanup"] = {"serial_reader_stopped": True, "serial_closed": True}
+        report["cleanup"], cleanup_error = _serial_cleanup(run_dir, reader, descriptor)
+        if cleanup_error is not None and report.get("status") == "ok":
+            report.update({
+                "status": "failed",
+                "error": f"{type(cleanup_error).__name__}: {cleanup_error}",
+            })
         atomic_json(run_dir / "run.json", report)
+    if cleanup_error is not None:
+        raise cleanup_error
     atomic_json(run_dir / "run.json", report)
     print(run_dir / "run.json")
     return 0
@@ -529,6 +565,7 @@ def command_gdb_smoke(args: argparse.Namespace) -> int:
     server: subprocess.Popen[bytes] | None = None
     serial_descriptor: int | None = None
     serial_reader: tuple[threading.Event, threading.Thread, bytearray, list[OSError]] | None = None
+    cleanup_error: ToolError | None = None
     try:
         manifest = load_manifest(args.manifest)
         _initialize_device_report(run_dir, report, args.manifest, manifest, args)
@@ -634,17 +671,20 @@ def command_gdb_smoke(args: argparse.Namespace) -> int:
         atomic_json(run_dir / "run.json", report)
         raise
     finally:
-        if serial_reader is not None:
-            transcript = _serial_reader_stop(serial_reader)
-            (run_dir / "serial.log").write_bytes(transcript)
-        if serial_descriptor is not None:
-            os.close(serial_descriptor)
-        report["cleanup"] = {
-            "serial_reader_stopped": True,
-            "serial_closed": True,
-            "gdb_server_running": server is not None and server.poll() is None,
-        }
+        report["cleanup"], cleanup_error = _serial_cleanup(
+            run_dir, serial_reader, serial_descriptor
+        )
+        report["cleanup"]["gdb_server_running"] = (
+            server is not None and server.poll() is None
+        )
+        if cleanup_error is not None and report.get("status") == "ok":
+            report.update({
+                "status": "failed",
+                "error": f"{type(cleanup_error).__name__}: {cleanup_error}",
+            })
         atomic_json(run_dir / "run.json", report)
+    if cleanup_error is not None:
+        raise cleanup_error
     atomic_json(run_dir / "run.json", report)
     print(run_dir / "run.json")
     return 0
