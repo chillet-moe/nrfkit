@@ -61,6 +61,35 @@ def select_device(
     return matches[0]
 
 
+def resolve_probe_alias(
+    selection: str | None, board_version: str, aliases_path: Path
+) -> str | None:
+    if selection is None or not aliases_path.is_file():
+        return selection
+    try:
+        document = json.loads(aliases_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise DeviceContractError("local hardware alias inventory is invalid") from error
+    if document.get("schema") != "nrfkit-local-hardware-aliases/v1":
+        raise DeviceContractError("local hardware alias inventory schema is invalid")
+    aliases = document.get("aliases")
+    if not isinstance(aliases, dict):
+        raise DeviceContractError("local hardware alias inventory has no aliases")
+    alias = aliases.get(selection.lower())
+    if alias is None:
+        return selection
+    if not isinstance(alias, dict) or alias.get("board_version") != board_version:
+        raise DeviceContractError(
+            f"local hardware alias {selection!r} does not match {board_version}"
+        )
+    serial = alias.get("probe_serial")
+    if not isinstance(serial, str) or not serial:
+        raise DeviceContractError(
+            f"local hardware alias {selection!r} has no probe serial"
+        )
+    return serial
+
+
 def nrfutil_prefix(executable: str) -> list[str]:
     return [executable, "--log-output", "stdout", "--json"]
 

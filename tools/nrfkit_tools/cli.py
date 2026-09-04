@@ -26,7 +26,8 @@ from typing import Any, Iterator
 
 from .device import (
     DeviceContractError, nrfutil_prefix, parse_json_lines, program_argv,
-    read_memory_argv, reset_argv, safe_backend_contract, select_device,
+    read_memory_argv, reset_argv, resolve_probe_alias, safe_backend_contract,
+    select_device,
 )
 from .bond import (
     M6_SETTINGS_RANGE, M6_SETTINGS_SIZE, M6_SETTINGS_START,
@@ -313,7 +314,11 @@ def _probe_lock(serial: str, operation: str) -> Iterator[None]:
 
 def _select(manifest: dict[str, Any], args: argparse.Namespace, run_dir: Path) -> dict[str, Any]:
     devices = _enumerate(args.nrfutil, run_dir / "device-list.log", args.timeout)
-    return select_device(devices, manifest["board_version"], args.probe_serial)
+    serial = resolve_probe_alias(
+        args.probe_serial, manifest["board_version"],
+        project_root() / ".local" / "hardware-aliases.json",
+    )
+    return select_device(devices, manifest["board_version"], serial)
 
 
 def _probe_has_msd(device: dict[str, Any]) -> bool:
@@ -1226,7 +1231,11 @@ def command_probe_msd(args: argparse.Namespace) -> int:
         board_version = getattr(args, "board_version", "PCA10184")
         nrfutil = executable(args.nrfutil, "nrfutil")
         devices = _enumerate(nrfutil, run_dir / "device-list.log", args.timeout)
-        device = select_device(devices, board_version, args.probe_serial)
+        serial = resolve_probe_alias(
+            args.probe_serial, board_version,
+            project_root() / ".local" / "hardware-aliases.json",
+        )
+        device = select_device(devices, board_version, serial)
         original_msd = _probe_has_msd(device)
         backup = run_dir / "probe-state-before.json"
         atomic_json(backup, device)
@@ -1302,7 +1311,11 @@ def command_p0_gate(args: argparse.Namespace) -> int:
         jlink_server = executable(args.jlink, "JLinkGDBServerCLExe")
         contract = oracle(project_root(), "ncs-hello-world")
         devices = _enumerate(nrfutil, run_dir / "device-list.log", args.timeout)
-        device = select_device(devices, contract["board_version"], args.probe_serial)
+        serial = resolve_probe_alias(
+            args.probe_serial, contract["board_version"],
+            project_root() / ".local" / "hardware-aliases.json",
+        )
+        device = select_device(devices, contract["board_version"], serial)
         original_msd = _probe_has_msd(device)
         if not _probe_interface_contract(device, original_msd):
             raise ToolError("selected probe does not expose J-Link and exactly VCOM0/VCOM1")
