@@ -23,6 +23,7 @@
 #define VENDOR_REQUEST_STATUS UINT8_C(0x40)
 #define VENDOR_REQUEST_ARM_REMOTE_WAKE UINT8_C(0x41)
 #define USB_STATUS_MAGIC UINT32_C(0x4D345553)
+#define HID_REPORT_DESCRIPTOR_LENGTH UINT16_C(85)
 
 #define CONFIG_TOTAL_LENGTH (9U + 9U + 7U + 7U + 9U + 9U + 7U + 7U)
 
@@ -36,7 +37,7 @@ static const uint8_t config_descriptor_hs[] = {
     USB_INTERFACE_DESCRIPTOR_INIT(0U, 0U, 2U, 0xFFU, 0U, 0U, 4U),
     USB_ENDPOINT_DESCRIPTOR_INIT(BULK_OUT_EP, USB_ENDPOINT_TYPE_BULK, BULK_MPS_HS, 0U),
     USB_ENDPOINT_DESCRIPTOR_INIT(BULK_IN_EP, USB_ENDPOINT_TYPE_BULK, BULK_MPS_HS, 0U),
-    HID_CUSTOM_INOUT_DESCRIPTOR_INIT(1U, 0U, 38U,
+    HID_CUSTOM_INOUT_DESCRIPTOR_INIT(1U, 0U, HID_REPORT_DESCRIPTOR_LENGTH,
         HID_OUT_EP, HID_IN_EP, HID_MPS, 1U),
 };
 
@@ -46,7 +47,7 @@ static const uint8_t config_descriptor_fs[] = {
     USB_INTERFACE_DESCRIPTOR_INIT(0U, 0U, 2U, 0xFFU, 0U, 0U, 4U),
     USB_ENDPOINT_DESCRIPTOR_INIT(BULK_OUT_EP, USB_ENDPOINT_TYPE_BULK, BULK_MPS_FS, 0U),
     USB_ENDPOINT_DESCRIPTOR_INIT(BULK_IN_EP, USB_ENDPOINT_TYPE_BULK, BULK_MPS_FS, 0U),
-    HID_CUSTOM_INOUT_DESCRIPTOR_INIT(1U, 0U, 38U,
+    HID_CUSTOM_INOUT_DESCRIPTOR_INIT(1U, 0U, HID_REPORT_DESCRIPTOR_LENGTH,
         HID_OUT_EP, HID_IN_EP, HID_MPS, 1U),
 };
 
@@ -57,7 +58,7 @@ static const uint8_t other_speed_descriptor_hs[] = {
     USB_INTERFACE_DESCRIPTOR_INIT(0U, 0U, 2U, 0xFFU, 0U, 0U, 4U),
     USB_ENDPOINT_DESCRIPTOR_INIT(BULK_OUT_EP, USB_ENDPOINT_TYPE_BULK, BULK_MPS_FS, 0U),
     USB_ENDPOINT_DESCRIPTOR_INIT(BULK_IN_EP, USB_ENDPOINT_TYPE_BULK, BULK_MPS_FS, 0U),
-    HID_CUSTOM_INOUT_DESCRIPTOR_INIT(1U, 0U, 38U,
+    HID_CUSTOM_INOUT_DESCRIPTOR_INIT(1U, 0U, HID_REPORT_DESCRIPTOR_LENGTH,
         HID_OUT_EP, HID_IN_EP, HID_MPS, 1U),
 };
 
@@ -68,7 +69,7 @@ static const uint8_t other_speed_descriptor_fs[] = {
     USB_INTERFACE_DESCRIPTOR_INIT(0U, 0U, 2U, 0xFFU, 0U, 0U, 4U),
     USB_ENDPOINT_DESCRIPTOR_INIT(BULK_OUT_EP, USB_ENDPOINT_TYPE_BULK, BULK_MPS_HS, 0U),
     USB_ENDPOINT_DESCRIPTOR_INIT(BULK_IN_EP, USB_ENDPOINT_TYPE_BULK, BULK_MPS_HS, 0U),
-    HID_CUSTOM_INOUT_DESCRIPTOR_INIT(1U, 0U, 38U,
+    HID_CUSTOM_INOUT_DESCRIPTOR_INIT(1U, 0U, HID_REPORT_DESCRIPTOR_LENGTH,
         HID_OUT_EP, HID_IN_EP, HID_MPS, 1U),
 };
 
@@ -92,7 +93,19 @@ static const uint8_t hid_report_descriptor[] = {
     0x75, 0x08, 0x95, 0x3F, 0x81, 0x02,
     0x85, 0x02, 0x09, 0x03, 0x15, 0x00, 0x26, 0xFF, 0x00,
     0x75, 0x08, 0x95, 0x3F, 0x91, 0x02, 0xC0,
+    /* A standard keyboard input report lets host input drivers exercise
+     * their normal autosuspend and remote-wakeup contract. The validation
+     * firmware never emits this report, so it cannot inject input. */
+    0x05, 0x01, 0x09, 0x06, 0xA1, 0x01, 0x85, 0x03,
+    0x05, 0x07, 0x19, 0xE0, 0x29, 0xE7, 0x15, 0x00,
+    0x25, 0x01, 0x75, 0x01, 0x95, 0x08, 0x81, 0x02,
+    0x95, 0x01, 0x75, 0x08, 0x81, 0x01,
+    0x95, 0x06, 0x75, 0x08, 0x15, 0x00, 0x25, 0x65,
+    0x05, 0x07, 0x19, 0x00, 0x29, 0x65, 0x81, 0x00, 0xC0,
 };
+
+_Static_assert(sizeof(hid_report_descriptor) == HID_REPORT_DESCRIPTOR_LENGTH,
+    "HID report descriptor length mismatch");
 
 static uint8_t bulk_rx_buffer[BULK_MPS_HS] __attribute__((aligned(4)));
 static uint8_t bulk_tx_buffer[BULK_MPS_HS] __attribute__((aligned(4)));
@@ -107,6 +120,16 @@ static volatile uint32_t hid_rx_count;
 static volatile uint32_t hid_tx_count;
 static volatile uint32_t remote_wakeup_count;
 static volatile int32_t remote_wakeup_result;
+static volatile uint32_t remote_wakeup_delay_ms;
+static volatile bool remote_wakeup_armed;
+static volatile bool remote_wakeup_timer_active;
+static volatile bool remote_wakeup_due;
+static volatile uint32_t wake_dctl_before;
+static volatile uint32_t wake_dctl_after;
+static volatile uint32_t wake_dsts_before;
+static volatile uint32_t wake_dsts_after;
+static volatile uint32_t wake_pcgcctl_before;
+static volatile uint32_t wake_pcgcctl_after;
 static volatile int32_t bulk_arm_result;
 static volatile int32_t hid_arm_result;
 static nrfx_timer_t timer = NRFX_TIMER_INSTANCE(NRF_TIMER21);
@@ -125,6 +148,12 @@ struct usb_validation_status {
     uint32_t grxfsiz;
     uint32_t doepctl1;
     uint32_t doeptsiz1;
+    uint32_t wake_dctl_before;
+    uint32_t wake_dctl_after;
+    uint32_t wake_dsts_before;
+    uint32_t wake_dsts_after;
+    uint32_t wake_pcgcctl_before;
+    uint32_t wake_pcgcctl_after;
     int32_t remote_wakeup_result;
     int32_t bulk_arm_result;
     int32_t hid_arm_result;
@@ -137,12 +166,24 @@ NRFX_INSTANCE_IRQ_HANDLER_DEFINE(timer, 21, &timer);
 static void wake_timer_handler(nrf_timer_event_t event, void *context)
 {
     (void)context;
-    if (event == NRF_TIMER_EVENT_COMPARE0) {
+    if (event == NRF_TIMER_EVENT_COMPARE0 && remote_wakeup_timer_active) {
+        remote_wakeup_timer_active = false;
         nrfx_timer_disable(&timer);
-        remote_wakeup_result = usbd_send_remote_wakeup(0U);
-        if (remote_wakeup_result == 0) {
-            ++remote_wakeup_count;
-        }
+        remote_wakeup_due = true;
+    }
+}
+
+static void perform_remote_wakeup(void)
+{
+    wake_dctl_before = NRF_USBHSCORE->DCTL;
+    wake_dsts_before = NRF_USBHSCORE->DSTS;
+    wake_pcgcctl_before = NRF_USBHSCORE->PCGCCTL;
+    remote_wakeup_result = usbd_send_remote_wakeup(0U);
+    wake_dctl_after = NRF_USBHSCORE->DCTL;
+    wake_dsts_after = NRF_USBHSCORE->DSTS;
+    wake_pcgcctl_after = NRF_USBHSCORE->PCGCCTL;
+    if (remote_wakeup_result == 0) {
+        ++remote_wakeup_count;
     }
 }
 
@@ -216,6 +257,12 @@ static int vendor_request(uint8_t busid, struct usb_setup_packet *setup,
             .grxfsiz = *(volatile uint32_t *)((uintptr_t)NRF_USBHSCORE + 0x24U),
             .doepctl1 = *(volatile uint32_t *)((uintptr_t)NRF_USBHSCORE + 0xB20U),
             .doeptsiz1 = *(volatile uint32_t *)((uintptr_t)NRF_USBHSCORE + 0xB30U),
+            .wake_dctl_before = wake_dctl_before,
+            .wake_dctl_after = wake_dctl_after,
+            .wake_dsts_before = wake_dsts_before,
+            .wake_dsts_after = wake_dsts_after,
+            .wake_pcgcctl_before = wake_pcgcctl_before,
+            .wake_pcgcctl_after = wake_pcgcctl_after,
             .remote_wakeup_result = remote_wakeup_result,
             .bulk_arm_result = bulk_arm_result,
             .hid_arm_result = hid_arm_result,
@@ -227,15 +274,23 @@ static int vendor_request(uint8_t busid, struct usb_setup_packet *setup,
     if (setup->bRequest == VENDOR_REQUEST_ARM_REMOTE_WAKE &&
         (setup->bmRequestType & USB_REQUEST_DIR_MASK) == USB_REQUEST_DIR_OUT) {
         uint32_t delay_ms = setup->wValue;
+        if (delay_ms == 0U) {
+            remote_wakeup_timer_active = false;
+            nrfx_timer_disable(&timer);
+            nrf_timer_event_clear(timer.p_reg, NRF_TIMER_EVENT_COMPARE0);
+            remote_wakeup_armed = false;
+            remote_wakeup_due = false;
+            remote_wakeup_result = -1;
+            *length = 0U;
+            (void)busid;
+            return 0;
+        }
         if (delay_ms < 20U || delay_ms > 5000U) {
             return -1;
         }
         remote_wakeup_result = -1;
-        uint32_t ticks = nrfx_timer_ms_to_ticks(&timer, delay_ms);
-        nrfx_timer_clear(&timer);
-        nrfx_timer_extended_compare(&timer, NRF_TIMER_CC_CHANNEL0, ticks,
-            NRF_TIMER_SHORT_COMPARE0_STOP_MASK, true);
-        nrfx_timer_enable(&timer);
+        remote_wakeup_delay_ms = delay_ms;
+        remote_wakeup_armed = true;
         *length = 0U;
         (void)busid;
         return 0;
@@ -307,8 +362,20 @@ static void usb_event(uint8_t busid, uint8_t event)
         break;
     case USBD_EVENT_SUSPEND:
         ++suspend_count;
+        if (remote_wakeup_armed) {
+            remote_wakeup_armed = false;
+            uint32_t ticks = nrfx_timer_ms_to_ticks(&timer, remote_wakeup_delay_ms);
+            nrfx_timer_clear(&timer);
+            nrfx_timer_extended_compare(&timer, NRF_TIMER_CC_CHANNEL0, ticks,
+                NRF_TIMER_SHORT_COMPARE0_STOP_MASK, true);
+            remote_wakeup_timer_active = true;
+            nrfx_timer_enable(&timer);
+        }
         break;
     case USBD_EVENT_RESUME:
+        remote_wakeup_timer_active = false;
+        nrfx_timer_disable(&timer);
+        remote_wakeup_due = false;
         ++resume_count;
         break;
     default:
@@ -339,6 +406,10 @@ int main(void)
         return 1;
     }
     for (;;) {
+        if (remote_wakeup_due) {
+            remote_wakeup_due = false;
+            perform_remote_wakeup();
+        }
         __WFE();
     }
 }

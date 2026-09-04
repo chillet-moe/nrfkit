@@ -58,14 +58,28 @@ class UsbValidationTests(unittest.TestCase):
         self.assertEqual(device.set_configurations, [1])
 
     def test_status_layout_matches_the_firmware_contract(self) -> None:
-        values = tuple(range(16))
+        values = tuple(range(22))
         values = (usb_validation.STATUS_MAGIC,) + values[1:]
         payload = usb_validation.struct.pack(usb_validation.STATUS_FORMAT, *values)
         device = SimpleNamespace(ctrl_transfer=lambda *args, **kwargs: payload)
         status = usb_validation.read_status(device)
         self.assertEqual(status["magic"], usb_validation.STATUS_MAGIC)
-        self.assertEqual(status["bulk_arm_result"], 14)
-        self.assertEqual(status["hid_arm_result"], 15)
+        self.assertEqual(status["wake_pcgcctl_after"], 18)
+        self.assertEqual(status["bulk_arm_result"], 20)
+        self.assertEqual(status["hid_arm_result"], 21)
+
+    def test_host_resume_contract_rejects_reconfiguration(self) -> None:
+        before = {"configured_count": 2, "suspend_count": 4, "resume_count": 3}
+        after = {"configured_count": 3, "suspend_count": 5, "resume_count": 4}
+        with self.assertRaisesRegex(
+            usb_validation.UsbValidationError, "reset or reconfigured"
+        ):
+            usb_validation._validate_host_resume(before, after)
+
+    def test_host_resume_contract_accepts_suspend_and_resume(self) -> None:
+        before = {"configured_count": 2, "suspend_count": 4, "resume_count": 3}
+        after = {"configured_count": 2, "suspend_count": 5, "resume_count": 4}
+        usb_validation._validate_host_resume(before, after)
 
 
 if __name__ == "__main__":

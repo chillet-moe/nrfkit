@@ -36,8 +36,8 @@ from .reference import (
 )
 from .sdk import SdkContractError, create_device_manifest
 from .usb_validation import (
-    UsbValidationError, run_power_validation, run_reconnect_validation,
-    run_transfer_validation,
+    UsbValidationError, run_host_resume_validation, run_power_validation,
+    run_reconnect_validation, run_transfer_validation,
 )
 
 
@@ -505,10 +505,13 @@ def command_m4_usb_gate(args: argparse.Namespace) -> int:
         _stage(run_dir, report, "usb-control-bulk-hid", **transfers)
         if args.skip_power:
             power = {"status": "skipped", "reason": "requested by --skip-power"}
-            _stage(run_dir, report, "usb-suspend-remote-wakeup-skipped", **power)
+            _stage(run_dir, report, "usb-power-skipped", **power)
         else:
-            power = run_power_validation(timeout=args.timeout)
-            _stage(run_dir, report, "usb-suspend-remote-wakeup", **power)
+            host_resume = run_host_resume_validation(timeout=args.timeout)
+            _stage(run_dir, report, "usb-host-resume", **host_resume)
+            remote_wakeup = run_power_validation(timeout=args.timeout)
+            _stage(run_dir, report, "usb-suspend-remote-wakeup", **remote_wakeup)
+            power = {"host_resume": host_resume, "remote_wakeup": remote_wakeup}
         report.update({
             "status": "ok", "reconnect": reconnect, "transfers": transfers,
             "power": power,
@@ -526,8 +529,16 @@ def command_m4_usb_power(args: argparse.Namespace) -> int:
     run_dir, report = _new_run("m4-usb-power")
     report["stages"] = []
     try:
-        power = run_power_validation(timeout=args.timeout)
-        _stage(run_dir, report, "usb-suspend-remote-wakeup", **power)
+        report["active_stage"] = "usb-host-resume"
+        atomic_json(run_dir / "run.json", report)
+        host_resume = run_host_resume_validation(timeout=args.timeout)
+        _stage(run_dir, report, "usb-host-resume", **host_resume)
+        report["active_stage"] = "usb-suspend-remote-wakeup"
+        atomic_json(run_dir / "run.json", report)
+        remote_wakeup = run_power_validation(timeout=args.timeout)
+        _stage(run_dir, report, "usb-suspend-remote-wakeup", **remote_wakeup)
+        power = {"host_resume": host_resume, "remote_wakeup": remote_wakeup}
+        report.pop("active_stage", None)
         report.update({"status": "ok", "power": power})
     except BaseException as error:
         report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from pathlib import Path
 import struct
 import time
@@ -18,7 +19,7 @@ HID_IN_EP = 0x82
 REQUEST_STATUS = 0x40
 REQUEST_ARM_REMOTE_WAKE = 0x41
 STATUS_MAGIC = 0x4D345553
-STATUS_FORMAT = "<13I3i"
+STATUS_FORMAT = "<19I3i"
 
 
 class UsbValidationError(RuntimeError):
@@ -45,10 +46,10 @@ def _find(timeout: float) -> Any:
     raise UsbValidationError("M4 USB validation device did not enumerate")
 
 
-def _claim(device: Any) -> tuple[Any, list[int]]:
+def _claim(device: Any, interfaces: tuple[int, ...] = (0, 1)) -> tuple[Any, list[int]]:
     _, usb_util = _modules()
     detached: list[int] = []
-    for interface in (0, 1):
+    for interface in interfaces:
         if device.is_kernel_driver_active(interface):
             device.detach_kernel_driver(interface)
             detached.append(interface)
@@ -59,7 +60,7 @@ def _claim(device: Any) -> tuple[Any, list[int]]:
     if (active_configuration is None
             or active_configuration.bConfigurationValue != 1):
         device.set_configuration(1)
-    for interface in (0, 1):
+    for interface in interfaces:
         usb_util.claim_interface(device, interface)
     return usb_util, detached
 
@@ -90,6 +91,8 @@ def read_status(device: Any) -> dict[str, int]:
         "magic", "configured_count", "suspend_count", "resume_count",
         "bulk_rx_bytes", "bulk_tx_bytes", "hid_rx_count", "hid_tx_count",
         "remote_wakeup_count", "ghwcfg3", "grxfsiz", "doepctl1", "doeptsiz1",
+        "wake_dctl_before", "wake_dctl_after", "wake_dsts_before", "wake_dsts_after",
+        "wake_pcgcctl_before", "wake_pcgcctl_after",
         "remote_wakeup_result", "bulk_arm_result", "hid_arm_result",
     )
     return dict(zip(keys, values, strict=True))
@@ -175,36 +178,163 @@ def _sysfs_device(device: Any) -> Path:
     raise UsbValidationError("cannot map the validation device to Linux USB sysfs")
 
 
-def run_power_validation(*, timeout: float, wake_delay_ms: int = 500) -> dict[str, Any]:
-    device = _find(timeout)
-    sysfs = _sysfs_device(device)
-    usb_util, detached = _claim(device)
-    before = read_status(device)
-    try:
-        # Standard SET_FEATURE(DEVICE_REMOTE_WAKEUP), then arm the test timer.
-        device.ctrl_transfer(0x00, 0x03, 0x0001, 0, None, timeout=2000)
-        device.ctrl_transfer(
-            0x41, REQUEST_ARM_REMOTE_WAKE, wake_delay_ms, 0, None, timeout=2000,
-        )
-    finally:
-        _release(device, usb_util, detached)
+def _input_event_device(sysfs: Path) -> Path:
+    usb_device = sysfs.resolve()
+    for candidate in Path("/sys/class/input").glob("event*"):
+        target = (candidate / "device").resolve()
+        if usb_device == target or usb_device in target.parents:
+            return Path("/dev/input") / candidate.name
+    raise UsbValidationError("cannot find the validation device's input event node")
 
-    power = sysfs / "power"
-    attributes = {
+
+def _power_attributes(power: Path) -> dict[str, str]:
+    return {
         name: (power / name).read_text().strip()
         for name in ("control", "autosuspend_delay_ms", "wakeup")
     }
+
+
+def _restore_power_attributes(power: Path, attributes: dict[str, str]) -> None:
+    for name in ("control", "autosuspend_delay_ms", "wakeup"):
+        try:
+            (power / name).write_text(attributes[name])
+        except OSError:
+            pass
+
+
+def _claimed_status(device: Any) -> dict[str, int]:
+    usb_util, detached = _claim(device, (0,))
+    try:
+        return read_status(device)
+    finally:
+        _release(device, usb_util, detached)
+
+
+def _wait_runtime_status(power: Path, expected: str, timeout: float) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if (power / "runtime_status").read_text().strip() == expected:
+            return True
+        time.sleep(0.001)
+    return False
+
+
+def _validate_host_resume(before: dict[str, int], after: dict[str, int]) -> None:
+    if after["configured_count"] != before["configured_count"]:
+        raise UsbValidationError(
+            f"host resume reset or reconfigured the device; before={before}; after={after}"
+        )
+    if after["suspend_count"] <= before["suspend_count"]:
+        raise UsbValidationError(
+            f"firmware did not observe host-controlled USB suspend; "
+            f"before={before}; after={after}"
+        )
+    if after["resume_count"] <= before["resume_count"]:
+        raise UsbValidationError(
+            f"firmware did not observe host-controlled USB resume; "
+            f"before={before}; after={after}"
+        )
+
+
+def run_host_resume_validation(*, timeout: float) -> dict[str, Any]:
+    device = _find(timeout)
+    power = _sysfs_device(device) / "power"
+    attributes = _power_attributes(power)
+    try:
+        usb_util, detached = _claim(device, (0,))
+        try:
+            # A previous interrupted validation may have left a one-shot wake
+            # request armed. Cancel it so this control phase exercises only the
+            # ordinary host-initiated resume path.
+            device.ctrl_transfer(
+                0x41, REQUEST_ARM_REMOTE_WAKE, 0, 0, None, timeout=2000,
+            )
+            before = read_status(device)
+        finally:
+            _release(device, usb_util, detached)
+    except Exception as error:
+        raise UsbValidationError(
+            f"cannot initialize host-resume control phase: {error}"
+        ) from error
     suspended = False
     resumed = False
     try:
         try:
-            (power / "wakeup").write_text("enabled")
             (power / "autosuspend_delay_ms").write_text("0")
             (power / "control").write_text("auto")
         except PermissionError as error:
             raise UsbValidationError(
                 "M4 power validation requires root write access to USB runtime-PM sysfs"
             ) from error
+        suspended = _wait_runtime_status(power, "suspended", timeout)
+        if suspended:
+            (power / "control").write_text("on")
+            resumed = _wait_runtime_status(power, "active", timeout)
+    finally:
+        _restore_power_attributes(power, attributes)
+
+    try:
+        device = _find(timeout)
+        after = _claimed_status(device)
+    except Exception as error:
+        raise UsbValidationError(
+            f"cannot read status after host-initiated resume: {error}"
+        ) from error
+    if not suspended:
+        raise UsbValidationError(
+            f"host did not runtime-suspend the USB device; status={after}"
+        )
+    if not resumed:
+        raise UsbValidationError(
+            f"host did not resume the runtime-suspended USB device; status={after}"
+        )
+    _validate_host_resume(before, after)
+    return {
+        "suspended": suspended,
+        "resumed": resumed,
+        "before_status": before,
+        "after_status": after,
+    }
+
+
+def run_power_validation(*, timeout: float, wake_delay_ms: int = 500) -> dict[str, Any]:
+    device = _find(timeout)
+    sysfs = _sysfs_device(device)
+    power = sysfs / "power"
+    attributes = _power_attributes(power)
+    suspended = False
+    resumed = False
+    input_fd: int | None = None
+    try:
+        try:
+            # Enable wakeup policy before advertising DEVICE_REMOTE_WAKEUP. Linux
+            # evaluates the policy while preparing runtime suspend.
+            (power / "wakeup").write_text("enabled")
+            # Leave a visible active interval after remote wake.  With a zero
+            # delay Linux can autosuspend the device again before userspace
+            # observes the transient resume, turning a successful wake into a
+            # false failure.
+            (power / "autosuspend_delay_ms").write_text("1000")
+        except PermissionError as error:
+            raise UsbValidationError(
+                "M4 power validation requires root write access to USB runtime-PM sysfs"
+            ) from error
+
+        # Keeping usbhid open makes its interface request remote wakeup from
+        # the USB core. Claim only the vendor interface used for test control.
+        input_fd = os.open(_input_event_device(sysfs), os.O_RDONLY | os.O_NONBLOCK)
+        usb_util, detached = _claim(device, (0,))
+        try:
+            before = read_status(device)
+            # Standard SET_FEATURE(DEVICE_REMOTE_WAKEUP), then arm the firmware.
+            device.ctrl_transfer(0x00, 0x03, 0x0001, 0, None, timeout=2000)
+            device.ctrl_transfer(
+                0x41, REQUEST_ARM_REMOTE_WAKE, wake_delay_ms, 0, None, timeout=2000,
+            )
+        finally:
+            _release(device, usb_util, detached)
+
+        (power / "control").write_text("auto")
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             state = (power / "runtime_status").read_text().strip()
@@ -214,28 +344,46 @@ def run_power_validation(*, timeout: float, wake_delay_ms: int = 500) -> dict[st
                 resumed = True
                 (power / "control").write_text("on")
                 break
-            time.sleep(0.01)
-        if not suspended:
-            raise UsbValidationError("host did not runtime-suspend the USB device")
-        if not resumed:
-            raise UsbValidationError("device did not remotely wake the USB link")
+            # Pin the device on as soon as the resume transition is observed.
+            time.sleep(0.0001)
     finally:
-        for name in ("control", "autosuspend_delay_ms", "wakeup"):
-            try:
-                (power / name).write_text(attributes[name])
-            except OSError:
-                pass
+        if input_fd is not None:
+            os.close(input_fd)
+        _restore_power_attributes(power, attributes)
 
+    # A failed selective-resume can make Linux reset and re-enumerate the
+    # device.  Let libusb discard the removed generation so diagnostics come
+    # from the live device instead of failing while opening a stale handle.
+    time.sleep(1.0)
     device = _find(timeout)
     usb_util, detached = _claim(device)
     try:
         after = read_status(device)
     finally:
         _release(device, usb_util, detached)
+    if not suspended:
+        raise UsbValidationError(
+            f"host did not runtime-suspend the USB device; status={after}"
+        )
+    if not resumed:
+        raise UsbValidationError(
+            f"device did not remotely wake the USB link; status={after}"
+        )
+    if after["configured_count"] != before["configured_count"]:
+        raise UsbValidationError(
+            f"remote wake caused a USB reset or reconfiguration; "
+            f"before={before}; after={after}"
+        )
     if after["suspend_count"] <= before["suspend_count"]:
-        raise UsbValidationError("firmware did not observe USB suspend")
+        raise UsbValidationError(
+            f"firmware did not observe suspend before remote wake; "
+            f"before={before}; after={after}"
+        )
     if after["resume_count"] <= before["resume_count"]:
-        raise UsbValidationError("firmware did not observe USB resume")
+        raise UsbValidationError(
+            f"firmware did not observe resume after remote wake; "
+            f"before={before}; after={after}"
+        )
     if after["remote_wakeup_count"] <= before["remote_wakeup_count"]:
         raise UsbValidationError("firmware did not complete remote wakeup")
     if after["remote_wakeup_result"] != 0:

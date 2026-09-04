@@ -64,6 +64,21 @@ IN TX FIFO 64 words. The validation status request exposes the key DWC2 register
 endpoint-arm results so a failure report remains diagnosable without inventing a new
 manual probe procedure.
 
+The validation firmware starts its remote-wakeup delay only after the DWC2 suspend
+event. TIMER interrupt context records that the delay expired, while the foreground
+loop calls CherryUSB's remote-wakeup API so the lower-priority USBHS interrupt remains
+serviceable during the resume signal. A one-shot timer-active state prevents stale
+compare events from crossing validation phases, and an explicit cancel request lets
+the host establish a reproducible host-resume control phase after an interrupted run.
+
+On Linux, the host gate keeps the HID input node open while enabling runtime wakeup.
+This exercises the USB core and `usbhid` remote-wakeup policy instead of assuming that
+a successful standard `SET_FEATURE(DEVICE_REMOTE_WAKEUP)` transfer alone proves the
+host will arm wake during selective suspend. The structured power report first checks
+host-initiated resume and requires the firmware suspend/resume counters to advance
+without a configuration-count change. Device-initiated remote wake is a separate
+stage with the same no-reset requirement.
+
 ## Validation boundary
 
 The repository gate covers control transfers, high-speed bulk OUT/IN loopback, HID
@@ -71,7 +86,11 @@ interrupt OUT/IN, 100 controlled USB resets/reconnects, and a 60-second transfer
 stress run while an nrfx TIMER instance remains active for remote wake. Linux
 runtime-PM suspend/resume and remote wake require root write access to the device's
 sysfs power attributes. A run using `--skip-power` is useful transfer evidence but is
-not the M4 low-power exit result.
+not the M4 low-power exit result. A multi-hub validation path has demonstrated clean
+host-initiated suspend/resume but reset and re-enumeration after the device asserted
+remote wake. That result localizes the remaining failure but is not acceptance
+evidence; the final low-power gate must pass on a topology that propagates the resume
+signal without resetting the device.
 
 TinyUSB remains a viable alternative stack because it also has a portable DCD
 boundary, but it was not selected for this first port. Maintaining two USB stacks
