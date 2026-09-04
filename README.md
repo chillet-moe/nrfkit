@@ -1,6 +1,6 @@
 # nrfkit
 
-`nrfkit` is a community bare-metal CMake SDK for Nordic nRF devices. The first targets are nRF54LM20A and nRF54L15. Consumer builds are intended to work offline with ordinary CMake, Ninja, and a host Arm cross-toolchain, without west, sysbuild, Devicetree, Kconfig, Zephyr, or an installed nRF Connect SDK.
+`nrfkit` is a community bare-metal CMake SDK currently scoped only to nRF54LM20A. An nRF54L15 DK may be used as a laboratory peer, but it is not a consumer SDK target. Consumer builds are intended to work offline with ordinary CMake, Ninja, and a host Arm cross-toolchain, without west, sysbuild, Devicetree, Kconfig, Zephyr, or an installed nRF Connect SDK.
 
 This project is not affiliated with or endorsed by Nordic Semiconductor. Nordic Semiconductor, nRF, and related marks belong to their respective owners.
 

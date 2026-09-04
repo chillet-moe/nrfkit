@@ -2,8 +2,8 @@
 
 > 状态：P0、M0、M1、M2、M3 已完成；M4、M5 部分完成；M6 进行中<br>
 > 计划基线：2026-09-04<br>
-> 首要目标：nRF54LM20A / nRF54LM20 DK<br>
-> 次要目标：nRF54L15 / nRF54L15 DK<br>
+> 唯一 SDK 支持目标：nRF54LM20A / nRF54LM20 DK<br>
+> 实验室夹具：nRF54L15 DK（不属于 SDK 支持目标）<br>
 > 推荐的本地工作目录：`$HOME/Projects/nrfkit`
 
 本文是项目的约束性执行文件，面向后续维护者和自动化 agent。除非新的实板证据、官方文档或用户明确决定推翻某项结论，否则实现应按本文推进。文中的“必须”“禁止”“验收”不是建议。
@@ -24,8 +24,8 @@
 
 - 应用使用标准 CMake、Ninja 和本机 Arm 交叉工具链构建；
 - 最终构建不依赖 west、sysbuild、Devicetree、Kconfig 或 Zephyr；
-- 首先完整支持 nRF54LM20A，随后支持 nRF54L15；
-- 架构上允许继续扩展到 nRF54、nRF53 和 nRF52 系列，而不把 LM20 的内存、核、无线或 RRAM 假设扩散到公共层；
+- 完整支持 nRF54LM20A；当前阶段不实现 nRF54L15、nRF52、nRF53 或其他 nRF54 器件支持；
+- nRF54L15 DK 仅作为 BLE central、私有 2.4 GHz 对端和差分测试夹具，不因此产生 L15 consumer target、公共 API 或完整器件支持工作；
 - 复用官方 CMSIS/MDK、nrfx HAL/driver、适用的官方启动与系统初始化代码，以及许可证允许分发的预编译无线组件；
 - 支持纯裸机 C 和 C++ 应用，尤其是低延迟、低功耗的 HID 类固件；
 - 支持编译、ELF/HEX/BIN 产物、烧写、复位、GDB 调试和无人值守实板验收；
@@ -191,7 +191,7 @@ nrfkit/
 | driver/integration | nrfx 配置、资源声明、ISR glue | 隐式抢占其他模块资源 |
 | application | 业务资源选择和策略 | 修改 SDK 内部来适配单一产品 |
 
-nRF53 的多核、nRF52 的 NOR Flash/旧 SoftDevice、nRF54L 的 RRAM，以及可能的 FLPR 异构核必须是 capability 差异，不能靠大量散落的 `if(SOC STREQUAL ...)` 维持。
+当前公共层只需要正确表达 LM20 已验证的事实，不为未来器件预先增加抽象。若以后重新授权跨器件支持，应另行制定以实板证据驱动的迁移计划，不能让尚未进入范围的多核、NOR Flash 或其他 SoC 差异增加当前 LM20 实现复杂度。
 
 ## 3. 官方来源优先级与启动/链接规则
 
@@ -217,7 +217,7 @@ nRF53 的多核、nRF52 的 NOR Flash/旧 SoftDevice、nRF54L 的 RRAM，以及�
 - NCS Bare Metal `v2.0.1`，commit `51484143c09199e19bccc16fa3b437f7a502a72b`；
 - nRF54LM20A/nRF54LM20B Datasheet v1.0；
 - S115 for nRF54LM20 `10.0.1`；
-- S115 for nRF54L15 `10.0.1`。
+- S145 for nRF54L15 `10.0.1`，仅用于版本锁定的实验室 central 夹具。
 
 本机候选位置仅用于发现，不得成为构建依赖：
 
@@ -434,7 +434,7 @@ LM20 有 USBHS HAL，但当前 nrfx 基线没有与旧 `nrfx_usbd` 等价的完�
 - 为可移植 USB device stack 提供 DCD/port，优先评估与现有裸机 CMake 工程适配良好的 CherryUSB；同时记录 TinyUSB 的可行性；
 - USB stack 与 SDK core 解耦，可由下游提供；
 - 验收包括枚举、control transfer、多 endpoint IN/OUT、连续压力、suspend/resume、remote wakeup 和拔插；
-- L15 若无对应 USB 外设，configure 阶段必须明确拒绝该模块，不能给空实现。
+- 不创建 L15 USB consumer target；L15 目前只允许作为测试夹具存在于显式 reference workflow 中。
 
 ### 6.3 私有 2.4 GHz
 
@@ -451,7 +451,7 @@ SDK 的职责是提供经实板验证的 RADIO 访问基础、时钟/timer/DPPI 
 
 ### 6.4 S115 BLE peripheral
 
-初始选择 S115，而不是自研 BLE controller/host：它符合单 peripheral 设备目标，官方 nRF54L binary 和 C API 可脱离 RTOS 使用。
+产品路径首先选择 S115：它符合单 peripheral 设备目标，官方 nRF54L binary 和 C API 可脱离 RTOS 使用。这个优先顺序不能被理解为永久禁止项目自有 BLE 实现。完整官方 HIDS 基线仍是空口行为、互操作和回归 oracle；在该基线完成后，可以按 M6 定义的 LM20-only 分阶段路线，从公开规范、LM20 RADIO/CCM/AAR 和官方 HAL/nrfx 向上评估精简 BLE peripheral/HID 实现。
 
 集成顺序：
 
@@ -462,7 +462,7 @@ SDK 的职责是提供经实板验证的 RADIO 访问基础、时钟/timer/DPPI 
 5. 先直接调用最小 SoftDevice API 完成 enable、advertising、connection 和 GATT；
 6. 再从 NCS Bare Metal 审计并移植需要的 event dispatch、bond/settings 和 HID service 代码；
 7. 每个被移植模块去除 Zephyr primitive，换成小而明确的裸机接口，不能保留伪装的 Zephyr compatibility layer；
-8. 若未来需要 central/multirole，再单独加入 S145，不能让 S145 的资源需求成为 S115 默认值。
+8. S145 只属于 L15 实验室夹具，不能进入 LM20 consumer target，也不能让其资源需求成为 S115 默认值。
 
 BLE 实板验收至少包括：
 
@@ -750,9 +750,45 @@ BlueZ bonding 仍失败；仅替换官方 Peer Manager、再替换官方 `nrf_bl
 去除 HID 后运行正常 bonding，均得到同一认证失败。官方 LESC 路径已生成 keypair
 和 DH key，目标没有触发应用断言；对象级官方 `nrf_sdh` ISR 调度适配也未使
 bonding 通过。这些带 RAM-only storage 或预编译对象的定位层不是 consumer 方案，
-不得提交为产品实现。下一步必须从已通过的官方 HIDS 应用开始，将其 handler、
-Peer Manager、持久化和 HIDS 直接源码集合整体建立为纯 CMake 基线，再从外围服务
-向内逐层裁剪；不得继续组合失败对象或扩展自研 BLE 协议栈。
+不得提交为产品实现，也不得继续进行零散密钥缓冲区、对象替换或重复 GDB 差分。
+临时私钥、DHKey 和其他敏感中间值只能存在于当次 ignored 进程内存，不能写入准备
+提交或发布的源码、报告或构建产物。
+
+官方源码整体纯 CMake 基线已经建立，但实板验收失败，因此当前 S115 移植分支按退出
+条件停止。该基线从锁定的 nRF-BM commit 复制并逐文件校验 `irq_forward`、完整
+`nrf_sdh`、advertising、connection-parameter、QWR、Peer Manager、ZMS persistence
+和 HIDS 源码到 ignored consumer cache；项目只跟踪选择、适配和补丁，不导入完整
+上游源码树。consumer configure/build 未调用 west、sysbuild、Kconfig、Devicetree
+或 Zephyr runtime，Clang/LLD 构建和启动 token 均通过。静态向量中的 SoftDevice
+事件入口也已复现官方 direct ISR 的 Cortex-M interrupt calling convention 和 8-byte
+栈对齐。
+
+同一 BlueZ 主机与适配器上的官方 HIDS oracle 仍可完成明文连接，而纯 CMake 基线在
+fresh device discovery 后的第一条明文 `Connect` 就稳定失败为
+`org.bluez.Error.Failed: le-connection-abort-by-local`；固件没有收到连接事件，失败对象
+已由 D-Bus 门禁删除并验证清理。这个失败发生在 SMP、LESC、Peer Manager、HIDS 和
+持久化之前，因而禁止再通过修改这些上层模块继续试错。最小复现、精确源码边界和
+官方 ELF 中仍存在而纯 CMake 基线未引入的运行时单元记录在
+`docs/architecture/m6-official-baseline-failure.md`。现有证据只能把剩余边界收敛到
+Zephyr 的 LM20 SoC/platform initialization、system clock/GRTC device initialization
+及静态/动态 IRQ 启动基础设施；不能诚实地把其中任一单独宣称为已证明的唯一依赖。
+重新进入 S115 移植必须先取得能够区分这三组依赖的新非敏感证据，而不是继续刷写
+局部实验。
+
+完整官方基线之后允许增加一条 LM20-only、分阶段且可随时停止的底层路线。该路线
+以公开 Bluetooth 规范、LM20 RADIO/CCM/AAR 的文档与实板行为、官方 HAL/nrfx 为
+依据，不为未来器件预建抽象，固定顺序为：
+
+1. 广播；
+2. 未加密单连接与 notification；
+3. Link Layer 控制过程、确认、重传和超时；
+4. 链路加密；
+5. 最小 L2CAP、ATT、GATT、SMP、LESC 与 HOGP；
+6. BlueZ 互操作、功耗和长时间 soak。
+
+每一阶段都必须有 LM20 实板及可靠空口证据，失败即可停止并保留最小复现。S115
+完整基线现已在上述平台依赖边界停止，下一项产品工作允许按本节固定顺序转入底层
+路线。两条路线都不能自行臆测寄存器或协议行为。
 只有项目固件再通过正常 BlueZ bonding、HID、持久化重连和连接 soak 后才可标记
 M6 完成。随后再运行 LM20+L15 的 M5 双板门禁。
 
@@ -775,23 +811,7 @@ M6 完成。随后再运行 LM20+L15 的 M5 双板门禁。
 - SDK 当前文件、Git history、commit message、issue template、CI artifact 和 release note 均无私有下游标识；
 - 实板主要工作模式通过长时间运行和切换测试。
 
-### M8：nRF54L15
-
-交付：
-
-- L15 的官方来源审计、SoC/board/linker/startup 支持；
-- M1-M3 的 L15 对等测试；
-- L15 S115 target 与 BLE 基础/HID 测试；
-- capability matrix 明确 LM20/L15 外设差异。
-
-退出条件：
-
-- L15 host/link 全部通过；
-- 连接 L15 DK 后完成与 LM20 同等级别的烧写、GDB、nrfx、低功耗和 BLE 实板验收；
-- LM20 专属 USBHS 不能在 L15 上误配置；
-- 添加 L15 没有复制一套公共 runtime。
-
-### M9：boot/DFU 与 production 支持
+### M8：boot/DFU 与 production 支持
 
 交付：
 
@@ -808,12 +828,6 @@ M6 完成。随后再运行 LM20+L15 的 M5 双板门禁。
 - direct-XIP 两个镜像确实分别链接到 A/B 地址；
 - 日常 CI 仍不能写任何一次性区域；
 - 实际 provision 只有在用户另行明确授权后才可执行，因此不属于本计划的无人值守完成条件。
-
-### M10：扩展 nRF52/nRF53/其他 nRF54
-
-顺序建议：先选一个 nRF52 单核器件验证 Cortex-M4 + NOR Flash + 旧 SoftDevice 抽象，再选 nRF5340 验证双核和多镜像；其他 nRF54 按需求加入。
-
-退出条件按器件分别定义，至少包含官方来源、编译、链接、烧写、调试和实板测试。不能仅因为 nrfx header 能编译就把器件列为 supported。
 
 ## 9. 测试矩阵
 
@@ -896,7 +910,7 @@ M6 完成。随后再运行 LM20+L15 的 M5 双板门禁。
 
 “项目完成”不是支持所有 Nordic 芯片。达到以下条件即可把首阶段目标视为完成：
 
-- LM20 和 L15 均有官方来源可追溯的 startup/system/linker；
+- LM20 有官方来源可追溯的 startup/system/linker；L15 只作为测试夹具，不是支持目标；
 - 锁定的官方样例可由统一工具重现编译、地址审计、安全烧写、复位、运行观测和 GDB 验收；
 - 普通 CMake + 本机工具链能离线构建 C/C++ firmware；
 - 不安装 NCS/Zephyr 也能完成 SDK consumer build；
@@ -906,7 +920,7 @@ M6 完成。随后再运行 LM20+L15 的 M5 双板门禁。
 - 开源仓库及其历史不含任何私有下游信息；
 - 文档足以让另一位开发者在新机器和新开发板上复现；
 - 正常开发和 CI 无法触达一次性/保护配置；
-- nRF52/nRF53 的扩展点已有设计和至少一个后续器件的验证计划，但不要求在 LM20/L15 首阶段全部实现。
+- 当前完成定义不包含 nRF52、nRF53、L15 consumer target 或其他 nRF54 支持。
 
 ## 13. 权威入口
 
