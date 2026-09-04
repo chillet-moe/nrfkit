@@ -96,6 +96,14 @@ foreach(variant IN ITEMS multirole peripheral central)
   nrfkit_finalize_target("${target}")
 endforeach()
 
+add_executable(m7_timeslot_retry m7-timeslot-retry/main.c)
+nrfkit_configure_target(m7_timeslot_retry
+  SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
+)
+nrfkit_enable_sdc(m7_timeslot_retry VARIANT multirole)
+nrfkit_enable_mpsl_timeslot(m7_timeslot_retry)
+nrfkit_finalize_target(m7_timeslot_retry)
+
 add_executable(m7_timeslot_validation m6-sdc-validation/main.c)
 nrfkit_configure_target(m7_timeslot_validation
   SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
@@ -313,6 +321,13 @@ if(NRFKIT_ENABLE_HARDWARE_TESTS)
       VERBATIM
     )
   endforeach()
+  add_custom_command(TARGET m7_timeslot_retry POST_BUILD
+    COMMAND "${NRFKIT_TOOL}" sdk manifest
+      --build-dir "$<TARGET_FILE_DIR:m7_timeslot_retry>"
+      --target m7_timeslot_retry
+      --expected-token "NRFKIT_M7_RETRY PASS"
+    VERBATIM
+  )
   if(TARGET m6_ble_official_baseline)
     add_custom_command(TARGET m6_ble_official_baseline POST_BUILD
       COMMAND "${NRFKIT_TOOL}" sdk manifest

@@ -118,6 +118,14 @@ class RadioContractTests(unittest.TestCase):
         self.assertIn("NRFKIT_RADIO_OWNER_TIMESLOT", link)
         self.assertIn("nrfkit_timeslot_deadline_pending", link)
         self.assertIn("GRANT_DISTANCE_US", link)
+        retry = (ROOT / "examples/m7-timeslot-retry/main.c").read_text(
+            encoding="utf-8"
+        )
+        for token in (
+            "QUEUE_CAPACITY 8U", "MAX_RETRIES 3U", "retries == 8U",
+            "channel_switches == 4U", "__WFE()",
+        ):
+            self.assertIn(token, retry)
 
     def test_dual_board_harness_rejects_a_single_probe(self) -> None:
         cli = (ROOT / "tools/nrfkit_tools/cli.py").read_text(encoding="utf-8")
@@ -132,6 +140,8 @@ class RadioContractTests(unittest.TestCase):
         self.assertNotIn('f"M5 receiver', cli)
         self.assertIn('"--require-rx-crc-rejection"', cli)
         self.assertIn('"crc-rejection", round=round_number', cli)
+        self.assertIn('"--retry-contract"', cli)
+        self.assertIn('"retry-queue-channel", round=round_number', cli)
 
     def test_xo_running_check_preserves_optional_output_contract(self) -> None:
         patch = (ROOT / "patches/nrfx/0002-clock-xo-allow-null-source-output.patch").read_text(

@@ -896,12 +896,18 @@ def command_m5_radio_dual(args: argparse.Namespace) -> int:
         raise ToolError(f"{milestone} dual-board validation requires two distinct probes")
     tx_manifest = load_manifest(args.tx_manifest)
     rx_manifest = load_manifest(args.rx_manifest)
-    if not tx_manifest["expected_token"].startswith(f"NRFKIT_{milestone}_") or \
-            not tx_manifest["expected_token"].endswith("TX PASS"):
-        raise ToolError(f"{milestone} transmitter manifest must declare a TX PASS token")
-    if not rx_manifest["expected_token"].startswith(f"NRFKIT_{milestone}_") or \
-            "RX PASS" not in rx_manifest["expected_token"]:
-        raise ToolError(f"{milestone} receiver manifest must declare an RX PASS token")
+    retry_contract = getattr(args, "retry_contract", False)
+    if retry_contract:
+        if tx_manifest["expected_token"] != "NRFKIT_M7_RETRY PASS" or \
+                rx_manifest["expected_token"] != "NRFKIT_M7_PEER_RETRY PASS":
+            raise ToolError("M7 retry contract requires the client and ACK-server tokens")
+    else:
+        if not tx_manifest["expected_token"].startswith(f"NRFKIT_{milestone}_") or \
+                not tx_manifest["expected_token"].endswith("TX PASS"):
+            raise ToolError(f"{milestone} transmitter manifest must declare a TX PASS token")
+        if not rx_manifest["expected_token"].startswith(f"NRFKIT_{milestone}_") or \
+                "RX PASS" not in rx_manifest["expected_token"]:
+            raise ToolError(f"{milestone} receiver manifest must declare an RX PASS token")
     if args.rounds < 1 or args.rounds > 100:
         raise ToolError(f"{milestone} rounds must be between 1 and 100")
 
@@ -967,6 +973,17 @@ def command_m5_radio_dual(args: argparse.Namespace) -> int:
                 )
             rx_report = str(Path(lines[0]).resolve())
             report["child_reports"].extend((rx_report, tx_report))
+            if retry_contract:
+                transcript = Path(tx_report).with_name("serial.log").read_text(
+                    encoding="utf-8", errors="replace"
+                )
+                required = (
+                    "accepted=64", "completed=64", "retries=8", "dropped=0",
+                    "peak=8", "channels=4",
+                )
+                if any(value not in transcript for value in required):
+                    raise ToolError("M7 retry/queue/channel counters are not conserved")
+                _stage(run_dir, report, "retry-queue-channel", round=round_number)
             if getattr(args, "require_rx_crc_rejection", False):
                 transcript = Path(rx_report).with_name("serial.log").read_text(
                     encoding="utf-8", errors="replace"
@@ -2157,6 +2174,7 @@ def main(argv: list[str] | None = None) -> int:
             "tx-4m-bt-0-6", "rx-4m-bt-0-6",
             "tx-timeslot-4m-bt-0-6",
             "tx-timeslot-4m-bad-crc", "tx-timeslot-4m-bad-whitening",
+            "retry-server-4m",
             "tx-4m-bt-0-4", "rx-4m-bt-0-4",
         ),
     )
@@ -2266,6 +2284,7 @@ def main(argv: list[str] | None = None) -> int:
     m7_dual.add_argument("--gate-timeout", type=float, default=120)
     m7_dual.add_argument("--rounds", type=int, default=3)
     m7_dual.add_argument("--require-rx-crc-rejection", action="store_true")
+    m7_dual.add_argument("--retry-contract", action="store_true")
     m7_dual.set_defaults(handler=command_m5_radio_dual, milestone="M7")
     m6_ble = subparsers.add_parser("m6-ble-gate")
     m6_ble.add_argument("--device-name", default="nrfkit-m6")

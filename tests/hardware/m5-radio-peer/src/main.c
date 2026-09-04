@@ -109,7 +109,56 @@ int main(void)
         return 1;
     }
     radio_prepare();
-#if defined(CONFIG_NRFKIT_M5_PEER_TX) && CONFIG_NRFKIT_M5_PEER_TX
+#if defined(CONFIG_NRFKIT_M7_PEER_RETRY_SERVER) && \
+    CONFIG_NRFKIT_M7_PEER_RETRY_SERVER
+    uint8_t dropped_once[64] = {0};
+    uint32_t completed = 0U;
+    uint32_t intentional_drops = 0U;
+    uint32_t channel_switches = 0U;
+    uint32_t invalid = 0U;
+    uint32_t attempts = 0U;
+    while (completed < 64U && attempts++ < 100000U) {
+        if (!transfer(NRF_RADIO_TASK_RXEN)) {
+            continue;
+        }
+        if (!nrf_radio_crc_status_check(NRF_RADIO) ||
+            packet[0] != PACKET_LENGTH) {
+            ++invalid;
+            continue;
+        }
+        uint8_t const sequence = packet[1];
+        if (sequence >= 64U || sequence != completed) {
+            ++invalid;
+            continue;
+        }
+        if ((sequence % 8U) == 0U && dropped_once[sequence] == 0U) {
+            dropped_once[sequence] = 1U;
+            ++intentional_drops;
+            continue;
+        }
+        packet[0] = 2U;
+        packet[1] = sequence;
+        packet[2] = 0xACU;
+        if (!transfer(NRF_RADIO_TASK_TXEN)) {
+            printk("NRFKIT_M7_PEER_RETRY FAIL ack\n");
+            return 1;
+        }
+        ++completed;
+        if ((completed % 16U) == 0U) {
+            uint16_t const frequency =
+                ((completed / 16U) & 1U) != 0U ? 2440U : 2416U;
+            nrf_radio_frequency_set(NRF_RADIO, frequency);
+            ++channel_switches;
+        }
+    }
+    if (completed != 64U || intentional_drops != 8U ||
+        channel_switches != 4U || invalid != 0U) {
+        printk("NRFKIT_M7_PEER_RETRY FAIL completed=%u drops=%u channels=%u invalid=%u\n",
+               completed, intentional_drops, channel_switches, invalid);
+        return 1;
+    }
+    printk("NRFKIT_M7_PEER_RETRY PASS completed=64 drops=8 channels=4 invalid=0\n");
+#elif defined(CONFIG_NRFKIT_M5_PEER_TX) && CONFIG_NRFKIT_M5_PEER_TX
     k_sleep(K_SECONDS(1));
     packet[0] = PACKET_LENGTH;
 #if (defined(CONFIG_NRFKIT_M7_PEER_BAD_CRC_PREFIX) && \
@@ -204,7 +253,7 @@ int main(void)
     printk("NRFKIT_M5_PEER_RX PASS received=%u lost=%u invalid=0\n", received, lost);
 #endif
 #else
-#error "Select exactly one M5 peer role"
+#error "Select exactly one peer role"
 #endif
     for (;;) {
         k_sleep(K_FOREVER);
