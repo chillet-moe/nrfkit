@@ -219,6 +219,8 @@ class HciTests(unittest.TestCase):
             self.assertIn((0x200C, b"\x00\x01"), created[0].commands)
             self.assertEqual(opcodes.count(0x0406), 2)
             self.assertIn(0xFFFF, opcodes)
+            submitted_acl = next(data for opcode, data in created[0].commands if opcode == 0xFFFF)
+            self.assertEqual(submitted_acl[:2], bytes((0x01, 0x00)))
             self.assertIn(0x2005, opcodes)
             self.assertIn(0x0C01, opcodes)
             self.assertIn(0x2001, opcodes)
