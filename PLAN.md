@@ -668,10 +668,14 @@ host-side gate 与来源审计。port 的接口组织遵循 CherryUSB 官方移�
 证据，寄存器语义和 FIFO 选择以 LM20 文档、DWC2 capability register 与可复现
 实板行为为准。最终镜像已在 HS 下完成 100 次受控 reconnect 和 60 秒双向压力，
 331883 次传输、每方向 169924096 bytes 均无错误，HID 与 nrfx TIMER 同时工作；
-Other-Speed descriptor 也已实读确认其 full-speed bulk MPS 为 64。M4 尚未标记完成：
-Linux runtime-PM suspend/resume/remote-wakeup 门禁需要操作系统 root 写 sysfs，Codex
-工具提权本身不提供该权限。该项必须由 `m4-usb-power` 的成功结构化报告补齐，不能
-用 `--skip-power` 报告替代。
+Other-Speed descriptor 也已实读确认其 full-speed bulk MPS 为 64。M4 尚未标记完成。
+root-capable `m4-usb-power` 已将普通 host-initiated resume 与 device-initiated
+remote wake 拆成独立结构化阶段；前者在实板上通过，固件 suspend 和 resume 计数
+各递增且没有重新配置。后者在当前多级 hub 路径上成功执行 CherryUSB remote-wakeup
+API，但 xHCI 随后 reset 并重新枚举设备，固件没有收到 resume 事件。因此现有证据
+已把问题限定在 device-initiated resume 信号或 USB 拓扑传播，而不是普通 DWC2
+resume 路径；仍需在不会重置设备的直连拓扑上得到完整成功报告，不能用
+`--skip-power` 或仅 host-resume 通过的报告替代。
 
 ### M5：私有 2.4 GHz 基础
 
