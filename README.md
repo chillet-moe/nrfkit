@@ -4,7 +4,19 @@
 
 This project is not affiliated with or endorsed by Nordic Semiconductor. Nordic Semiconductor, nRF, and related marks belong to their respective owners.
 
-The project is in early bring-up. P0 currently provides locked official reference builds, ELF and Intel HEX address auditing, guarded programming, reset/run orchestration, and J-Link GDB smoke tests. This is not yet a consumer SDK release; see [`PLAN.md`](PLAN.md) for the normative scope and completion gates.
+The project is in early bring-up. Completed P0 provides locked official reference builds, ELF and Intel HEX address auditing, guarded programming, reset/run orchestration, the aggregate hardware gate, and J-Link GDB smoke tests. This is not yet a consumer SDK release; see [`PLAN.md`](PLAN.md) for the normative scope and completion gates.
+
+## Experimental CMake package
+
+M0 provides the initial package-discovery skeleton, not yet a firmware target API. A source checkout can be consumed without consulting NCS or west by pointing CMake directly at its package directory:
+
+```sh
+cmake -S tests/consumer/minimal -B build/minimal -G Ninja \
+  -DNrfCMakeSdk_DIR="$PWD/cmake"
+cmake --build build/minimal
+```
+
+The root project can also be installed to a prefix; the installed package exports the same `NrfCMakeSdk::core` interface target. Host tests exercise both forms with deliberately invalid NCS/Zephyr environment paths to ensure configuration remains independent of those workspaces.
 
 ## Maintainer reference workflow
 
