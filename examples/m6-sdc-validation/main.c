@@ -23,6 +23,7 @@ static uint8_t rx_ring[RX_RING_SIZE];
 static volatile uint8_t tx_done;
 static volatile uint8_t uart_fault;
 volatile uint32_t nrfkit_m6_required_memory;
+volatile uint32_t nrfkit_m6_lifecycle_enables;
 
 static void uart_handler(const nrfx_uarte_event_t *event, void *context)
 {
@@ -105,6 +106,7 @@ int main(void)
         nrfkit_assert_fail();
     }
     nrfkit_m6_required_memory = (uint32_t)required_memory;
+    nrfkit_m6_lifecycle_enables = 2U;
 
     uint8_t command[258];
     uint8_t output[260];
@@ -129,10 +131,24 @@ int main(void)
             }
             size_t event_size;
             output[0] = 0x04U;
-            if (nrfkit_sdc_hci_command(command, packet_size - 1U,
-                                       &output[1], sizeof(output) - 1U,
-                                       &event_size) != 0) {
-                nrfkit_assert_fail();
+            if (command[0] == 0x00U && command[1] == 0xFCU &&
+                command[2] == 0U) {
+                output[1] = 0x0EU;
+                output[2] = 9U;
+                output[3] = 1U;
+                output[4] = command[0];
+                output[5] = command[1];
+                output[6] = 0U;
+                output[7] = (uint8_t)nrfkit_m6_required_memory;
+                output[8] = (uint8_t)(nrfkit_m6_required_memory >> 8U);
+                output[9] = (uint8_t)(nrfkit_m6_required_memory >> 16U);
+                output[10] = (uint8_t)(nrfkit_m6_required_memory >> 24U);
+                output[11] = (uint8_t)nrfkit_m6_lifecycle_enables;
+                event_size = 11U;
+            } else if (nrfkit_sdc_hci_command(
+                           command, packet_size - 1U, &output[1],
+                           sizeof(output) - 1U, &event_size) != 0) {
+                    nrfkit_assert_fail();
             }
             send(output, event_size + 1U);
         }

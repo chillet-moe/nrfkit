@@ -39,7 +39,10 @@ from .ble_validation import (
     host_le_advertisement, scan_ble_advertisement,
 )
 from .image import ImageContractError, parse_elf, parse_ihex, require_allowed
-from .hci import H4Session, HciContractError, advertising_name, advertising_reports
+from .hci import (
+    H4Session, HciContractError, advertising_name, advertising_reports,
+    disconnection_complete, le_connection_complete,
+)
 from .equivalence import audit_equivalence
 from .process import atomic_json, run_logged
 from .reference import (
@@ -1160,18 +1163,26 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                 "le_features": le_features.hex(),
             }
             _stage(run_dir, report, "hci-reset-version-features", **version_evidence)
+            diagnostics = session.command(0xFC00, timeout=args.hci_timeout)
+            if len(diagnostics) != 5 or diagnostics[4] != 2:
+                raise ToolError("Controller returned malformed lifecycle diagnostics")
+            _stage(
+                run_dir, report, "sdc-lifecycle-reentry",
+                required_memory=int.from_bytes(diagnostics[:4], "little"),
+                enable_count=diagnostics[4],
+            )
 
             # HCI Reset restores the default masks, which do not deliver LE Meta
             # events. Enable only Command Complete and LE Meta globally, then only
             # legacy LE Advertising Report within the LE event mask.
             session.command(
                 0x0C01,
-                bytes((0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20)),
+                bytes((0x10, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20)),
                 args.hci_timeout,
             )
             session.command(
                 0x2001,
-                bytes((0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)),
+                bytes((0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)),
                 args.hci_timeout,
             )
 
@@ -1228,6 +1239,7 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                 scan_enabled = False
                 reports_seen = 0
                 peer_observed = False
+                peer: dict[str, object] | None = None
                 with host_le_advertisement(
                     bluetoothctl=args.bluetoothctl,
                     device_name=args.scan_peer_name,
@@ -1244,18 +1256,49 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                                 reports_seen += 1
                                 if advertising_name(item["data"]) == args.scan_peer_name:
                                     peer_observed = True
+                                    peer = item
                     finally:
                         if scan_enabled:
                             session.command(0x200C, b"\x00\x01", args.hci_timeout)
-                if not peer_observed:
-                    raise ToolError(
-                        "Controller did not observe the bounded host advertising peer"
+                    if not peer_observed or peer is None:
+                        raise ToolError(
+                            "Controller did not observe the bounded host advertising peer"
+                        )
+                    peer_address = bytes.fromhex(
+                        str(peer["address"]).replace(":", "")
+                    )[::-1]
+                    create_connection = struct.pack(
+                        "<HHBB6sBHHHHHH", 0x0060, 0x0030, 0x00,
+                        int(peer["address_type"]), peer_address, 0x01,
+                        0x0018, 0x0028, 0x0000, 0x01F4, 0x0000, 0x0000,
                     )
+                    session.command_status(0x200D, create_connection, args.hci_timeout)
+                    deadline = time.monotonic() + args.hci_timeout
+                    connection = None
+                    while connection is None:
+                        connection = le_connection_complete(session.next_event(deadline))
+                    handle = int(connection["handle"])
+                    session.command_status(
+                        0x0406, struct.pack("<HB", handle, 0x13), args.hci_timeout,
+                    )
+                    deadline = time.monotonic() + args.hci_timeout
+                    reason = None
+                    while reason is None:
+                        reason = disconnection_complete(
+                            session.next_event(deadline), handle,
+                        )
                 _stage(
                     run_dir, report, "hci-scanning-on-air",
                     reports_seen=reports_seen,
                     peer_name=args.scan_peer_name,
                     host_advertisement_cleanup=host_advertisement,
+                )
+                _stage(
+                    run_dir, report, "hci-central-connect-disconnect",
+                    peer_name=args.scan_peer_name,
+                    role=connection["role"],
+                    interval=connection["interval"],
+                    disconnection_reason=reason,
                 )
 
         report.update({

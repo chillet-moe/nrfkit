@@ -7,11 +7,13 @@
 #include <nrfkit/sdc.h>
 #include <sdc_hci_cmd_controller_baseband.h>
 #include <sdc_hci_cmd_info_params.h>
+#include <sdc_hci_cmd_link_control.h>
 #include <sdc_hci_cmd_le.h>
 
 #define HCI_STATUS_UNKNOWN_COMMAND UINT8_C(0x01)
 #define HCI_STATUS_INVALID_PARAMETERS UINT8_C(0x12)
 #define HCI_EVENT_COMMAND_COMPLETE UINT8_C(0x0e)
+#define HCI_EVENT_COMMAND_STATUS UINT8_C(0x0f)
 
 static void copy_bytes(uint8_t *destination, const void *source, size_t size)
 {
@@ -25,9 +27,11 @@ static uint8_t dispatch(uint16_t opcode,
                         const uint8_t *parameters,
                         size_t parameter_size,
                         uint8_t *return_parameters,
-                        size_t *return_size)
+                        size_t *return_size,
+                        uint8_t *command_status)
 {
     *return_size = 0U;
+    *command_status = 0U;
     switch (opcode) {
     case SDC_HCI_OPCODE_CMD_CB_RESET:
         return parameter_size == 0U ? sdc_hci_cmd_cb_reset() :
@@ -106,7 +110,17 @@ static uint8_t dispatch(uint16_t opcode,
         return parameter_size == sizeof(sdc_hci_cmd_le_set_scan_enable_t) ?
             sdc_hci_cmd_le_set_scan_enable((const void *)parameters) :
             HCI_STATUS_INVALID_PARAMETERS;
+    case SDC_HCI_OPCODE_CMD_LE_CREATE_CONN:
+        *command_status = 1U;
+        return parameter_size == sizeof(sdc_hci_cmd_le_create_conn_t) ?
+            sdc_hci_cmd_le_create_conn((const void *)parameters) :
+            HCI_STATUS_INVALID_PARAMETERS;
 #endif
+    case SDC_HCI_OPCODE_CMD_LC_DISCONNECT:
+        *command_status = 1U;
+        return parameter_size == sizeof(sdc_hci_cmd_lc_disconnect_t) ?
+            sdc_hci_cmd_lc_disconnect((const void *)parameters) :
+            HCI_STATUS_INVALID_PARAMETERS;
     default:
         return HCI_STATUS_UNKNOWN_COMMAND;
     }
@@ -127,8 +141,20 @@ int32_t nrfkit_sdc_hci_command(const uint8_t *command,
         ((uint16_t)command[1] << 8U);
     size_t return_size;
     uint8_t return_parameters[8];
+    uint8_t command_status;
     uint8_t const status = dispatch(opcode, &command[3], command[2],
-                                    return_parameters, &return_size);
+                                    return_parameters, &return_size,
+                                    &command_status);
+    if (command_status != 0U) {
+        event[0] = HCI_EVENT_COMMAND_STATUS;
+        event[1] = 4U;
+        event[2] = status;
+        event[3] = 1U;
+        event[4] = command[0];
+        event[5] = command[1];
+        *event_size = 6U;
+        return 0;
+    }
     event[0] = HCI_EVENT_COMMAND_COMPLETE;
     event[1] = (uint8_t)(4U + return_size);
     event[2] = 1U;

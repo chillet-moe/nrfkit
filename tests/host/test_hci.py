@@ -17,7 +17,10 @@ from nrfkit_tools.hci import (
     advertising_name,
     advertising_reports,
     command_complete,
+    command_status,
     command_packet,
+    disconnection_complete,
+    le_connection_complete,
 )
 from nrfkit_tools.cli import command_m6_sdc_oracle
 from nrfkit_tools.ble_validation import host_le_advertisement
@@ -36,6 +39,23 @@ class HciTests(unittest.TestCase):
         event = H4EventParser().feed(bytes.fromhex("040e0401030c0c"))[0]
         with self.assertRaisesRegex(HciContractError, "status 0x0c"):
             command_complete(event, 0x0C03)
+
+    def test_async_connection_and_disconnection_events(self) -> None:
+        status = H4EventParser().feed(bytes.fromhex("040f0400010d20"))[0]
+        self.assertTrue(command_status(status, 0x200D))
+        parameters = bytes.fromhex(
+            "01000100000166554433221118000000f40100"
+        )
+        event = H4EventParser().feed(
+            bytes((0x04, 0x3E, len(parameters))) + parameters
+        )[0]
+        connection = le_connection_complete(event)
+        self.assertEqual(connection["handle"], 1)
+        self.assertEqual(connection["peer_address"], "11:22:33:44:55:66")
+        disconnected = H4EventParser().feed(
+            bytes((0x04, 0x05, 0x04, 0x00, 0x01, 0x00, 0x16))
+        )[0]
+        self.assertEqual(disconnection_complete(disconnected, 1), 0x16)
 
     def test_legacy_advertising_report_extracts_name(self) -> None:
         data = bytes.fromhex("0201060a096e72666b69742d7331")
@@ -69,9 +89,26 @@ class HciTests(unittest.TestCase):
                     0x1001: bytes((0x0D, 0x34, 0x12, 0x0D, 0x59, 0x00, 0x34, 0x12)),
                     0x1003: bytes(8),
                     0x2003: bytes(8),
+                    0xFC00: bytes((0x00, 0x00, 0x01, 0x00, 0x02)),
                 }.get(opcode, b"")
 
+            def command_status(
+                self, opcode: int, parameters: bytes = b"", timeout: float = 5.0,
+            ) -> None:
+                self.commands.append((opcode, parameters))
+
             def next_event(self, deadline: float):
+                if self.commands and self.commands[-1][0] == 0x200D:
+                    parameters = bytes.fromhex(
+                        "01000100000166554433221118000000f40100"
+                    )
+                    return H4EventParser().feed(
+                        bytes((0x04, 0x3E, len(parameters))) + parameters
+                    )[0]
+                if self.commands and self.commands[-1][0] == 0x0406:
+                    return H4EventParser().feed(
+                        bytes((0x04, 0x05, 0x04, 0x00, 0x01, 0x00, 0x16))
+                    )[0]
                 name = b"nrfkit-host-peer"
                 data = bytes.fromhex("020106") + bytes((len(name) + 1, 0x09)) + name
                 parameters = (

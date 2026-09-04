@@ -16,7 +16,10 @@ class HciContractError(RuntimeError):
 H4_COMMAND = 0x01
 H4_EVENT = 0x04
 EVENT_COMMAND_COMPLETE = 0x0E
+EVENT_COMMAND_STATUS = 0x0F
+EVENT_DISCONNECTION_COMPLETE = 0x05
 EVENT_LE_META = 0x3E
+LE_CONNECTION_COMPLETE = 0x01
 LE_ADVERTISING_REPORT = 0x02
 
 
@@ -72,6 +75,57 @@ def command_complete(event: HciEvent, opcode: int) -> bytes | None:
             f"HCI command 0x{opcode:04x} failed with status 0x{return_parameters[0]:02x}"
         )
     return return_parameters[1:]
+
+
+def command_status(event: HciEvent, opcode: int) -> bool:
+    if event.event_code != EVENT_COMMAND_STATUS:
+        return False
+    if len(event.parameters) != 4:
+        raise HciContractError("malformed HCI Command Status event")
+    completed_opcode = int.from_bytes(event.parameters[2:4], "little")
+    if completed_opcode != opcode:
+        return False
+    if event.parameters[0] != 0:
+        raise HciContractError(
+            f"HCI command 0x{opcode:04x} failed with status 0x{event.parameters[0]:02x}"
+        )
+    return True
+
+
+def le_connection_complete(event: HciEvent) -> dict[str, object] | None:
+    if event.event_code != EVENT_LE_META or not event.parameters:
+        return None
+    if event.parameters[0] != LE_CONNECTION_COMPLETE:
+        return None
+    if len(event.parameters) != 19:
+        raise HciContractError("malformed LE Connection Complete event")
+    if event.parameters[1] != 0:
+        raise HciContractError(
+            f"LE connection failed with status 0x{event.parameters[1]:02x}"
+        )
+    return {
+        "handle": int.from_bytes(event.parameters[2:4], "little"),
+        "role": event.parameters[4],
+        "peer_address_type": event.parameters[5],
+        "peer_address": bytes(reversed(event.parameters[6:12])).hex(":"),
+        "interval": int.from_bytes(event.parameters[12:14], "little"),
+        "latency": int.from_bytes(event.parameters[14:16], "little"),
+        "supervision_timeout": int.from_bytes(event.parameters[16:18], "little"),
+    }
+
+
+def disconnection_complete(event: HciEvent, handle: int) -> int | None:
+    if event.event_code != EVENT_DISCONNECTION_COMPLETE:
+        return None
+    if len(event.parameters) != 4:
+        raise HciContractError("malformed Disconnection Complete event")
+    if int.from_bytes(event.parameters[1:3], "little") != handle:
+        return None
+    if event.parameters[0] != 0:
+        raise HciContractError(
+            f"disconnection failed with status 0x{event.parameters[0]:02x}"
+        )
+    return event.parameters[3]
 
 
 def advertising_reports(event: HciEvent) -> list[dict[str, object]]:
@@ -167,3 +221,11 @@ class H4Session:
             result = command_complete(self.next_event(deadline), opcode)
             if result is not None:
                 return result
+
+    def command_status(
+        self, opcode: int, parameters: bytes = b"", timeout: float = 5.0,
+    ) -> None:
+        deadline = time.monotonic() + timeout
+        self._write(command_packet(opcode, parameters), deadline)
+        while not command_status(self.next_event(deadline), opcode):
+            pass
