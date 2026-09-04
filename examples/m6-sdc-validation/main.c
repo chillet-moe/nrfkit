@@ -52,6 +52,7 @@ static volatile uint32_t timeslot_extend_failed;
 static volatile uint8_t timeslot_idle;
 static volatile uint8_t timeslot_extension_enabled;
 static volatile uint8_t timeslot_extension_requested;
+static volatile uint8_t timeslot_periodic_enabled;
 
 static struct nrfkit_timeslot_action timeslot_handler(
     enum nrfkit_timeslot_signal signal, void *context)
@@ -69,6 +70,10 @@ static struct nrfkit_timeslot_action timeslot_handler(
             timeslot_extension_requested = 1U;
             action.kind = NRFKIT_TIMESLOT_ACTION_EXTEND;
             action.length_us = 200U;
+        } else if (timeslot_periodic_enabled != 0U) {
+            action.kind = NRFKIT_TIMESLOT_ACTION_REQUEST_NORMAL;
+            action.length_us = 1000U;
+            action.distance_us = 10000U;
         } else {
             action.kind = NRFKIT_TIMESLOT_ACTION_END;
         }
@@ -224,6 +229,7 @@ int main(void)
         nrfkit_assert_fail();
     }
     timeslot_extension_enabled = 1U;
+    timeslot_periodic_enabled = 1U;
     timeslot_request();
 #else
     if (nrfkit_sdc_disable() != 0 ||
