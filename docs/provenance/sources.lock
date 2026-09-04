@@ -59,6 +59,10 @@
           "sha256": "4af75d37cbee20dd570e80c5c8f41f039043dcfafa815f86a25f6165d5b31cb3",
           "license": "LicenseRef-Nordic-5-Clause"
         },
+        "softdevice_controller/doc/api.rst": {
+          "sha256": "2ed5ae25d7d1ae11609598b5efcf4507c98e7eadfd4f0a1fc9c26202065ddb54",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
         "softdevice_controller/doc/scheduling.rst": {
           "sha256": "d9fe2d4999603641f46cda7f1121c5c4ff471593275fa342bc3de7c937ad34e6",
           "license": "LicenseRef-Nordic-5-Clause"
@@ -73,6 +77,14 @@
         },
         "softdevice_controller/include/sdc_hci.h": {
           "sha256": "eb1a3b2b4892a21a569704943b037bf52dccab8c08aca0ce8bcfa8a9e6be284d",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "softdevice_controller/include/sdc_soc.h": {
+          "sha256": "42dd1036606f50132bc3119f1c1aafaa187240fc6de9a17aca5d489d47b36c30",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "softdevice_controller/include/sdc_asserts.h": {
+          "sha256": "a5ee619dbd43ee8130372474ac1dc3ec80b669b7cda4d21b7203eae3e6766ac4",
           "license": "LicenseRef-Nordic-5-Clause"
         },
         "softdevice_controller/lib/nrf54lm/manifest.yaml": {
@@ -103,6 +115,14 @@
           "sha256": "7b92e7571d3309025026362e079898c593ea32cf4a9520460545a52978f07357",
           "license": "LicenseRef-Nordic-5-Clause"
         },
+        "mpsl/doc/mpsl.rst": {
+          "sha256": "c20830af496fdff9fc3d31a8690651e6900ccc644c2d0de60a46c0d868fb55ac",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/doc/api.rst": {
+          "sha256": "7e8b8fedda2464343e2cbcc29da03868a67b547ae0e81eefe1ad8042aaf9cfe7",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
         "mpsl/doc/pm.rst": {
           "sha256": "d728422ef40a9e958602fec7bbd789f596f3de83cbe9d2f6fb8a4884ba94f7ee",
           "license": "LicenseRef-Nordic-5-Clause"
@@ -121,6 +141,22 @@
         },
         "mpsl/include/mpsl.h": {
           "sha256": "2eeb4fee3a5d0b94f5767345a03cdcf79b18fff21cc150a1696812b65f0403d9",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/include/mpsl_clock.h": {
+          "sha256": "af51a5a4c03e13ba8d119f59e885c417878ed970121726c6b099f848de4f1374",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/include/mpsl_hwres.h": {
+          "sha256": "dae06cd6ac758f6cef5886dd2384612f0bc55e8ba15904cdbd0626ac44432982",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/include/mpsl_hwres_ppi.h": {
+          "sha256": "cd71f8e6770fd21b1b83a36daf59f011e0b0b7a72ce1ffcd6808f1ce6655c815",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/include/mpsl_asserts.h": {
+          "sha256": "eb5b63bd5d7d973510e719f0eafeab9fadd96de65c69db3c1bc2c58233b03fb8",
           "license": "LicenseRef-Nordic-5-Clause"
         },
         "mpsl/include/mpsl_timeslot.h": {

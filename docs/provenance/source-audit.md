@@ -44,6 +44,15 @@ RADIO access is retained only as an exclusive diagnostic/performance baseline; o
 SDC is active, access to managed RADIO/timer/DPPI resources is restricted to granted
 MPSL Timeslots.
 
+The completed first-pass audit is recorded in
+`docs/provenance/sdc-mpsl-resource-contract.md` and its machine-readable
+companion. It covers every locked component RST document, limitation,
+changelog, public header, license, and attribution file by reproducible tree
+digest. The contract records the nRF54LM resource masks, callback contexts,
+clock/lifecycle ordering, 8-byte Controller memory alignment, public archive
+link closure, and the hard-float ELF attributes of all four selected archives.
+Implementation and real-board evidence remain separate M6 gates.
+
 ## Startup and linker search
 
 | Source searched | Scope | nRF54LM20A / nRF54L15 result |

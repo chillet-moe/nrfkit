@@ -747,6 +747,16 @@ manifest、license/attribution，以及其明确列出的占用外设、IRQ、�
 链接、初始化顺序和调用上下文。把这些要求固化成带来源定位的机器可检查
 resource/ABI contract；若尚有不确定项，不得用反复烧写猜测。
 
+M6 的文档/资源契约阶段已完成：锁定版 SDC/MPSL 的 RST 文档、限制、changelog、
+公开 headers、manifest、license/attribution 已按完整树摘要审计，LM20 外设/IRQ/channel
+mask、128 MHz 与 GRTC/SYSCOUNTER 前置条件、LF/HF clock、低优先级与 callback context、
+低延迟回调、初始化/teardown、entropy、fault、8-byte Controller memory alignment 及三种
+SDC archive 的 hard-float ELF/link closure 已进入机器可检查 contract。该结果尚不等于
+平台适配或实板完成；下一步是关闭官方 hci_uart oracle 的 build/map/HCI/GDB 门禁，再以
+同一 contract 实现纯 CMake 底座。TIMER20/ECB00 虽由文档列为带 IRQ 的 MPSL-owned
+资源，但公开 API 没有独立 handler，必须先从锁定 oracle 的最终 map 闭环其 vector 行为，
+不得上板猜测。
+
 交付：
 
 - 校验 `external/sdk-nrfxlib` submodule，并在 `sources.lock` 锁定 tag、commit、SDC/MPSL binary manifest revision、

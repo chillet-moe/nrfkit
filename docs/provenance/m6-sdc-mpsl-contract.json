@@ -1,0 +1,546 @@
+{
+  "schema": "nrfkit-m6-sdc-mpsl-contract/v1",
+  "source": {
+    "release": "sdk-nrfxlib v3.4.0",
+    "commit": "d4ce5fe1a7d8af29bc01a4e1ddf5540ef65b6a3b",
+    "binary_manifest_revision": "c8da3098f9f034a44b6ebad30819cc0cea51da47",
+    "target": "nrf54lm",
+    "security_domain": "secure",
+    "float_abi": "hard-float"
+  },
+  "reviewed_input_sets": {
+    "sdc_headers": {
+      "file_count": 12,
+      "tree_sha256": "4c2458b3fcd2818f969dfe3ec7c11dac5d73e9909c2069a9c6826ad6262b41f8"
+    },
+    "mpsl_headers": {
+      "file_count": 17,
+      "tree_sha256": "728b1bbe9de68caaae769b6bc7116bdf7c421de45668a92d8fb5820e51268adf"
+    },
+    "sdc_docs": {
+      "file_count": 8,
+      "tree_sha256": "e7e3b25d7fd06ff8b3c641fb1df819364975f149a8b8730a57bfbaf6eae5c7d5"
+    },
+    "mpsl_docs": {
+      "file_count": 11,
+      "tree_sha256": "528fc77aa2f68b6da6ceaf63532dac417258b8b677af0219386068fec378e969"
+    },
+    "licenses": {
+      "file_count": 4,
+      "tree_sha256": "5a99be18282daa5ffb3459f5e1d84d658ecc0050aa51ed122e0728bfe6c44800"
+    }
+  },
+  "lm20_resources": {
+    "mpsl_interrupt_peripherals": [
+      "GRTC channels 7-11 via GRTC_3_IRQn",
+      "TIMER10",
+      "TIMER20",
+      "ECB00"
+    ],
+    "mpsl_non_interrupt_peripherals": [
+      "RADIO",
+      "CLOCK",
+      "TEMP",
+      "DPPIC10 channel 0",
+      "DPPIC20 channel 0",
+      "PPIB21 channel 0",
+      "PPIB11 channel 0"
+    ],
+    "sdc_owned_peripherals": [
+      "CCM00",
+      "AAR00",
+      "RRAMC",
+      "DPPIC10 channels 1-11",
+      "DPPIC00 channels 1 and 3",
+      "PPIB00 channels 0-3",
+      "PPIB10 channels 0-3"
+    ],
+    "interrupts": {
+      "high_priority": 0,
+      "vectors": {
+        "RADIO_0_IRQn": 138,
+        "TIMER10_IRQn": 133,
+        "GRTC_3_IRQn": 229
+      },
+      "official_low_priority_default": {
+        "name": "SWI00_IRQn",
+        "number": 28,
+        "priority": 4
+      },
+      "clock_forwarding_priority": "lower than 0"
+    },
+    "channel_masks": {
+      "MPSL_DPPIC10_CHANNELS_USED_MASK": "0x00000001",
+      "MPSL_DPPIC20_CHANNELS_USED_MASK": "0x00000001",
+      "MPSL_PPIB11_CHANNELS_USED_MASK": "0x00000001",
+      "MPSL_PPIB21_CHANNELS_USED_MASK": "0x00000001",
+      "SDC_DPPIC10_CHANNELS_USED_MASK": "0x00000ffe",
+      "SDC_DPPIC00_CHANNELS_USED_MASK": "0x0000000a",
+      "SDC_PPIB00_CHANNELS_USED_MASK": "0x0000000f",
+      "SDC_PPIB10_CHANNELS_USED_MASK": "0x0000000f"
+    }
+  },
+  "requirements": [
+    {
+      "id": "MPSL-RESOURCE-01",
+      "category": "resource",
+      "statement": "MPSL exclusively owns the documented nRF54L peripherals while initialized.",
+      "sources": [
+        {
+          "path": "mpsl/doc/mpsl.rst",
+          "anchor": "Several peripherals are owned by MPSL and must not be accessed directly by the application."
+        }
+      ],
+      "verification": "Configure-time ownership conflict gate plus final map/resource report."
+    },
+    {
+      "id": "MPSL-RESOURCE-02",
+      "category": "resource",
+      "statement": "GRTC channels 7-11, TIMER10, TIMER20, and ECB00 are interrupt-owning MPSL resources.",
+      "sources": [
+        {
+          "path": "mpsl/doc/mpsl.rst",
+          "anchor": "GRTC`` channels ``7`` to ``11``"
+        },
+        {
+          "path": "mpsl/doc/mpsl.rst",
+          "anchor": "* ``TIMER20``"
+        },
+        {
+          "path": "mpsl/doc/mpsl.rst",
+          "anchor": "* ``ECB00``"
+        }
+      ],
+      "verification": "Static resource table and IRQ/vector audit."
+    },
+    {
+      "id": "MPSL-RESOURCE-03",
+      "category": "resource",
+      "statement": "RADIO, CLOCK, TEMP and channel 0 of DPPIC10/DPPIC20/PPIB11/PPIB21 are MPSL-owned without direct application IRQ ownership.",
+      "sources": [
+        {
+          "path": "mpsl/doc/mpsl.rst",
+          "anchor": "* ``DPPIC10`` channel ``0``"
+        },
+        {
+          "path": "mpsl/include/mpsl_hwres.h",
+          "anchor": "MPSL_DPPIC10_CHANNELS_USED_MASK (0x00000001)"
+        }
+      ],
+      "verification": "Header-mask audit and configure-time ownership conflict gate."
+    },
+    {
+      "id": "SDC-RESOURCE-01",
+      "category": "resource",
+      "statement": "SDC owns CCM00, AAR00, RRAMC and its documented DPPI/PPIB channels while enabled.",
+      "sources": [
+        {
+          "path": "softdevice_controller/doc/softdevice_controller.rst",
+          "anchor": "The following peripherals are owned by the |controller| and must not be accessed directly by the application:"
+        },
+        {
+          "path": "softdevice_controller/include/sdc_soc.h",
+          "anchor": "SDC_DPPIC10_CHANNELS_USED_MASK  (0x00000ffe)"
+        }
+      ],
+      "verification": "Header-mask audit and configure-time ownership conflict gate."
+    },
+    {
+      "id": "MPSL-INTERRUPT-01",
+      "category": "interrupt",
+      "statement": "RADIO_0, TIMER10 and GRTC_3 handlers run at priority 0 and must not be delayed or replaced while MPSL is enabled.",
+      "sources": [
+        {
+          "path": "mpsl/include/mpsl.h",
+          "anchor": "#define MPSL_HIGH_IRQ_PRIORITY 0"
+        },
+        {
+          "path": "mpsl/doc/mpsl.rst",
+          "anchor": "must not be reconfigured while MPSL is enabled"
+        }
+      ],
+      "verification": "Vector binding, NVIC priority and lifecycle state tests."
+    },
+    {
+      "id": "MPSL-INTERRUPT-02",
+      "category": "interrupt",
+      "statement": "POWER_CLOCK events are forwarded at a priority lower than 0.",
+      "sources": [
+        {
+          "path": "mpsl/doc/mpsl.rst",
+          "anchor": "It is up to the application to forward any clock-related events to :c:func:`MPSL_IRQ_CLOCK_Handler` in lower priority."
+        }
+      ],
+      "verification": "IRQ glue inspection and runtime clock event test."
+    },
+    {
+      "id": "MPSL-INTERRUPT-03",
+      "category": "interrupt",
+      "statement": "The selected low-priority IRQ is lower priority than 0, is pended by MPSL, and schedules serialized thread-context processing promptly.",
+      "sources": [
+        {
+          "path": "mpsl/doc/mpsl.rst",
+          "anchor": "mpsl_low_priority_process` should be called as soon as possible (at least within a couple of ms)"
+        },
+        {
+          "path": "mpsl/doc/mpsl.rst",
+          "anchor": "should only be called from thread context"
+        }
+      ],
+      "verification": "Bounded low-priority latency, context and non-concurrency tests."
+    },
+    {
+      "id": "MPSL-CLOCK-01",
+      "category": "clock",
+      "statement": "GRTC is started and SYSCOUNTER enabled before mpsl_init.",
+      "sources": [
+        {
+          "path": "mpsl/doc/mpsl.rst",
+          "anchor": "The ``GRTC`` must be started by the application before calling :c:func:`mpsl_init` function."
+        },
+        {
+          "path": "mpsl/doc/mpsl.rst",
+          "anchor": "the ``SYSCOUNTER`` must be enabled in the ``MODE`` register"
+        }
+      ],
+      "verification": "Pre-init register assertions and runtime receipt."
+    },
+    {
+      "id": "MPSL-CLOCK-02",
+      "category": "clock",
+      "statement": "The nRF54L CPU clock is 128 MHz.",
+      "sources": [
+        {
+          "path": "mpsl/doc/mpsl.rst",
+          "anchor": "CPU clock frequency must be 128 MHz"
+        }
+      ],
+      "verification": "Compile-time target contract and runtime clock assertion."
+    },
+    {
+      "id": "MPSL-CLOCK-03",
+      "category": "clock",
+      "statement": "LFCLK configuration is no worse than 500 ppm; RC mode is calibrated at least every eight seconds.",
+      "sources": [
+        {
+          "path": "mpsl/include/mpsl_clock.h",
+          "anchor": "MPSL_WORST_CLOCK_ACCURACY_PPM  500"
+        },
+        {
+          "path": "mpsl/include/mpsl_clock.h",
+          "anchor": "once every 8 seconds to ensure +/-500 ppm clock stability"
+        }
+      ],
+      "verification": "Configuration validation and calibration scheduling test."
+    },
+    {
+      "id": "MPSL-CLOCK-04",
+      "category": "clock",
+      "statement": "HFXO latency reflects measured worst-case startup and too-small values fail closed.",
+      "sources": [
+        {
+          "path": "mpsl/include/mpsl_clock.h",
+          "anchor": "MPSL_CLOCK_HF_LATENCY_WORST_CASE = 1400"
+        },
+        {
+          "path": "mpsl/include/mpsl_clock.h",
+          "anchor": "Using a value smaller than the actual ramp-up time needed will cause asserts."
+        }
+      ],
+      "verification": "Configured latency receipt and board startup observation."
+    },
+    {
+      "id": "MPSL-CALLBACK-01",
+      "category": "callback",
+      "statement": "The platform supplies both low-latency callbacks, coordinating CONSTLAT and RRAM latency and tolerating coalesced back-to-back events.",
+      "sources": [
+        {
+          "path": "mpsl/doc/mpsl.rst",
+          "anchor": "Use this single pair together:"
+        },
+        {
+          "path": "mpsl/doc/mpsl.rst",
+          "anchor": "MPSL may skip :c:func:`mpsl_low_latency_release_callback` between events"
+        }
+      ],
+      "verification": "Nested/coalesced acquire-release unit test and final link closure."
+    },
+    {
+      "id": "MPSL-CONTEXT-01",
+      "category": "context",
+      "statement": "MPSL APIs are non-reentrant and serialized at one low-priority/thread execution level.",
+      "sources": [
+        {
+          "path": "mpsl/doc/mpsl.rst",
+          "anchor": "The MPSL library is not reentrant."
+        },
+        {
+          "path": "mpsl/doc/mpsl.rst",
+          "anchor": "make sure that only one MPSL API function is called from the application at any time"
+        }
+      ],
+      "verification": "Critical-section/state-machine audit and concurrency negative tests."
+    },
+    {
+      "id": "MPSL-FAULT-01",
+      "category": "fault",
+      "statement": "The assert handler is callable from any context after interrupts are disabled and must not return.",
+      "sources": [
+        {
+          "path": "mpsl/include/mpsl.h",
+          "anchor": "MPSL will disable all interrupts prior to calling the"
+        }
+      ],
+      "verification": "Persistent fault record plus reset/non-return path inspection."
+    },
+    {
+      "id": "MPSL-LIFECYCLE-01",
+      "category": "lifecycle",
+      "statement": "MPSL initializes before all protocol stacks and uninitializes only after they stop and all timeslots end.",
+      "sources": [
+        {
+          "path": "mpsl/doc/mpsl.rst",
+          "anchor": "MPSL should be initialized before any protocol stack is enabled"
+        },
+        {
+          "path": "mpsl/include/mpsl.h",
+          "anchor": "This function assumes no protocol stacks are running, and no timeslots are requested."
+        }
+      ],
+      "verification": "Lifecycle state machine negative and repeated-cycle tests."
+    },
+    {
+      "id": "SDC-LIFECYCLE-01",
+      "category": "lifecycle",
+      "statement": "sdc_init follows mpsl_init and requires LFCLK accuracy of 500 ppm or better.",
+      "sources": [
+        {
+          "path": "softdevice_controller/include/sdc.h",
+          "anchor": "MPSL needs to be configured with a LFCLK accuracy"
+        },
+        {
+          "path": "softdevice_controller/doc/softdevice_controller.rst",
+          "anchor": "The :ref:`mpsl` must be initialized before the |controller| is initialized."
+        }
+      ],
+      "verification": "Ordered lifecycle tests and invalid-clock negative test."
+    },
+    {
+      "id": "SDC-LIFECYCLE-02",
+      "category": "lifecycle",
+      "statement": "Feature inclusion precedes resource configuration, entropy registration precedes enable, and disable is synchronous.",
+      "sources": [
+        {
+          "path": "softdevice_controller/doc/softdevice_controller.rst",
+          "anchor": "Host->Controller      [label=\"sdc_rand_source_register(...)\"]"
+        },
+        {
+          "path": "softdevice_controller/include/sdc.h",
+          "anchor": "This call is synchronous."
+        }
+      ],
+      "verification": "Explicit lifecycle state machine and repeated enable-disable-re-enable gate."
+    },
+    {
+      "id": "SDC-MEMORY-01",
+      "category": "memory",
+      "statement": "Resource configuration reports required RAM and the enable buffer is at least that size and aligned to 8 bytes.",
+      "sources": [
+        {
+          "path": "softdevice_controller/include/sdc.h",
+          "anchor": "The pointer must be 8 bytes aligned."
+        },
+        {
+          "path": "softdevice_controller/include/sdc.h",
+          "anchor": "obtain the required memory size"
+        }
+      ],
+      "verification": "Compile/link alignment assertion, canaries, map and runtime budget report."
+    },
+    {
+      "id": "SDC-CALLBACK-01",
+      "category": "callback",
+      "statement": "The controller signal callback runs in the same context as mpsl_low_priority_process and drains HCI until no packet remains.",
+      "sources": [
+        {
+          "path": "softdevice_controller/include/sdc.h",
+          "anchor": "same context as @ref mpsl_low_priority_process"
+        },
+        {
+          "path": "softdevice_controller/doc/softdevice_controller.rst",
+          "anchor": "the host should try to pull data and events until it fails"
+        }
+      ],
+      "verification": "Serialized raw-HCI drain loop unit and board event-path tests."
+    },
+    {
+      "id": "SDC-CALLBACK-02",
+      "category": "callback",
+      "statement": "The blocking entropy callback runs in the same context as mpsl_low_priority_process and returns the requested byte count.",
+      "sources": [
+        {
+          "path": "softdevice_controller/include/sdc_soc.h",
+          "anchor": "This function must block until length bytes of random numbers were written"
+        }
+      ],
+      "verification": "Deterministic entropy adapter unit test and runtime call accounting."
+    },
+    {
+      "id": "SDC-FAULT-01",
+      "category": "fault",
+      "statement": "The SDC fault handler is callable from any context after interrupts are disabled and must not return.",
+      "sources": [
+        {
+          "path": "softdevice_controller/include/sdc.h",
+          "anchor": "The SoftDevice Controller will disable all interrupts prior to calling the"
+        }
+      ],
+      "verification": "Persistent fault record plus reset/non-return path inspection."
+    },
+    {
+      "id": "SDC-HCI-01",
+      "category": "hci",
+      "statement": "All raw HCI APIs execute at the same priority as mpsl_low_priority_process and sdc_hci_get is non-blocking.",
+      "sources": [
+        {
+          "path": "softdevice_controller/include/sdc_hci.h",
+          "anchor": "All APIs in this header file are expected to be called from the"
+        },
+        {
+          "path": "softdevice_controller/include/sdc_hci.h",
+          "anchor": "This API is non-blocking."
+        }
+      ],
+      "verification": "Single-context harness audit and bounded empty-queue test."
+    },
+    {
+      "id": "SDC-LINK-01",
+      "category": "link",
+      "statement": "MPSL and the selected SDC archive are the same nRF54LM secure hard-float manifest revision.",
+      "sources": [
+        {
+          "path": "softdevice_controller/lib/nrf54lm/manifest.yaml",
+          "anchor": "git_revision: c8da3098f9f034a44b6ebad30819cc0cea51da47"
+        },
+        {
+          "path": "mpsl/lib/nrf54lm/manifest.yaml",
+          "anchor": "git_revision: c8da3098f9f034a44b6ebad30819cc0cea51da47"
+        }
+      ],
+      "verification": "Hash, manifest, ELF attribute and final-link archive audit."
+    }
+  ],
+  "archives": [
+    {
+      "path": "mpsl/lib/nrf54lm/hard-float/libmpsl.a",
+      "required_elf_attributes": [
+        "Tag_CPU_arch: v8-M.mainline",
+        "Tag_ABI_VFP_args: VFP registers",
+        "Tag_ABI_align_needed: 8-byte",
+        "Tag_FP_arch: FPv5/FP-D16 for ARMv8"
+      ],
+      "public_undefined_symbols": [
+        "mpsl_low_latency_acquire_callback",
+        "mpsl_low_latency_release_callback"
+      ]
+    },
+    {
+      "path": "softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_multirole.a",
+      "required_elf_attributes": [
+        "Tag_CPU_arch: v8-M.mainline",
+        "Tag_ABI_VFP_args: VFP registers",
+        "Tag_ABI_align_needed: 8-byte",
+        "Tag_FP_arch: VFPv4-D16"
+      ],
+      "public_undefined_symbols": [
+        "MPSL_IRQ_RADIO_Handler",
+        "MPSL_IRQ_RTC0_Handler",
+        "MPSL_IRQ_TIMER0_Handler",
+        "mpsl_build_revision_get",
+        "mpsl_cx_granted_ops_get",
+        "mpsl_cx_register_callback",
+        "mpsl_cx_release",
+        "mpsl_cx_request",
+        "mpsl_dppi_fixed_channels_clear",
+        "mpsl_dppi_fixed_channels_set",
+        "mpsl_ecb_block_encrypt_extended",
+        "mpsl_fem_caps_get",
+        "mpsl_fem_disable",
+        "mpsl_fem_enable",
+        "mpsl_fem_lna_configuration_clear",
+        "mpsl_fem_lna_configuration_set",
+        "mpsl_fem_pa_configuration_clear",
+        "mpsl_fem_pa_configuration_set",
+        "mpsl_fem_pa_power_control_set",
+        "mpsl_fem_tx_power_split",
+        "mpsl_fem_utils_available_cc_channels_cache",
+        "mpsl_is_initialized",
+        "mpsl_low_priority_process",
+        "mpsl_temperature_get",
+        "mpsl_tx_power_radio_supported_power_adjust"
+      ]
+    },
+    {
+      "path": "softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_peripheral.a",
+      "required_elf_attributes": [
+        "Tag_CPU_arch: v8-M.mainline",
+        "Tag_ABI_VFP_args: VFP registers",
+        "Tag_ABI_align_needed: 8-byte",
+        "Tag_FP_arch: VFPv4-D16"
+      ],
+      "public_undefined_symbols": [
+        "MPSL_IRQ_RADIO_Handler",
+        "MPSL_IRQ_RTC0_Handler",
+        "MPSL_IRQ_TIMER0_Handler",
+        "mpsl_build_revision_get",
+        "mpsl_dppi_fixed_channels_clear",
+        "mpsl_dppi_fixed_channels_set",
+        "mpsl_ecb_block_encrypt_extended",
+        "mpsl_fem_caps_get",
+        "mpsl_fem_disable",
+        "mpsl_fem_enable",
+        "mpsl_fem_lna_configuration_clear",
+        "mpsl_fem_lna_configuration_set",
+        "mpsl_fem_pa_configuration_clear",
+        "mpsl_fem_pa_configuration_set",
+        "mpsl_fem_pa_power_control_set",
+        "mpsl_fem_tx_power_split",
+        "mpsl_fem_utils_available_cc_channels_cache",
+        "mpsl_is_initialized",
+        "mpsl_low_priority_process",
+        "mpsl_temperature_get"
+      ]
+    },
+    {
+      "path": "softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_central.a",
+      "required_elf_attributes": [
+        "Tag_CPU_arch: v8-M.mainline",
+        "Tag_ABI_VFP_args: VFP registers",
+        "Tag_ABI_align_needed: 8-byte",
+        "Tag_FP_arch: VFPv4-D16"
+      ],
+      "public_undefined_symbols": [
+        "MPSL_IRQ_RADIO_Handler",
+        "MPSL_IRQ_RTC0_Handler",
+        "MPSL_IRQ_TIMER0_Handler",
+        "mpsl_build_revision_get",
+        "mpsl_dppi_fixed_channels_clear",
+        "mpsl_dppi_fixed_channels_set",
+        "mpsl_ecb_block_encrypt_extended",
+        "mpsl_fem_caps_get",
+        "mpsl_fem_disable",
+        "mpsl_fem_enable",
+        "mpsl_fem_lna_configuration_clear",
+        "mpsl_fem_lna_configuration_set",
+        "mpsl_fem_pa_configuration_clear",
+        "mpsl_fem_pa_configuration_set",
+        "mpsl_fem_pa_power_control_set",
+        "mpsl_fem_tx_power_split",
+        "mpsl_fem_utils_available_cc_channels_cache",
+        "mpsl_is_initialized",
+        "mpsl_low_priority_process",
+        "mpsl_temperature_get"
+      ]
+    }
+  ]
+}
