@@ -465,6 +465,20 @@
       ]
     },
     {
+      "path": "mpsl/fem/common/lib/nrf54lm/hard-float/libmpsl_fem_common.a",
+      "required_elf_attributes": [
+        "Tag_CPU_arch: v8-M.mainline",
+        "Tag_ABI_VFP_args: VFP registers",
+        "Tag_ABI_align_needed: 8-byte",
+        "Tag_FP_arch: VFPv4-D16"
+      ],
+      "public_undefined_symbols": [
+        "mpsl_hwres_dppi_channel_alloc",
+        "mpsl_hwres_ppib_channel_alloc",
+        "mpsl_tx_power_radio_supported_power_adjust"
+      ]
+    },
+    {
       "path": "softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_multirole.a",
       "required_elf_attributes": [
         "Tag_CPU_arch: v8-M.mainline",

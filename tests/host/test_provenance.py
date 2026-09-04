@@ -82,6 +82,7 @@ class ProvenanceTests(unittest.TestCase):
             "softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_peripheral.a",
             "softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_central.a",
             "mpsl/lib/nrf54lm/hard-float/libmpsl.a",
+            "mpsl/fem/common/lib/nrf54lm/hard-float/libmpsl_fem_common.a",
         ):
             self.assertIn(archive, nrfxlib["files"])
 

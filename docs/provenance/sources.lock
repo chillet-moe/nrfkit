@@ -170,6 +170,18 @@
         "mpsl/lib/nrf54lm/hard-float/libmpsl.a": {
           "sha256": "5d6ec178b731b721d519089fa9f2c9adf4fba37e3d77387c8a9c4133752fdb7e",
           "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/fem/include/protocol/mpsl_fem_protocol_api.h": {
+          "sha256": "9236b7252f3de38c1c0b1cfba2021ae8a670f9f88f97c5314c01b10837025fe6",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/fem/common/lib/nrf54lm/manifest.yaml": {
+          "sha256": "17b3a29dc1c32373b105886f12bbabab0f9fc6c65705be935ab489d773ac85af",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/fem/common/lib/nrf54lm/hard-float/libmpsl_fem_common.a": {
+          "sha256": "e6780c52ba4cd00c894b94f7dbf6802ff37e54fc4a6b8d5d9b0f670eca8f50e0",
+          "license": "LicenseRef-Nordic-5-Clause"
         }
       }
     },

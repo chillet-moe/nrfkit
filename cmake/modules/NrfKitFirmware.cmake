@@ -28,12 +28,14 @@ function(_nrfkit_define_nrfxlib_targets)
   _nrfkit_prepare_nrfx(nrfx)
   set(paths
     mpsl/lib/nrf54lm/hard-float/libmpsl.a
+    mpsl/fem/common/lib/nrf54lm/hard-float/libmpsl_fem_common.a
     softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_multirole.a
     softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_peripheral.a
     softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_central.a
   )
   set(hashes
     5d6ec178b731b721d519089fa9f2c9adf4fba37e3d77387c8a9c4133752fdb7e
+    e6780c52ba4cd00c894b94f7dbf6802ff37e54fc4a6b8d5d9b0f670eca8f50e0
     74b04b594ae5593e3b1e8eb4f2408c4ae9c6d96b1e1ff64abfd3e5d1010ead52
     4ba73318343946c3e2d46825888e09fabce4a11e249905e373ec4cbb802bb3e3
     f499ee6db94d45be6c8a1c83d8aa7157632b445c1d4fffd59946d49925a1186b
@@ -62,13 +64,20 @@ function(_nrfkit_define_nrfxlib_targets)
   )
   list(GET paths 0 mpsl_path)
   set_target_properties(NrfKit::mpsl PROPERTIES IMPORTED_LOCATION "${root}/${mpsl_path}")
+  add_library(NrfKit::mpsl_fem_common STATIC IMPORTED GLOBAL)
+  list(GET paths 1 mpsl_fem_path)
+  set_target_properties(NrfKit::mpsl_fem_common PROPERTIES
+    IMPORTED_LOCATION "${root}/${mpsl_fem_path}"
+    INTERFACE_INCLUDE_DIRECTORIES
+      "${root}/mpsl/fem/include;${root}/mpsl/fem/include/protocol"
+  )
   foreach(variant IN ITEMS multirole peripheral central)
     if(variant STREQUAL "multirole")
-      set(index 1)
-    elseif(variant STREQUAL "peripheral")
       set(index 2)
-    else()
+    elseif(variant STREQUAL "peripheral")
       set(index 3)
+    else()
+      set(index 4)
     endif()
     list(GET paths ${index} sdc_path)
     add_library("NrfKit::sdc_${variant}" STATIC IMPORTED GLOBAL)
@@ -110,8 +119,16 @@ function(nrfkit_enable_sdc target)
 
   nrfkit_claim_resources("${target}" OWNER sdc_mpsl RESOURCES ${_NRFKIT_SDC_RESOURCES})
   _nrfkit_define_nrfxlib_targets()
-  nrfkit_enable_nrfx("${target}" DRIVERS clock grtc dppi rramc)
-  target_link_libraries("${target}" PRIVATE "NrfKit::sdc_${ARG_VARIANT}" NrfKit::mpsl)
+  nrfkit_enable_nrfx("${target}" DRIVERS cracen)
+  target_sources("${target}" PRIVATE
+    "${NrfKit_ROOT}/softdevice/sdc/nrf54l/platform.c"
+  )
+  string(TOUPPER "${ARG_VARIANT}" variant_upper)
+  target_compile_definitions("${target}" PRIVATE
+    "NRFKIT_SDC_VARIANT_${variant_upper}=1"
+  )
+  target_link_libraries("${target}" PRIVATE
+    "NrfKit::sdc_${ARG_VARIANT}" NrfKit::mpsl_fem_common NrfKit::mpsl)
 
   string(MAKE_C_IDENTIFIER "${target}" target_id)
   set(config_dir "${CMAKE_CURRENT_BINARY_DIR}/nrfkit/${target_id}")
@@ -125,7 +142,7 @@ function(nrfkit_enable_sdc target)
     "  \"variant\": \"${ARG_VARIANT}\",\n"
     "  \"security_domain\": \"secure\",\n"
     "  \"float_abi\": \"hard-float\",\n"
-    "  \"archives\": [\"${root}/mpsl/lib/nrf54lm/hard-float/libmpsl.a\", \"${root}/softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_${ARG_VARIANT}.a\"],\n"
+    "  \"archives\": [\"${root}/mpsl/lib/nrf54lm/hard-float/libmpsl.a\", \"${root}/mpsl/fem/common/lib/nrf54lm/hard-float/libmpsl_fem_common.a\", \"${root}/softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_${ARG_VARIANT}.a\"],\n"
     "  \"resources\": [\"${resources_json}\"]\n"
     "}\n"
   )

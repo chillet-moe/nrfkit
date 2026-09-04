@@ -40,6 +40,9 @@ install(DIRECTORY external/cherryusb/
 install(DIRECTORY external/sdk-nrfxlib/mpsl/include
   DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/mpsl
 )
+install(DIRECTORY external/sdk-nrfxlib/mpsl/fem/include
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/mpsl/fem
+)
 install(DIRECTORY external/sdk-nrfxlib/softdevice_controller/include
   DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/softdevice_controller
 )
@@ -65,6 +68,14 @@ install(FILES
 install(FILES
   external/sdk-nrfxlib/mpsl/lib/nrf54lm/hard-float/libmpsl.a
   DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/mpsl/lib/nrf54lm/hard-float
+)
+install(FILES
+  external/sdk-nrfxlib/mpsl/fem/common/lib/nrf54lm/manifest.yaml
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/mpsl/fem/common/lib/nrf54lm
+)
+install(FILES
+  external/sdk-nrfxlib/mpsl/fem/common/lib/nrf54lm/hard-float/libmpsl_fem_common.a
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/mpsl/fem/common/lib/nrf54lm/hard-float
 )
 install(FILES
   external/sdk-nrfxlib/softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_multirole.a

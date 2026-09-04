@@ -59,11 +59,15 @@ class SdcCmakeTests(unittest.TestCase):
             self.assertIn("dppi10.channel.11", contract["resources"])
             self.assertTrue(contract["archives"][0].endswith("libmpsl.a"))
             self.assertTrue(
-                contract["archives"][1].endswith("libsoftdevice_controller_multirole.a")
+                contract["archives"][1].endswith("libmpsl_fem_common.a")
+            )
+            self.assertTrue(
+                contract["archives"][2].endswith("libsoftdevice_controller_multirole.a")
             )
             ninja = (build / "build.ninja").read_text(encoding="utf-8")
             self.assertIn("libsoftdevice_controller_multirole.a", ninja)
             self.assertIn("libmpsl.a", ninja)
+            self.assertIn("libmpsl_fem_common.a", ninja)
             self.assertNotIn("zephyr", " ".join(contract["archives"]).lower())
 
     def test_sdc_resource_conflict_and_unknown_variant_fail_at_configure(self) -> None:
@@ -103,6 +107,31 @@ class SdcCmakeTests(unittest.TestCase):
                     stderr=subprocess.STDOUT, check=False,
                 )
                 self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_all_controller_variants_reach_real_link_closure(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            for variant in ("multirole", "peripheral", "central"):
+                build = base / variant
+                configured = subprocess.run([
+                    self.cmake, "-S", str(FIXTURE), "-B", str(build), "-G", "Ninja",
+                    f"-DNrfKit_DIR={ROOT / 'cmake'}",
+                    f"-DCMAKE_TOOLCHAIN_FILE={ROOT / 'cmake/toolchains/arm-clang.cmake'}",
+                    f"-DNRF_LLVM_ROOT={self.llvm_root}",
+                    "-DCONTRACT_CASE=valid",
+                    f"-DCONTRACT_VARIANT={variant}",
+                ], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    check=False)
+                self.assertEqual(configured.returncode, 0, configured.stdout)
+                built = subprocess.run(
+                    [self.cmake, "--build", str(build)], text=True,
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False,
+                )
+                self.assertEqual(built.returncode, 0, built.stdout)
+                link_map = (build / "contract.map").read_text(encoding="utf-8")
+                self.assertIn(f"libsoftdevice_controller_{variant}.a", link_map)
+                self.assertIn("libmpsl_fem_common.a", link_map)
+                self.assertIn("libmpsl.a", link_map)
 
 
 if __name__ == "__main__":
