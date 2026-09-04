@@ -150,6 +150,8 @@ class HciTests(unittest.TestCase):
             self.assertIn((0x200A, b"\x00"), created[0].commands)
             self.assertIn((0x200C, b"\x00\x01"), created[0].commands)
             self.assertIn(0x2005, opcodes)
+            self.assertIn(0x0C01, opcodes)
+            self.assertIn(0x2001, opcodes)
             self.assertEqual(report["status"], "ok")
             self.assertEqual(opcodes[:4], [0x0C03, 0x1001, 0x1003, 0x2003])
 

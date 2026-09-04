@@ -1156,6 +1156,20 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
             }
             _stage(run_dir, report, "hci-reset-version-features", **version_evidence)
 
+            # HCI Reset restores the default masks, which do not deliver LE Meta
+            # events. Enable only Command Complete and LE Meta globally, then only
+            # legacy LE Advertising Report within the LE event mask.
+            session.command(
+                0x0C01,
+                bytes((0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20)),
+                args.hci_timeout,
+            )
+            session.command(
+                0x2001,
+                bytes((0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)),
+                args.hci_timeout,
+            )
+
             device_name = args.device_name.encode("ascii")
             advertising_data = bytes((2, 0x01, 0x06, len(device_name) + 1, 0x09)) + device_name
             if len(advertising_data) > 31:
