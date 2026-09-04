@@ -93,6 +93,28 @@ class FlashCommandTests(unittest.TestCase):
         with self.assertRaisesRegex(ToolError, "backend contract"):
             load_manifest(path, artifacts=False)
 
+    def test_manifest_accepts_declared_hci_and_build_evidence_only(self) -> None:
+        manifest = {
+            "schema": "nrfkit-image/v1", "oracle": "test",
+            "source_receipt_sha256": "0" * 64, "soc": "test", "core": "Application",
+            "board": "test", "board_version": "test", "device_family": "test",
+            "expected_token": "test", "vcom": 1, "debug_allowlist": [[0, 1]],
+            "debug_elf": {}, "images": [], "backend": safe_backend_contract(),
+            "build_evidence": {"status": "ok"},
+            "hci_transport": {
+                "type": "H4", "baud": 1000000, "hardware_flow_control": True,
+            },
+        }
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as temporary:
+            json.dump(manifest, temporary)
+        path = Path(temporary.name)
+        self.addCleanup(path.unlink)
+        self.assertEqual(load_manifest(path, artifacts=False)["hci_transport"]["type"], "H4")
+        manifest["unexpected"] = True
+        path.write_text(json.dumps(manifest), encoding="utf-8")
+        with self.assertRaisesRegex(ToolError, "schema or fields"):
+            load_manifest(path, artifacts=False)
+
     def test_serial_reader_drains_while_an_operation_is_running(self) -> None:
         read_descriptor, write_descriptor = os.pipe()
         self.addCleanup(os.close, read_descriptor)
@@ -118,6 +140,27 @@ class FlashCommandTests(unittest.TestCase):
         if hasattr(termios, "TIOCEXCL"):
             ioctl.assert_called_once_with(17, termios.TIOCEXCL, 0)
         close.assert_called_once_with(17)
+
+    def test_serial_open_applies_hci_baud_and_hardware_flow_control(self) -> None:
+        attributes = [0, 0, 0, 0, 0, 0, [0] * 32]
+        with (
+            mock.patch("nrfkit_tools.cli.os.open", return_value=17),
+            mock.patch("nrfkit_tools.cli.fcntl.ioctl"),
+            mock.patch("nrfkit_tools.cli.tty.setraw"),
+            mock.patch("nrfkit_tools.cli.termios.tcgetattr", return_value=attributes),
+            mock.patch("nrfkit_tools.cli.termios.tcsetattr") as tcsetattr,
+            mock.patch("nrfkit_tools.cli.termios.tcflush"),
+            mock.patch("nrfkit_tools.cli.time.sleep"),
+        ):
+            descriptor = _serial_open(
+                Path("/dev/test-vcom"), baud=1000000, hardware_flow_control=True,
+            )
+        self.assertEqual(descriptor, 17)
+        configured = tcsetattr.call_args.args[2]
+        self.assertEqual(configured[4], termios.B1000000)
+        self.assertEqual(configured[5], termios.B1000000)
+        if hasattr(termios, "CRTSCTS"):
+            self.assertTrue(configured[2] & termios.CRTSCTS)
 
     def test_serial_cleanup_closes_descriptor_after_reader_failure(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

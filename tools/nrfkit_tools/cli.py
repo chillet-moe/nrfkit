@@ -39,6 +39,7 @@ from .ble_validation import (
     scan_ble_advertisement,
 )
 from .image import ImageContractError, parse_elf, parse_ihex, require_allowed
+from .hci import H4Session, HciContractError, advertising_name, advertising_reports
 from .equivalence import audit_equivalence
 from .process import atomic_json, run_logged
 from .reference import (
@@ -77,7 +78,12 @@ def load_manifest(path: Path, *, artifacts: bool = True) -> dict[str, Any]:
         "board_version", "device_family", "expected_token", "vcom", "debug_allowlist",
         "debug_elf", "images", "backend",
     }
-    if value.get("schema") != "nrfkit-image/v1" or set(value) != required:
+    optional = {"build_evidence", "hci_transport"}
+    if (
+        value.get("schema") != "nrfkit-image/v1"
+        or not required.issubset(value)
+        or set(value) - required - optional
+    ):
         raise ToolError("image manifest schema or fields are invalid")
     if value["backend"] != safe_backend_contract():
         raise ToolError("image manifest backend contract is invalid")
@@ -983,7 +989,9 @@ def _serial_port(device: dict[str, Any], vcom: int) -> Path:
     return Path(matches[0]["path"])
 
 
-def _serial_open(path: Path) -> int:
+def _serial_open(
+    path: Path, *, baud: int = 115200, hardware_flow_control: bool = False,
+) -> int:
     descriptor = os.open(path, os.O_RDWR | os.O_NONBLOCK | os.O_NOCTTY)
     try:
         if hasattr(termios, "TIOCEXCL"):
@@ -992,9 +1000,15 @@ def _serial_open(path: Path) -> int:
         attributes = termios.tcgetattr(descriptor)
         attributes[2] |= termios.CLOCAL | termios.CREAD
         if hasattr(termios, "CRTSCTS"):
-            attributes[2] &= ~termios.CRTSCTS
-        attributes[4] = termios.B115200
-        attributes[5] = termios.B115200
+            if hardware_flow_control:
+                attributes[2] |= termios.CRTSCTS
+            else:
+                attributes[2] &= ~termios.CRTSCTS
+        baud_constant = getattr(termios, f"B{baud}", None)
+        if baud_constant is None:
+            raise ToolError(f"host termios does not support {baud} baud")
+        attributes[4] = baud_constant
+        attributes[5] = baud_constant
         attributes[6][termios.VMIN] = 0
         attributes[6][termios.VTIME] = 0
         termios.tcsetattr(descriptor, termios.TCSANOW, attributes)
@@ -1075,6 +1089,159 @@ def _serial_cleanup(
         cleanup["errors"] = errors
         return cleanup, ToolError("; ".join(errors))
     return cleanup, None
+
+
+def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
+    run_dir, report = _new_run("m6-sdc-oracle")
+    descriptor: int | None = None
+    session: H4Session | None = None
+    cleanup_error: ToolError | None = None
+    try:
+        manifest = load_manifest(args.manifest)
+        transport = manifest.get("hci_transport")
+        if transport != {
+            "type": "H4", "baud": 1000000, "hardware_flow_control": True,
+        }:
+            raise ToolError("SDC oracle requires the locked 1 Mbaud H4/HWFC transport")
+        if manifest.get("build_evidence", {}).get("status") != "ok":
+            raise ToolError("SDC oracle manifest has no successful build evidence")
+        _initialize_device_report(run_dir, report, args.manifest, manifest, args)
+        report["hci_transport"] = transport
+        device = _select(manifest, args, run_dir)
+        _stage(run_dir, report, "device-selection", board_version=manifest["board_version"])
+        with _probe_lock(device["serialNumber"], "m6-sdc-oracle"):
+            _stage(run_dir, report, "probe-lock")
+            snapshots = _snapshot_hexes(manifest, run_dir)
+            _stage(
+                run_dir, report, "image-snapshot",
+                sha256=[sha256(snapshot) for snapshot in snapshots],
+            )
+            for snapshot in snapshots:
+                _program(manifest, device, snapshot, args, run_dir)
+                _stage(run_dir, report, "program", image_sha256=sha256(snapshot))
+            descriptor = _serial_open(
+                _serial_port(device, manifest["vcom"]),
+                baud=transport["baud"],
+                hardware_flow_control=transport["hardware_flow_control"],
+            )
+            _stage(run_dir, report, "hci-transport-ready", vcom=manifest["vcom"])
+            reset = run_logged(
+                reset_argv(
+                    args.nrfutil, device["serialNumber"], manifest["device_family"],
+                    manifest["core"], args.reset_kind,
+                ),
+                run_dir / "reset.log",
+                args.timeout,
+            )
+            if reset.returncode:
+                raise ToolError("device reset failed")
+            time.sleep(args.serial_ready_delay)
+            termios.tcflush(descriptor, termios.TCIFLUSH)
+            session = H4Session(descriptor)
+
+            session.command(0x0C03, timeout=args.hci_timeout)
+            version = session.command(0x1001, timeout=args.hci_timeout)
+            features = session.command(0x1003, timeout=args.hci_timeout)
+            le_features = session.command(0x2003, timeout=args.hci_timeout)
+            if len(version) != 8 or len(features) != 8 or len(le_features) != 8:
+                raise ToolError("Controller returned malformed version or feature data")
+            version_evidence = {
+                "hci_version": version[0],
+                "hci_revision": int.from_bytes(version[1:3], "little"),
+                "lmp_version": version[3],
+                "manufacturer": int.from_bytes(version[4:6], "little"),
+                "lmp_subversion": int.from_bytes(version[6:8], "little"),
+                "classic_features": features.hex(),
+                "le_features": le_features.hex(),
+            }
+            _stage(run_dir, report, "hci-reset-version-features", **version_evidence)
+
+            device_name = args.device_name.encode("ascii")
+            advertising_data = bytes((2, 0x01, 0x06, len(device_name) + 1, 0x09)) + device_name
+            if len(advertising_data) > 31:
+                raise ToolError("SDC oracle device name does not fit legacy advertising data")
+            advertising_parameters = struct.pack(
+                "<HHBBB6sBB", 0x00A0, 0x00A0, 0x03, 0x00, 0x00,
+                bytes(6), 0x07, 0x00,
+            )
+            session.command(0x2006, advertising_parameters, args.hci_timeout)
+            session.command(
+                0x2008,
+                bytes((len(advertising_data),)) + advertising_data.ljust(31, b"\0"),
+                args.hci_timeout,
+            )
+            advertising_enabled = False
+            try:
+                session.command(0x200A, b"\x01", args.hci_timeout)
+                advertising_enabled = True
+                observation = scan_ble_advertisement(
+                    device_name=args.device_name, timeout=args.advertising_timeout,
+                )
+                _stage(
+                    run_dir, report, "hci-advertising-on-air",
+                    device_name=args.device_name,
+                    rssi_observed=observation["rssi_observed"],
+                    cleanup=observation["cleanup"],
+                )
+            finally:
+                if advertising_enabled:
+                    session.command(0x200A, b"\x00", args.hci_timeout)
+
+            session.command(
+                0x200B,
+                struct.pack("<BHHBB", 0x01, 0x0060, 0x0030, 0x00, 0x00),
+                args.hci_timeout,
+            )
+            scan_enabled = False
+            reports_seen = 0
+            names_seen: set[str] = set()
+            try:
+                session.command(0x200C, b"\x01\x01", args.hci_timeout)
+                scan_enabled = True
+                deadline = time.monotonic() + args.scan_timeout
+                while time.monotonic() < deadline and reports_seen < args.scan_reports:
+                    event = session.next_event(deadline)
+                    for item in advertising_reports(event):
+                        reports_seen += 1
+                        name = advertising_name(item["data"])
+                        if name:
+                            names_seen.add(name)
+            finally:
+                if scan_enabled:
+                    session.command(0x200C, b"\x00\x01", args.hci_timeout)
+            if reports_seen < args.scan_reports:
+                raise ToolError(
+                    f"Controller observed only {reports_seen} advertising reports; "
+                    f"required {args.scan_reports}"
+                )
+            _stage(
+                run_dir, report, "hci-scanning-on-air",
+                reports_seen=reports_seen,
+                named_reports_seen=len(names_seen),
+            )
+        report.update({
+            "status": "ok",
+            "image_sha256": [sha256(snapshot) for snapshot in snapshots],
+            "hci": version_evidence,
+        })
+    except BaseException as error:
+        report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
+        atomic_json(run_dir / "run.json", report)
+        raise
+    finally:
+        if session is not None:
+            (run_dir / "hci-h4.bin").write_bytes(session.transcript)
+        report["cleanup"], cleanup_error = _serial_cleanup(run_dir, None, descriptor)
+        if cleanup_error is not None and report.get("status") == "ok":
+            report.update({
+                "status": "failed",
+                "error": f"{type(cleanup_error).__name__}: {cleanup_error}",
+            })
+        atomic_json(run_dir / "run.json", report)
+    if cleanup_error is not None:
+        raise cleanup_error
+    print(run_dir / "run.json")
+    return 0
 
 
 def command_run(args: argparse.Namespace) -> int:
@@ -1880,6 +2047,15 @@ def main(argv: list[str] | None = None) -> int:
     m6_host.add_argument("--timeout", type=float, default=5.0)
     m6_host.add_argument("--btmgmt", default=shutil.which("btmgmt") or "btmgmt")
     m6_host.set_defaults(handler=command_m6_host_info)
+    m6_sdc_oracle = subparsers.add_parser("m6-sdc-oracle")
+    add_device_arguments(m6_sdc_oracle)
+    m6_sdc_oracle.add_argument("--device-name", default="nrfkit-sdc-oracle")
+    m6_sdc_oracle.add_argument("--hci-timeout", type=float, default=5.0)
+    m6_sdc_oracle.add_argument("--advertising-timeout", type=float, default=30.0)
+    m6_sdc_oracle.add_argument("--scan-timeout", type=float, default=10.0)
+    m6_sdc_oracle.add_argument("--scan-reports", type=int, default=1)
+    m6_sdc_oracle.add_argument("--serial-ready-delay", type=float, default=0.5)
+    m6_sdc_oracle.set_defaults(handler=command_m6_sdc_oracle)
     m6_bond_clear = subparsers.add_parser("m6-bond-clear")
     add_device_arguments(m6_bond_clear)
     m6_bond_clear.add_argument("--authorize-bond-clear", action="store_true")
@@ -1940,7 +2116,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if getattr(args, "timeout", 1) <= 0:
         parser.error("--timeout must be positive")
-    for name in ("build_timeout", "gate_timeout", "token_timeout"):
+    for name in (
+        "build_timeout", "gate_timeout", "token_timeout", "hci_timeout",
+        "advertising_timeout", "scan_timeout",
+    ):
         if getattr(args, name, 1) <= 0:
             parser.error(f"--{name.replace('_', '-')} must be positive")
     if getattr(args, "serial_ready_delay", 0) < 0:
@@ -1949,6 +2128,8 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--reconnect-cycles must be positive")
     if getattr(args, "stress_seconds", 1) <= 0:
         parser.error("--stress-seconds must be positive")
+    if getattr(args, "scan_reports", 1) <= 0:
+        parser.error("--scan-reports must be positive")
     if getattr(args, "sdk_runtime_contract", False) and not args.post_main_break:
         parser.error("--sdk-runtime-contract requires --post-main-break")
     for symbol in getattr(args, "observe", []):
