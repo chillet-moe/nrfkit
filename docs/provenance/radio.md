@@ -57,7 +57,26 @@ The single-board test checks ownership transitions, configuration register readb
 TIMER/DPPI scheduling, RADIO READY/END/PHYEND/DISABLED progression, interrupt wake,
 and one real transmission. Register readback is not evidence that another receiver
 accepted whitening or CRC. End-to-end CRC, whitening, address filtering, loss, soak,
-and receiver wake remain pending until a second compatible device is available.
+and receiver wake remain pending. A second laboratory board and a local external
+reference peer are now available, so bidirectional interoperability is the current
+M5 task rather than a hardware-pending item.
+
+The public validation sequence is deliberately incremental:
+
+1. lock source/image receipts and host packet vectors;
+2. exchange one fixed known payload in each direction;
+3. repeat the bidirectional gate three times;
+4. prove CRC and whitening mismatch rejection;
+5. add sequence/loss accounting and bounded retry;
+6. run a bounded soak; and
+7. prove receive after sleep wakeup.
+
+Each stage records sanitized roles, exact image and source hashes, tool versions,
+bounded commands, result counters, and cleanup status in `.work/`. The external
+reference implementation remains a local test oracle: its private name, path,
+source, business protocol, probe identity, and raw logs never enter tracked files.
+Only packet behavior independently supported by public documentation or reproducible
+air evidence may shape the SDK's public implementation.
 
 When two boards are connected, build `m5_radio_tx` and `m5_radio_rx` with hardware
 tests enabled, then run the guarded paired workflow:
@@ -71,7 +90,10 @@ tools/nrfkit m5-radio-dual \
 
 The command rejects identical probe identities, starts the receiver first, runs both
 children through the normal manifest/address/program/serial guard, records both child
-reports, and terminates the receiver process group on failure.
+reports, and terminates the receiver process group on failure. Before claiming M5,
+the harness must also support the fixed staged sequence above and accept an external
+reference-peer adapter without exposing private details in its public arguments or
+reports.
 
 Official documentation used for this audit:
 

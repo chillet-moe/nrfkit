@@ -1,7 +1,7 @@
 # nrfkit：目标与执行计划
 
-> 状态：P0、M0、M1、M2、M3 已完成；M4、M5 部分完成；M6 进行中<br>
-> 计划基线：2026-09-04<br>
+> 状态：P0、M0、M1、M2、M3 已完成；M4 部分完成；M5 为当前核心任务；BLE 研究已延期<br>
+> 计划基线：2026-09-05<br>
 > 唯一 SDK 支持目标：nRF54LM20A / nRF54LM20 DK<br>
 > 实验室夹具：nRF54L15 DK（不属于 SDK 支持目标）<br>
 > 推荐的本地工作目录：`$HOME/Projects/nrfkit`
@@ -25,7 +25,7 @@
 - 应用使用标准 CMake、Ninja 和本机 Arm 交叉工具链构建；
 - 最终构建不依赖 west、sysbuild、Devicetree、Kconfig 或 Zephyr；
 - 完整支持 nRF54LM20A；当前阶段不实现 nRF54L15、nRF52、nRF53 或其他 nRF54 器件支持；
-- nRF54L15 DK 仅作为 BLE central、私有 2.4 GHz 对端和差分测试夹具，不因此产生 L15 consumer target、公共 API 或完整器件支持工作；
+- nRF54L15 DK 仅作为私有 2.4 GHz 对端、未来可选 BLE central 和差分测试夹具，不因此产生 L15 consumer target、公共 API 或完整器件支持工作；
 - 复用官方 CMSIS/MDK、nrfx HAL/driver、适用的官方启动与系统初始化代码，以及许可证允许分发的预编译无线组件；
 - 支持纯裸机 C 和 C++ 应用，尤其是低延迟、低功耗的 HID 类固件；
 - 支持编译、ELF/HEX/BIN 产物、烧写、复位、GDB 调试和无人值守实板验收；
@@ -421,8 +421,11 @@ OpenOCD 作为可插拔 backend，而不是 LM20 首个里程碑的阻塞项：
 4. RAM power/retention 与 System ON idle/System OFF 基础；
 5. USBHS device controller 适配；
 6. 私有 2.4 GHz 所需 RADIO/timer/DPPI/CCM 基础；
-7. S115 BLE peripheral 集成和 HID service；
-8. image layout、bootloader/DFU 和 production support。
+7. image layout、bootloader/DFU 和 production support。
+
+BLE peripheral 不属于当前执行目标或首阶段完成定义。S115、SoftDevice
+Controller 加开放 Host、完全自研等路线只作为未来研究候选；没有新的路线决定前，
+不得继续扩充、调试或以 BLE 是否广播阻塞当前工作。
 
 SDK 不需要发明通用 driver framework。优先暴露正确的 nrfx/HAL target、IRQ glue 和资源约束；只有确实跨 SoC 重复且 API 稳定的薄层才进入公共 API。
 
@@ -440,42 +443,36 @@ LM20 有 USBHS HAL，但当前 nrfx 基线没有与旧 `nrfx_usbd` 等价的完�
 
 SDK 的职责是提供经实板验证的 RADIO 访问基础、时钟/timer/DPPI 组合、IRQ/resource ownership 和一个最小 packet-radio 示例，不把某个产品协议放入 SDK。
 
-第一阶段按 BLE 与私有 2.4 GHz 模式互斥设计：切换时完整停用一个协议、释放 RADIO 和相关资源，再启动另一个。只有明确需要保持 BLE activity 的同时运行私有链路时，才实现 S115 Radio Timeslot 适配。
+第一阶段只实现私有 2.4 GHz。现有 cooperative RADIO ownership 契约保留，供未来
+无线栈共存研究使用，但当前不实现 S115 Radio Timeslot 或以 BLE 路径作为门禁。
 
-验收分两级：
+验收按可独立复现的阶段推进：
 
 - 单板：HFCLK、RADIO state、TX READY/END/DISABLED、RX timeout、CRC/packet layout 寄存器和功耗状态可重复；
-- 双板：不同包长、CRC 错误、丢包重试、信道切换、加密、睡眠唤醒和延迟统计。只有双板测试通过后才能宣称空中链路完成。
+- 双板基础：LM20 与 reference peer 均能成功发包和收包，双向交换固定已知载荷，并连续重复运行得到相同判定；
+- 链路行为：按现有协议资料逐项加入包长边界、CRC/白化、序号与丢包、重试、信道切换、睡眠唤醒和延迟统计；
+- 键盘需求：只实现已由本地参考资料和真实互通证明需要的链路行为，不把私有业务协议或消费者标识固化进公共 SDK。
 
-若只有一块板，单板验收可继续，但双板 gate 保持 pending。
+每个双板阶段都必须通过仓库公共 CLI 重新枚举并显式选择两个目标、校验芯片与镜像
+地址、持有逐设备锁、使用硬超时和可靠清理，并在 `.work/` 保存 SDK/source lock、
+镜像 hash、工具版本、命令、结构化结果和原始本机日志。没有双板空口证据时不得宣称
+互通完成。
 
-### 6.4 S115 BLE peripheral
+### 6.4 未来可选 BLE 研究
 
-产品路径首先选择 S115：它符合单 peripheral 设备目标，官方 nRF54L binary 和 C API 可脱离 RTOS 使用。这个优先顺序不能被理解为永久禁止项目自有 BLE 实现。完整官方 HIDS 基线仍是空口行为、互操作和回归 oracle；在该基线完成后，可以按 M6 定义的 LM20-only 分阶段路线，从公开规范、LM20 RADIO/CCM/AAR 和官方 HAL/nrfx 向上评估精简 BLE peripheral/HID 实现。
+BLE 路线尚未决定，也不属于当前 PLAN 的目标、完成条件或阻塞项。已经完成的
+S115/nRF-BM 兼容性审计、官方 HIDS oracle、L15 central、BlueZ 门禁和失败定位作为
+可复现研究资产保留；不得删除有价值的 receipt、测试工具或结构化结论，也不得继续
+围绕当前 compatibility layer 刷写、GDB 差分或扩充实现。
 
-集成顺序：
+未来若重新立项，至少重新比较以下候选：
 
-1. 导入并锁定 SoC 对应的 HEX、API headers、release notes、license 和 attribution；
-2. 在 linker layout 中保留精确 NVM/RAM/stack 边界；
-3. 按官方 ABI 实现 reset handoff、SVC 和 interrupt forwarding；
-4. 满足 GRTC/LFCLK、优先级和 SoftDevice 资源所有权要求；
-5. 先直接调用最小 SoftDevice API 完成 enable、advertising、connection 和 GATT；
-6. 再从 NCS Bare Metal 审计并移植需要的 event dispatch、bond/settings 和 HID service 代码；
-7. 每个被移植模块去除 Zephyr primitive，换成小而明确的裸机接口，不能保留伪装的 Zephyr compatibility layer；
-8. S145 只属于 L15 实验室夹具，不能进入 LM20 consumer target，也不能让其资源需求成为 S115 默认值。
+- 版本锁定的 S115 与官方 nRF-BM 应用/库集合；
+- SoftDevice Controller 加公开、可审计的 Host；
+- 基于公开规范的独立实现。
 
-BLE 实板验收至少包括：
-
-- 广播可被独立 host 发现；
-- 建连、MTU、GATT read/write/notification；
-- 断开和重新连接；
-- bonding、掉电恢复和删除 bond；
-- HID report/LED output report；
-- System ON idle 电流路径与连接参数变化；
-- 运行数小时的 event/connection soak test；
-- SoftDevice fault 可记录且不会被 SDK吞掉。
-
-自动 HID 测试不得向日常桌面注入危险按键序列；使用隔离测试 host、无副作用 usage 或仅验证协议层 report。
+任何候选都必须重新定义独立里程碑、许可证/内存/安全边界和实板验收，不得恢复为
+当前 M5 的隐式依赖。自动 HID 测试仍不得向日常桌面注入危险按键序列。
 
 ## 7. 镜像、A/B 与安全启动的架构预留
 
@@ -677,158 +674,57 @@ API，但 xHCI 随后 reset 并重新枚举设备，固件没有收到 resume �
 resume 路径；仍需在不会重置设备的直连拓扑上得到完整成功报告，不能用
 `--skip-power` 或仅 host-resume 通过的报告替代。
 
-### M5：私有 2.4 GHz 基础
+### M5：LM20 私有 2.4 GHz 与 reference peer 互通（当前）
 
 交付：
 
 - RADIO + timer/DPPI packet engine 示例；
-- resource ownership 和 BLE 互斥切换接口；
-- CRC、whitening、channel、address 和可选 CCM 的测试；
-- 单板与双板 test harness。
+- resource ownership 接口；
+- CRC、whitening、channel 和 address 的 host/实板测试；
+- 能与 external reference peer 双向交换已知载荷的双板 test harness；
+- 可重复运行的公共 CLI、镜像/地址审计、双探针锁、硬超时、清理和结构化证据；
+- 按已验证需求逐步扩展的丢包、重试、soak 和接收唤醒测试。
 
 退出条件：
 
 - 单板 gate 全部通过；
-- 有第二个兼容设备时，双板 soak、丢包和唤醒测试通过；
-- 在没有双板证据前，README 不宣称完整 proprietary link 已验证。
+- LM20 与 external reference peer 分别作为 TX 和 RX，双向交换固定已知载荷；
+- 基础互通至少连续重复三轮，报告保存 source/image/tool/command/result 证据；
+- CRC/白化错误能被接收端拒绝，丢包统计和限定重试可自动判定；
+- soak 和睡眠后接收唤醒通过；
+- 公共实现与文档不含 reference peer 的私有名称、业务协议或本机标识。
 
 M5 的单板退出门禁已在 LM20 DK 上通过：TIMER10 经 DPPIC10 定时触发
 RADIO TXEN，1 Mbit、地址、白化和三字节 CRC 配置完成寄存器回读，固件在
 READY/END/PHYEND/DISABLED 状态链结束后由中断唤醒并输出精确 PASS token。
-公开的 cooperative ownership API 已验证 proprietary 与 BLE owner 互斥，并且
-只有同一 owner 在 RADIO 为 DISABLED 时才能释放。现在已有一块 L15 DK 可作为
-第二端点，但它首先只作为 M6 的实验室 central 使用，不据此扩大完整 M8 范围。
-完成 LM20 的 M6 产品路径后，必须使用 LM20+L15 运行双向空口、CRC/白化、丢包、
-soak 和接收唤醒门禁；在这些报告通过前 README 仍不得宣称完整 proprietary link
-已验证。可选 CCM 仍须按实际 silicon revision 和 errata 单独审计。
+公开的 cooperative ownership API 已验证 owner 互斥，并且只有同一 owner 在 RADIO
+为 DISABLED 时才能释放。当前立即任务是以公开且可审计的 LM20 RADIO/clock/timer/
+DPPI 实现，与本地 external reference peer 建立真实双向空口互通。L15 DK 可作为
+公开夹具端，也可由本地 reference implementation 驱动；后者的名称、路径、源码、
+业务载荷和原始日志只能存在于 ignored 本地输入与报告中。
 
-### M6：S115 BLE peripheral
+实施顺序固定为：只读识别两端与锁定 reference input → host packet vectors → 单向
+已知载荷 → 反向已知载荷 → 三轮可重复 gate → CRC/白化负向 → 序号/丢包/限定重试 →
+soak → 睡眠后接收唤醒。每次只增加一层，先明确阶段判定再扩充协议。可选 CCM 不在
+基础互通前置条件中，仍须按实际 silicon revision、errata 和经过认证的 packet contract
+单独审计。
 
-交付：
+### M6：BLE 研究检查点（已延期，不属于当前目标）
 
-- LM20 S115 版本化 CMake target 与 memory layout；
-- SoftDevice reset/SVC/IRQ/event glue；
-- 最小 advertising/GATT 示例；
-- bonding/settings 和 BLE HID service；
-- host-side BLE 自动验收；
-- BLE 与 proprietary mode 的完整互斥切换测试。
+该研究路径在可审计检查点停止。官方 nRF-BM v2.0.1 HIDS oracle 已通过配对、加密
+属性读取与 bonded reconnect；L15 S145 central 已验证 legacy/LESC no-bond、bonding
+和持久化重连。纯 CMake strict application 保存了 273-source/43-nRF-BM-source、
+681-config、逐文件/命令/image hash、最小 shim/patch 清单以及唯一实板结果。最终分歧
+定位在官方 `irq_init()` 首日志可见之前或 `CallSoftDeviceResetHandler()` 返回之前；
+继续定位需要扩大 Zephyr pre-main lifecycle，不再属于薄适配。
 
-退出条件：
-
-- BLE 基础与 HID 验收通过；
-- 连接 soak test 无 fault/leak；
-- 实际 RAM 要求由 `sd_ble_enable()` 检查并反馈，linker reserve 与运行值一致；
-- SoftDevice HEX/API/header/release notes 版本严格一致；
-- 不依赖 NCS/Zephyr runtime。
-
-M6 尚未完成。锁定的 NCS Bare Metal `ble_hids_mouse` + S115 oracle 已通过正常
-BlueZ 配对、受保护 HID Report Map 读取、断开和 bonded reconnect；项目 P1 明文
-连接、Battery GATT 读取和断开也已通过。BlueZ `Pairable=false`、sudo/btmgmt
-helper 与无特权抓包路线现仅保留为历史基础设施诊断，不再运行，也不再作为 M6
-门槛。
-
-新增的 L15 DK 只作为实验室夹具使用。仓库的显式 reference workflow 已锁定
-nRF-BM v2.0.1、L15 专用 S145 10.0.1、官方板级 DTS 和夹具源码哈希，并用官方
-`nrf_sdh`、IRQ forwarding、LESC、Peer Manager、ZMS 与 scanner 构建可编程
-central。P2 实际通过 legacy、无 bonding、无 key distribution 的加密；P3 只打开
-LESC 后同样通过；bonding 阶段确认 LESC、加密、双方实际 key distribution 和
-`data_stored=1`；phase-6 随后以保存的 bond 在 central 重启后完成
-`procedure=0` 的自动重新加密。所有烧写均重新枚举并显式选择 PCA10184/PCA10156，
-校验镜像地址并持有逐探针锁。L15 的 J-Link OB MSD 已按用户限定授权由仓库工作流
-关闭，完整配置已备份，重启后验证 MSD 消失且 J-Link 与双 VCOM 保持正常。
-
-正常 BlueZ 对项目 phase-5 的 HID 配对仍失败：固件已收到 bond+LESC 请求和一次
-DHKey 请求，随后本地 `BLE_GAP_SEC_STATUS_TIMEOUT`，没有进入连接加密更新；失败
-设备与 agent 均已清理。L15 central 使用与 BlueZ 相同的 IO capability 和实际
-key-distribution 组合仍可成功，因此问题不是 P2/P3、ECDH 本身、bond 持久化或
-该 key-distribution 组合，而是项目自有 bonding 路径与 BlueZ 的互操作差异。同一
-主机、适配器和 D-Bus 门禁随后重新验证官方 HIDS oracle，配对、加密属性读取、
-GATT 和 bonded reconnect 仍全部通过，排除了实验期间的主机状态漂移。
-
-差分定位已经确认直接使用锁定的官方 `irq_forward.s` 后 P2/P3 仍通过，但正常
-BlueZ bonding 仍失败；仅替换官方 Peer Manager、再替换官方 `nrf_ble_lesc`，以及
-去除 HID 后运行正常 bonding，均得到同一认证失败。官方 LESC 路径已生成 keypair
-和 DH key，目标没有触发应用断言；对象级官方 `nrf_sdh` ISR 调度适配也未使
-bonding 通过。这些带 RAM-only storage 或预编译对象的定位层不是 consumer 方案，
-不得提交为产品实现，也不得继续进行零散密钥缓冲区、对象替换或重复 GDB 差分。
-临时私钥、DHKey 和其他敏感中间值只能存在于当次 ignored 进程内存，不能写入准备
-提交或发布的源码、报告或构建产物。
-
-早期自写 `m6-official-baseline/main.c` 及其对象替换结果只作为已停止的预等价诊断，
-不能证明 S115 ABI 是否可脱离官方构建系统。随后已从 nRF-BM v2.0.1 官方
-`ble_hids_mouse` 构建提取全部 276 个 compile entries、273 个唯一源码、43 个
-nRF-BM 源码及逐项 command/source hash，并逐字节锁定含 681 个 `CONFIG_` 宏的
-官方 `autoconf.h`。公共 `reference equivalence-audit` 会在 source list、源码内容、
-编译配置或静态兼容配置漂移时失败。consumer 直接使用官方 `main.c`、完整 `nrf_sdh`、
-Peer Manager/LESC、storage、BAS/DIS/HIDS、advertising、buttons/timer 源码集合；上游
-源码只进入按 hash 准备的 ignored cache，未将完整 nRF 库纳入版本控制。普通
-configure/build 未调用 west、sysbuild、Kconfig、Devicetree 或 Zephyr。
-
-2026-09-05 在同一 LM20、BlueZ adapter 和 host 上重新运行官方 oracle：官方初始化
-token、fresh pairing、bond、受保护 HID Report Map 读取、断开和 bonded reconnect
-全部通过。随后严格官方应用 consumer 通过 Clang/LLD 构建、镜像范围审计以及显式
-目标、逐探针锁、`ERASE_NONE` 和 read-back verify 的烧写。首轮复位后只输出官方
-第一条日志的首字节 `B`；审计确认 UART shim 对每个字节重复发起 DMA START，并在
-未启用 UARTE interrupt 时进入 `WFE`。依据 LM20 datasheet 的 RAM EasyDMA、END、STOP
-和 TXSTOPPED 状态机，将一条 literal log 合并为一次有界 DMA 事务后，只重跑一次
-严格基线：完整的 `BLE HIDS Mouse sample started.` 与 CRLF 已输出，证明首条日志返回，
-但没有到达下一条初始化或错误日志。随后 60 秒 BlueZ oracle 门禁仍未发现广播，并在
-超时路径停止 discovery。
-
-随后只读审计定位出两项尚未进入实板的新候选修正。第一项是官方 autoconf 的
-`CONFIG_NRFX_GPIOTE_NUM_OF_EVT_HANDLERS=1` 在 nrfx 的 Zephyr bridge 中应映射为
-`NRFX_GPIOTE_CONFIG_NUM_OF_EVT_HANDLERS`，而 consumer 原先落入 LM20 template 默认值
-2；consumer 现在直接引用锁定 autoconf 值，不手填近似配置。第二项更早且更关键：
-官方 `kernel/init.c` 在 `board_late_init_hook()` 使能 VREG_MAIN 后才运行 APPLICATION
-级初始化，已通过 oracle 的 ELF 则精确排列为 `bm_gpiote_init()`、
-`bm_timer_sys_init()`、`sd_irq_init()`、`irq_init()`。consumer 原先将 board 初始化放在
-这些 constructor 之后，并在 prepared view 中删除了 `irq_init()` 的 `SYS_INIT` 注册，
-导致包含 `CallSoftDeviceResetHandler()` 的官方 IRQ forwarding 初始化从未执行。
-
-纯 CMake compatibility layer 现用明确 constructor priority 复现该官方顺序，保留
-`irq_connect.c` 的原始静态函数和 `SYS_INIT` 语句，并递增 adapter cache key，防止旧
-prepared view 掩盖转换变化。链接后门禁逐项检查 `.init_array.101/201/202/203/204`
-的对象顺序以及 `CallSoftDeviceResetHandler` 的存在；当前候选 ELF 已通过该门禁，官方
-273-source/43-nRF-BM-source/681-config equivalence audit 仍通过。这里没有修改 S115、
-Peer Manager、LESC、HIDS 或应用 handler，也没有把离线链接成功描述为实板成功。
-
-精确源码/config receipt、consumer ELF/HEX hash、最小 patch/shim 清单和结构化门禁
-结果记录在 `docs/provenance/nrf-bm-hids-s115-equivalence.json`、
-`docs/provenance/m6-s115-equivalence-checkpoint.json` 与
-`docs/architecture/m6-official-baseline-failure.md`。最后一次首日志成功镜像与 lifecycle
-候选的唯一一次实板结果在结构化报告中分栏保存。候选以精确 LM20 选择、逐探针锁、
-`ERASE_NONE`、read-back verify 和硬超时完成烧写与复位，但串口为 0 字节，60 秒 BlueZ
-门禁也未发现广播。旧门禁确实在 `finally` 调用 `StopDiscovery`，但没有把读回验证写入
-失败报告；随后只读 controller info 通过，且门禁已修为所有 discovery 超时记录停止尝试、
-错误列表和 `Discovering=false` 验证，没有为此重复硬件测试。
-
-静态审计确认所有由官方 `irq_init()` 注册的 IRQ 都落入相同 MDK vector slot 和官方
-forwarding handler，SD_EVT 也正确落入 SWI01。先前镜像已执行 board/GPIOTE/timer/
-sd_irq 并到达 main；候选唯一新增的执行项是官方 `irq_init()`。因此首个行为分歧已经
-缩小到 `irq_init()` 内首个日志可见之前或 `CallSoftDeviceResetHandler()` 返回之前。
-继续区分需要另一轮 GDB/插桩或复制更广泛的 Zephyr pre-main SoC 生命周期，已经超出
-薄 source-equivalent adapter。按本里程碑的停止条件，S115 适配实验在此停止，不再扩大
-试错范围；后续转入 LM20-only 底层路线，同时保留官方 S115 HIDS 为行为 oracle。
-
-当前检查点不自行实现 BLE Link Layer、L2CAP、ATT、GATT、SMP、LESC 或 HOGP。
-一次受限的 LM20 RADIO 广播诊断曾用规范固定的 advertising access address、CRC、
-whitening 和三个 primary channel 发射非连接广播，并被同一 BlueZ D-Bus 扫描门禁
-识别；诊断代码未保留为产品实现。它证明 HFCLK、RADIO BLE 1M 发射和主机扫描路径
-可工作，并暴露了 LM20 `DATAWHITE` 初值必须包含固定 bit 6 的寄存器语义，但不能
-证明 SoftDevice 的接收、GRTC 调度或 IRQ 启动链正确。后续产品工作不得用早期自写
-baseline 的失败替代上述严格官方应用检查点，也不得将尚未执行到 S115 的结果描述为
-S115 不可用。
-通用 `m6-ble-scan` 门禁保留，用于有硬超时地验证广播，并在所有退出路径停止由其
-启动的 discovery、删除或确认 BlueZ 已自行删除临时设备对象。
-
-严格等价官方应用的最终检查点已证明失败位于官方 pre-main reset/IRQ forwarding
-生命周期边界，继续复制官方 Zephyr SoC lifecycle 不再属于薄适配。后续按广播、明文
-单连接、Link Layer 控制
-过程、链路加密、L2CAP/ATT/GATT/SMP/LESC/HOGP、BlueZ/功耗/soak 的固定顺序进入
-LM20-only 底层路线。
-每一阶段仍必须有 LM20 实板和可靠空口证据，且不得臆测寄存器或协议行为。
-只有项目固件再通过正常 BlueZ bonding、HID、持久化重连和连接 soak 后才可标记
-M6 完成。随后再运行 LM20+L15 的 M5 双板门禁。
+详细复现、证据边界和失败结果保存在
+`docs/architecture/m6-official-baseline-failure.md`、
+`docs/provenance/nrf-bm-hids-s115-equivalence.json` 和
+`docs/provenance/m6-s115-equivalence-checkpoint.json`。现有 CMake compatibility layer、
+L15 central 和有界 BlueZ 工具作为诊断资产保留，但不继续扩充或刷写，不进入当前
+完成定义。BlueZ `Pairable=false`、sudo/btmgmt helper、对象替换和重复 GDB 差分均已
+停止。该检查点既不证明 S115 不可用，也不授权自行实现 BLE 协议栈。
 
 ### M7：首个私有下游集成与 LM20 release candidate
 
@@ -838,7 +734,7 @@ M6 完成。随后再运行 LM20+L15 的 M5 双板门禁。
 
 - 下游通过 `find_package` 或明确的 source integration 使用 SDK；
 - SDK 不需要下游专属 fork；
-- C++23、USB HID、BLE peripheral、私有 2.4 GHz、低功耗和普通持久化需求按实际使用范围打通；
+- C++23、USB HID、私有 2.4 GHz、低功耗和普通持久化需求按实际使用范围打通；
 - downstream build/test 脚本和日志保留在私有位置；
 - 发布 `0.x` LM20 release candidate。
 
@@ -891,7 +787,7 @@ M6 完成。随后再运行 LM20+L15 的 M5 双板门禁。
 | H2 | GDB reset/break/step/fault | debug backend 问题 |
 | H3 | nrfx peripheral 与 DMA/IRQ | driver/resource 问题 |
 | H4 | sleep/retention/RRAM scratch | power/storage 问题 |
-| H5 | USB/BLE/radio | 协议和长时稳定性问题 |
+| H5 | USB/proprietary radio | 协议和长时稳定性问题 |
 | H6 | 下游端到端 | 公共 API 或产品集成问题 |
 
 每个测试必须记录：SDK commit、source lock hash、tool versions、SoC/revision、board type、image hash、backend、耗时和结果。敏感/本地标识只保存在 gitignored 本地结果中。
@@ -903,7 +799,7 @@ M6 完成。随后再运行 LM20+L15 的 M5 双板门禁。
 - vector table 与 IRQ 索引；
 - loadable segments、内存起止和对齐；
 - SystemInit/errata 选择；
-- SoftDevice 地址、forwarding 和 RAM 配置；
+- 未来 BLE 研究使用的 SoftDevice 地址、forwarding 和 RAM 配置（不属于当前门禁）；
 - reset 后关键寄存器；
 - USB/radio/clock 初始化顺序。
 
@@ -933,7 +829,7 @@ M6 完成。随后再运行 LM20+L15 的 M5 双板门禁。
 
 - 官方 startup/linker 来源互相矛盾或 IRQ table 无法闭环验证；
 - 识别到的 silicon revision 不在锁定的官方支持矩阵中；
-- SoftDevice HEX、headers、release notes 或 ABI 版本不一致；
+- 未来 BLE 研究中 SoftDevice HEX、headers、release notes 或 ABI 版本不一致；
 - 烧写工具要求 mass erase、recover 或配置区写入；
 - image 包含 allowlist 外地址；
 - OpenOCD 只能 attach、不能安全写 RRAM，却被请求当作 production programmer；
@@ -952,13 +848,15 @@ M6 完成。随后再运行 LM20+L15 的 M5 双板门禁。
 - 锁定的官方样例可由统一工具重现编译、地址审计、安全烧写、复位、运行观测和 GDB 验收；
 - 普通 CMake + 本机工具链能离线构建 C/C++ firmware；
 - 不安装 NCS/Zephyr 也能完成 SDK consumer build；
-- nrfx、USBHS（LM20）、私有 2.4 GHz 基础和 S115 BLE peripheral 已按各自证据级别实板验证；
+- nrfx 和 USBHS（LM20）已按各自证据级别实板验证；
+- LM20 私有 2.4 GHz 与 external reference peer 完成双向已知载荷、重复运行、
+  CRC/白化负向、丢包/限定重试、soak 和接收唤醒实板门禁；
 - safe flash、J-Link GDB 和至少经过评估的 OpenOCD capability matrix 完成；
 - 首个私有下游无需公开专属 patch 即可消费 SDK；
 - 开源仓库及其历史不含任何私有下游信息；
 - 文档足以让另一位开发者在新机器和新开发板上复现；
 - 正常开发和 CI 无法触达一次性/保护配置；
-- 当前完成定义不包含 nRF52、nRF53、L15 consumer target 或其他 nRF54 支持。
+- 当前完成定义不包含 BLE、S115、nRF52、nRF53、L15 consumer target 或其他 nRF54 支持。
 
 ## 13. 权威入口
 

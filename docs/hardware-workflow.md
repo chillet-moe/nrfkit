@@ -23,6 +23,16 @@ For the standalone SDK, `sdk manifest` accepts only the versioned LM20 applicati
 
 Local reports may contain probe identities and device paths. They remain below gitignored `.work/` and must not be copied into tracked documentation, commits, issues, or public artifacts.
 
+The current M5 radio route uses two explicitly selected devices. The public workflow
+must resolve the LM20 and laboratory peer independently, validate each chip and image
+range, acquire a separate lock for each probe, start the receiver before the
+transmitter, apply a hard timeout to both processes, and terminate both process
+groups on every exit. Reports use only the neutral roles `lm20` and
+`external-reference-peer`; any private peer name, local source path, probe identity,
+or raw transcript stays in ignored local storage. The first gate exchanges one fixed
+known payload in both directions and repeats three times before CRC/whitening
+negative cases, loss/retry, soak, or wake behavior are added.
+
 The M4 USB device gate is `tools/nrfkit m4-usb-gate`. Its default contract performs
 100 controlled reconnects, transfer/HID stress, and Linux runtime-PM suspend plus
 remote wake. USB access always requires Codex tool escalation. The runtime-PM portion
@@ -39,7 +49,7 @@ from a remote-wake signal or USB-topology failure. The root environment must pro
 PyUSB; do not copy credentials or machine-specific Python paths into repository
 documentation.
 
-The M6 host gate is `tools/nrfkit m6-ble-gate`. It uses the BlueZ D-Bus API
+The deferred BLE checkpoint retains `tools/nrfkit m6-ble-gate`. It uses the BlueZ D-Bus API
 directly and never starts an interactive `bluetoothctl` session. Every D-Bus
 operation has a finite timeout, failed pairing is cancelled, the exact test
 device is disconnected and removed, and an optional `btmon` process is wrapped
@@ -48,9 +58,9 @@ only: lack of permission is recorded and never blocks a phase that firmware
 events and functional results can prove. The gate has no sudo mode and never
 runs `timeout`, `btmon`, or `btmgmt` as root.
 
-BlueZ `Pairable=false` and privileged controller-bondable helpers are retired
-from the M6 route. They remain historical infrastructure evidence only and must
-not be retried or treated as a completion gate.
+BlueZ `Pairable=false` and privileged controller-bondable helpers are retired.
+They remain historical infrastructure evidence only and must not be retried or
+treated as a completion gate. None of the BLE tools is part of current M5 acceptance.
 
 `tools/nrfkit m6-ble-scan` is the bounded advertising-only host gate. It uses
 the BlueZ system D-Bus API, requires exactly one powered adapter, and accepts a
@@ -60,7 +70,7 @@ device object, or accepts BlueZ's `DoesNotExist` race only when a final object
 manager read independently confirms absence. It is a host validation tool, not
 a project-owned BLE stack.
 
-P2 and P3 instead use the L15 laboratory central in
+The retained P2 and P3 evidence used the L15 laboratory central in
 `tests/hardware/m6-s145-central`. It is built only by the explicit official
 reference workflow against the locked nRF-BM release and L15-specific S145; it
 does not enter the consumer build. Its profiles explicitly select legacy/LESC,
@@ -70,11 +80,8 @@ LESC, encryption, and negotiated-key fields. The reconnect profile additionally
 uses Peer Manager's live connection-security status to distinguish a stored-key
 procedure from fresh pairing.
 
-In a multi-probe setup, resolve the local LM20/L15 aliases from the ignored
+For any future replay in a multi-probe setup, resolve the local LM20/L15 aliases from the ignored
 inventory, then pass both probe identities explicitly. Never rely on enumeration
 order. Each child operation must still validate PCA10184 versus PCA10156, audit
-the SoC-specific image ranges, and acquire its own probe lock. The fixed order is
-plaintext, L15-driven legacy/no-bond, L15-driven LESC/no-bond, bonding, BlueZ HID,
-then persistent encrypted reconnect. Normal bonding, HID and persistence remain
-subject to the BlueZ interoperability gate even when the L15 security oracle
-passes.
+the SoC-specific image ranges, and acquire its own probe lock. This retained BLE
+route is deferred and must not be run as part of the current goal.

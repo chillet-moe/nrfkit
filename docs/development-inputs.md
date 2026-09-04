@@ -21,6 +21,7 @@ The local inventory is useful context, not authority. Every path, source identit
 | Version-locked upstream submodules and selected snapshots | Inputs shipped by this SDK | Yes | Upstream path, commit, selected-file hashes, license, patches |
 | Wireless binary packages | Optional runtime components | Yes, when selected | Exact version, binary/header/spec hashes, license, ABI checks |
 | Local read-only implementation references | General tooling and architecture patterns | No | Local-only identity; never publish its name or path |
+| External reference peer and private reference implementation | Proprietary-radio interoperability oracle only | No | Local source/image/version receipt and bounded run evidence below ignored storage |
 | Development kits and probes | Hardware validation | No | Dynamically detected family, board type, capabilities, and local-only identity |
 | Host and vendor tools | Build, inspect, program, reset, serial, and debug | No | Executable identity and version in each run receipt |
 
@@ -62,6 +63,15 @@ Hardware authorization is defined in `PLAN.md`; the existence of a local device 
 ## Local implementation references
 
 A local inventory may name private repositories that contain useful process-control or hardware-tooling patterns. When the inventory marks them as relevant to the active milestone, review the listed areas before designing that subsystem; if an input is unavailable, record that fact instead of silently ignoring it. They are read-only evidence. Reimplement the general mechanism under this project's architecture and license; do not copy private identifiers, documentation, source text, path conventions, product assumptions, commit messages, or logs into public content.
+
+For proprietary-radio interoperability, an ignored local inventory may additionally
+describe an external reference peer or private reference implementation. Public code
+may contain only neutral packet vectors and behavior independently justified by a
+public specification, datasheet, or reproducible over-the-air result. Private names,
+paths, source text, business payloads, probe identities, and raw logs remain local.
+The repository gate records sanitized role names such as `lm20` and
+`external-reference-peer`; it must not promote the private input into a consumer
+dependency.
 
 ## Keeping the inventory current
 

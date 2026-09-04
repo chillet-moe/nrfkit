@@ -1,4 +1,10 @@
-# M6 strict official-application equivalence checkpoint: platform-shim localization
+# Deferred BLE research checkpoint: strict official-application equivalence
+
+This checkpoint is retained as diagnostic evidence. BLE is no longer part of the
+current PLAN goal or completion definition, and no further S115 compatibility-layer
+flashing, GDB differencing, or implementation expansion is authorized by the active
+route. The next core task is LM20 proprietary-radio interoperability with an
+external reference peer.
 
 This note records the bounded nRF Bare Metal v2.0.1 `ble_hids_mouse` portability
 experiment requested for LM20 and S115 10.0.1. It contains no probe identity,
@@ -177,4 +183,5 @@ more of the official Zephyr pre-main SoC lifecycle. That is no longer a thin
 source-equivalent platform adapter. Under the experiment's stop condition, the
 S115 adaptation stops at this reproducible checkpoint. The official HIDS image
 remains the behavioral oracle, while implementation proceeds through the
-PLAN-defined LM20-only lower-layer route. M6 remains incomplete.
+PLAN-defined proprietary-radio route. The BLE research milestone is deferred rather
+than incomplete within the current goal.
