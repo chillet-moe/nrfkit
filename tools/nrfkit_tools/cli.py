@@ -36,7 +36,7 @@ from .bond import (
 )
 from .ble_validation import (
     BleValidationError, bluetooth_info_argv, run_ble_validation,
-    host_le_advertisement, scan_ble_advertisement,
+    host_le_advertisement, host_le_connection, scan_ble_advertisement,
 )
 from .image import ImageContractError, parse_elf, parse_ihex, require_allowed
 from .hci import (
@@ -1204,7 +1204,7 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                         "SDC oracle device name does not fit legacy advertising data"
                     )
                 advertising_parameters = struct.pack(
-                    "<HHBBB6sBB", 0x00A0, 0x00A0, 0x03, 0x01, 0x00,
+                    "<HHBBB6sBB", 0x00A0, 0x00A0, 0x00, 0x01, 0x00,
                     bytes(6), 0x07, 0x00,
                 )
                 session.command(0x2006, advertising_parameters, args.hci_timeout)
@@ -1225,6 +1225,38 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                         device_name=args.device_name,
                         rssi_observed=observation["rssi_observed"],
                         cleanup=observation["cleanup"],
+                    )
+                    with host_le_connection(
+                        bluetoothctl=args.bluetoothctl,
+                        device_name=args.device_name,
+                        log=run_dir / "host-connection.log",
+                        timeout=args.hci_timeout,
+                    ) as host_connection:
+                        deadline = time.monotonic() + args.hci_timeout
+                        connection = None
+                        while connection is None:
+                            connection = le_connection_complete(
+                                session.next_event(deadline)
+                            )
+                        advertising_enabled = False
+                        handle = int(connection["handle"])
+                        acl_deadline = time.monotonic() + args.hci_timeout
+                        session.wait_for_acl(acl_deadline)
+                        session.command_status(
+                            0x0406, struct.pack("<HB", handle, 0x13), args.hci_timeout,
+                        )
+                        deadline = time.monotonic() + args.hci_timeout
+                        reason = None
+                        while reason is None:
+                            reason = disconnection_complete(
+                                session.next_event(deadline), handle,
+                            )
+                    _stage(
+                        run_dir, report, "hci-peripheral-accept-disconnect",
+                        role=connection["role"], interval=connection["interval"],
+                        disconnection_reason=reason,
+                        raw_acl_packets=len(session.acl_packets),
+                        host_connection_cleanup=host_connection,
                     )
                 finally:
                     if advertising_enabled:

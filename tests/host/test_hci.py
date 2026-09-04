@@ -74,11 +74,20 @@ class HciTests(unittest.TestCase):
 
     def test_parser_rejects_non_event_h4_packets(self) -> None:
         with self.assertRaisesRegex(HciContractError, "packet type"):
-            H4EventParser().feed(bytes((0x02, 0x00, 0x00, 0x00, 0x00)))
+            H4EventParser().feed(bytes((0x03, 0x00, 0x00, 0x00, 0x00)))
+
+    def test_parser_collects_acl_and_continues_with_event(self) -> None:
+        parser = H4EventParser()
+        stream = bytes.fromhex("0201200300020100040e0401030c00")
+        events = parser.feed(stream)
+        acl = bytes((0x01, 0x20, 0x03, 0x00, 0x02, 0x01, 0x00))
+        self.assertEqual(parser.acl_packets, [acl])
+        self.assertEqual(command_complete(events[0], 0x0C03), b"")
 
     def test_oracle_gate_disables_advertising_and_scanning(self) -> None:
         class Session:
             transcript = bytearray(b"h4 evidence")
+            acl_packets = [bytes((0x01, 0x20, 0x03, 0x00, 0x02, 0x01, 0x00))]
 
             def __init__(self, descriptor: int):
                 self.commands: list[tuple[int, bytes]] = []
@@ -97,7 +106,17 @@ class HciTests(unittest.TestCase):
             ) -> None:
                 self.commands.append((opcode, parameters))
 
+            def wait_for_acl(self, deadline: float) -> bytes:
+                return self.acl_packets[-1]
+
             def next_event(self, deadline: float):
+                if self.commands and self.commands[-1][0] == 0x200A:
+                    parameters = bytes.fromhex(
+                        "0100010001010200000000c018000000f40100"
+                    )
+                    return H4EventParser().feed(
+                        bytes((0x04, 0x3E, len(parameters))) + parameters
+                    )[0]
                 if self.commands and self.commands[-1][0] == 0x200D:
                     parameters = bytes.fromhex(
                         "01000100000166554433221118000000f40100"
@@ -178,14 +197,19 @@ class HciTests(unittest.TestCase):
                     return_value=nullcontext({"registered": True, "cleaned": True}),
                 ),
                 patch(
+                    "nrfkit_tools.cli.host_le_connection",
+                    return_value=nullcontext({"connect_requested": True, "cleaned": True}),
+                ),
+                patch(
                     "nrfkit_tools.cli._serial_cleanup",
                     return_value=({"serial_closed": True}, None),
                 ),
             ):
                 self.assertEqual(command_m6_sdc_oracle(args), 0)
             opcodes = [opcode for opcode, unused in created[0].commands]
-            self.assertIn((0x200A, b"\x00"), created[0].commands)
+            self.assertIn((0x200A, b"\x01"), created[0].commands)
             self.assertIn((0x200C, b"\x00\x01"), created[0].commands)
+            self.assertEqual(opcodes.count(0x0406), 2)
             self.assertIn(0x2005, opcodes)
             self.assertIn(0x0C01, opcodes)
             self.assertIn(0x2001, opcodes)

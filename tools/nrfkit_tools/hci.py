@@ -14,6 +14,7 @@ class HciContractError(RuntimeError):
 
 
 H4_COMMAND = 0x01
+H4_ACL = 0x02
 H4_EVENT = 0x04
 EVENT_COMMAND_COMPLETE = 0x0E
 EVENT_COMMAND_STATUS = 0x0F
@@ -32,11 +33,21 @@ class HciEvent:
 class H4EventParser:
     def __init__(self) -> None:
         self._buffer = bytearray()
+        self.acl_packets: list[bytes] = []
 
     def feed(self, data: bytes) -> list[HciEvent]:
         self._buffer.extend(data)
         events: list[HciEvent] = []
         while self._buffer:
+            if self._buffer[0] == H4_ACL:
+                if len(self._buffer) < 5:
+                    break
+                size = int.from_bytes(self._buffer[3:5], "little")
+                if len(self._buffer) < size + 5:
+                    break
+                self.acl_packets.append(bytes(self._buffer[1:size + 5]))
+                del self._buffer[:size + 5]
+                continue
             if self._buffer[0] != H4_EVENT:
                 raise HciContractError(
                     f"unexpected H4 packet type 0x{self._buffer[0]:02x}"
@@ -185,6 +196,10 @@ class H4Session:
         self.pending: list[HciEvent] = []
         self.transcript = bytearray()
 
+    @property
+    def acl_packets(self) -> list[bytes]:
+        return self.parser.acl_packets
+
     def _write(self, data: bytes, deadline: float) -> None:
         offset = 0
         while offset < len(data):
@@ -213,6 +228,24 @@ class H4Session:
             self.pending.extend(self.parser.feed(data))
             if self.pending:
                 return self.pending.pop(0)
+
+    def wait_for_acl(self, deadline: float) -> bytes:
+        if self.acl_packets:
+            return self.acl_packets[-1]
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise HciContractError("timed out waiting for an HCI ACL packet")
+            readable, _, _ = select.select([self.descriptor], [], [], remaining)
+            if not readable:
+                raise HciContractError("timed out waiting for an HCI ACL packet")
+            data = os.read(self.descriptor, 65536)
+            if not data:
+                raise HciContractError("HCI transport returned end of file")
+            self.transcript.extend(data)
+            self.pending.extend(self.parser.feed(data))
+            if self.acl_packets:
+                return self.acl_packets[-1]
 
     def command(self, opcode: int, parameters: bytes = b"", timeout: float = 5.0) -> bytes:
         deadline = time.monotonic() + timeout

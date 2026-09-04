@@ -116,18 +116,42 @@ int main(void)
             nrfkit_assert_fail();
         }
         while (received() >= 4U) {
-            if (rx_ring[rx_read] != 0x01U) {
+            uint8_t const packet_type = rx_ring[rx_read];
+            if (packet_type != 0x01U && packet_type != 0x02U) {
                 (void)receive_byte();
                 continue;
             }
-            uint16_t const length_index = (uint16_t)((rx_read + 3U) % RX_RING_SIZE);
-            size_t const packet_size = (size_t)rx_ring[length_index] + 4U;
+            size_t packet_size;
+            if (packet_type == 0x01U) {
+                uint16_t const length_index =
+                    (uint16_t)((rx_read + 3U) % RX_RING_SIZE);
+                packet_size = (size_t)rx_ring[length_index] + 4U;
+            } else {
+                if (received() < 5U) {
+                    break;
+                }
+                uint16_t const length_low =
+                    (uint16_t)((rx_read + 3U) % RX_RING_SIZE);
+                uint16_t const length_high =
+                    (uint16_t)((rx_read + 4U) % RX_RING_SIZE);
+                packet_size = (size_t)rx_ring[length_low] +
+                    ((size_t)rx_ring[length_high] << 8U) + 5U;
+            }
+            if (packet_size - 1U > sizeof(command)) {
+                nrfkit_assert_fail();
+            }
             if (received() < packet_size) {
                 break;
             }
             (void)receive_byte();
             for (size_t index = 0; index < packet_size - 1U; ++index) {
                 command[index] = receive_byte();
+            }
+            if (packet_type == 0x02U) {
+                if (nrfkit_sdc_hci_acl_put(command) != 0) {
+                    nrfkit_assert_fail();
+                }
+                continue;
             }
             size_t event_size;
             output[0] = 0x04U;

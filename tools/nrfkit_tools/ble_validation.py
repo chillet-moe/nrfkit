@@ -5,6 +5,7 @@ from __future__ import annotations
 from contextlib import contextmanager, nullcontext
 import os
 from pathlib import Path
+import re
 import signal
 import subprocess
 import time
@@ -218,6 +219,89 @@ def host_le_advertisement(
         if not state["cleaned"] or failures:
             raise BleValidationError(
                 "host LE advertisement cleanup failed", details={"cleanup": state}
+            )
+
+
+@contextmanager
+def host_le_connection(
+    *, bluetoothctl: str, device_name: str, log: Path, timeout: float,
+) -> Iterator[dict[str, Any]]:
+    """Start a bounded BlueZ connection attempt to a named LE advertiser."""
+    if timeout <= 0:
+        raise BleValidationError("host connection timeout must be positive")
+    process = subprocess.Popen(
+        [bluetoothctl], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT, start_new_session=True,
+    )
+    transcript = bytearray()
+
+    def drain() -> None:
+        assert process.stdout is not None
+        while True:
+            data = os.read(process.stdout.fileno(), 65536)
+            if not data:
+                return
+            transcript.extend(data)
+
+    reader = threading.Thread(target=drain, name="bluetoothctl-connect-reader", daemon=True)
+    reader.start()
+    state: dict[str, Any] = {
+        "requested": True, "target_observed": False,
+        "connect_requested": False, "cleaned": False,
+    }
+    address: str | None = None
+    try:
+        assert process.stdin is not None
+        process.stdin.write(b"scan on\n")
+        process.stdin.flush()
+        deadline = time.monotonic() + timeout
+        address_pattern = re.compile(rb"(?:[0-9A-F]{2}:){5}[0-9A-F]{2}")
+        encoded_name = device_name.encode("ascii")
+        while address is None and time.monotonic() < deadline:
+            if process.poll() is not None:
+                raise BleValidationError("bluetoothctl exited during LE discovery")
+            for line in bytes(transcript).splitlines():
+                if encoded_name in line:
+                    match = address_pattern.search(line)
+                    if match is not None:
+                        address = match.group().decode("ascii")
+                        break
+            time.sleep(0.05)
+        if address is None:
+            raise BleValidationError("timed out discovering the connectable LE target")
+        state["target_observed"] = True
+        process.stdin.write(f"scan off\nconnect {address}\n".encode("ascii"))
+        process.stdin.flush()
+        state["connect_requested"] = True
+        yield state
+    finally:
+        if process.poll() is None:
+            try:
+                assert process.stdin is not None
+                commands = "scan off\n"
+                if address is not None:
+                    commands += f"disconnect {address}\nremove {address}\n"
+                commands += "quit\n"
+                process.stdin.write(commands.encode("ascii"))
+                process.stdin.flush()
+                process.wait(timeout=3)
+            except (BrokenPipeError, subprocess.TimeoutExpired):
+                try:
+                    os.killpg(process.pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+                try:
+                    process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    os.killpg(process.pid, signal.SIGKILL)
+                    process.wait(timeout=3)
+        reader.join(timeout=1)
+        log.parent.mkdir(parents=True, exist_ok=True)
+        log.write_bytes(transcript)
+        state["cleaned"] = process.poll() is not None and not reader.is_alive()
+        if not state["cleaned"]:
+            raise BleValidationError(
+                "host LE connection cleanup failed", details={"cleanup": state}
             )
 
 
