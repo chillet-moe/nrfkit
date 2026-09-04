@@ -261,6 +261,61 @@
       "imported": false,
       "patches": "none"
     },
+    "ncs-m5-radio-peer": {
+      "release": "nRF Connect SDK v3.4.0",
+      "repository": "https://github.com/nrfconnect/sdk-nrf",
+      "sample": "tests/hardware/m5-radio-peer",
+      "sample_origin": "project",
+      "board": "nrf54l15dk/nrf54l15/cpuapp",
+      "soc": "nrf54l15",
+      "core": "Application",
+      "device_family": "NRF54L",
+      "board_version": "PCA10156",
+      "vcom": 1,
+      "image_allowlists": {
+        "m5-radio-peer": [[0, 1429504]]
+      },
+      "profiles": {
+        "tx": {
+          "extra_conf": "tests/hardware/m5-radio-peer/configs/tx.conf",
+          "expected_token": "NRFKIT_M5_PEER_TX PASS"
+        },
+        "rx": {
+          "extra_conf": "tests/hardware/m5-radio-peer/configs/rx.conf",
+          "expected_token": "NRFKIT_M5_PEER_RX PASS"
+        },
+        "tx-1m": {
+          "extra_conf": "tests/hardware/m5-radio-peer/configs/tx-1m.conf",
+          "expected_token": "NRFKIT_M5_PEER_TX PASS"
+        },
+        "rx-1m": {
+          "extra_conf": "tests/hardware/m5-radio-peer/configs/rx-1m.conf",
+          "expected_token": "NRFKIT_M5_PEER_RX PASS"
+        }
+      },
+      "modules": {
+        "nrf": "99553055607b2e9885fbc80ccd11fa9da81c2df0",
+        "zephyr": "bf801e4e3d19e1ffa76164346480cb7734dd2800",
+        "modules/hal/nordic": "18da0cc9726f8759c627dba3180b3ba9294e433c"
+      },
+      "files": {
+        "nrf/samples/peripheral/radio_test/src/main.c": "22a3d99311934f2ff14870003f1c367827853f5d61bf3c6b443db8b6be942d5f",
+        "nrf/samples/peripheral/radio_test/src/radio_test.c": "e493efb2391e0a70b375a7598604e9a01f71e7de5dd80d3271344627c4f450ed"
+      },
+      "project_files": {
+        "tests/hardware/m5-radio-peer/CMakeLists.txt": "42c39479658f4be7695e7e93bbd34f1fa70ad902962ac581082c7851e18ba359",
+        "tests/hardware/m5-radio-peer/Kconfig": "8350ac4f3424643b70d78d6c96fdc4fb41b6ffabf6b7bd6ea1accd54de364176",
+        "tests/hardware/m5-radio-peer/prj.conf": "5a64f7a7c9bbb5f816fd09b70942fad67dc604d99ddabcb9f78a7674fedf2377",
+        "tests/hardware/m5-radio-peer/configs/tx.conf": "afc6f26a88dc625ff41e4967434f0ea16043e7a9daf2b3f988aad095fcef5dba",
+        "tests/hardware/m5-radio-peer/configs/rx.conf": "b9df538bbd0939cd609aa26a3399aca4b3d4629e2fec1f8aa4f2fbd15f34008c",
+        "tests/hardware/m5-radio-peer/configs/tx-1m.conf": "366e99fdf86dc66acdd3670bac3984248bb7a68ae67935e1162768e478b75968",
+        "tests/hardware/m5-radio-peer/configs/rx-1m.conf": "48e46d1e98861a419d67b4baef71fc21f5ba2cee4577bb5e818ca0707bc12949",
+        "tests/hardware/m5-radio-peer/src/main.c": "899ee55aaaaeee202d6e2159c658c3fd4d041491900ec3cdf378cb04ab048d58"
+      },
+      "license": "BSD-3-Clause",
+      "imported": false,
+      "patches": "none"
+    },
         "nrf-bm-ble-hids-mouse-s115": {
             "release": "nRF Connect SDK Bare Metal v2.0.1",
             "repository": "https://github.com/nrfconnect/sdk-nrf-bm",

@@ -683,7 +683,8 @@ resume 路径；仍需在不会重置设备的直连拓扑上得到完整成功�
 - CRC、whitening、channel 和 address 的 host/实板测试；
 - 能与 external reference peer 双向交换已知载荷的双板 test harness；
 - 可重复运行的公共 CLI、镜像/地址审计、双探针锁、硬超时、清理和结构化证据；
-- 按已验证需求逐步扩展的丢包、重试、soak 和接收唤醒测试。
+- 按已验证需求逐步扩展的丢包、重试、soak 和接收唤醒测试；
+- 在正确性闭环后达到两端共同支持的最高可持续有效速率。
 
 退出条件：
 
@@ -692,6 +693,8 @@ resume 路径；仍需在不会重置设备的直连拓扑上得到完整成功�
 - 基础互通至少连续重复三轮，报告保存 source/image/tool/command/result 证据；
 - CRC/白化错误能被接收端拒绝，丢包统计和限定重试可自动判定；
 - soak 和睡眠后接收唤醒通过；
+- 最高共同 PHY（优先验证 2 Mbit/s）、最短安全调度间隔、payload goodput、端到端
+  延迟、重试开销和长期稳定性均由结构化实板报告量化；
 - 公共实现与文档不含 reference peer 的私有名称、业务协议或本机标识。
 
 M5 的单板退出门禁已在 LM20 DK 上通过：TIMER10 经 DPPIC10 定时触发
@@ -705,7 +708,9 @@ DPPI 实现，与本地 external reference peer 建立真实双向空口互通�
 
 实施顺序固定为：只读识别两端与锁定 reference input → host packet vectors → 单向
 已知载荷 → 反向已知载荷 → 三轮可重复 gate → CRC/白化负向 → 序号/丢包/限定重试 →
-soak → 睡眠后接收唤醒。每次只增加一层，先明确阶段判定再扩充协议。可选 CCM 不在
+soak → 睡眠后接收唤醒 → 最高共同 PHY 与调度/goodput 优化。每次只增加一层，先明确
+阶段判定再扩充协议。最高速度指无数据错误、counter 守恒且重试/队列有界时的持续
+有效载荷吞吐和延迟，不是只读回 PHY mode 寄存器。可选 CCM 不在
 基础互通前置条件中，仍须按实际 silicon revision、errata 和经过认证的 packet contract
 单独审计。
 

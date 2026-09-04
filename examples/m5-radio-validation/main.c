@@ -74,23 +74,23 @@ int main(void)
     REQUIRE(nrfkit_radio_acquire(NRFKIT_RADIO_OWNER_PROPRIETARY) == NRFKIT_RADIO_OK, 3U);
     nrfkit_m5_radio_stage = 4U;
     REQUIRE(nrfkit_radio_acquire(NRFKIT_RADIO_OWNER_BLE) == NRFKIT_RADIO_ERR_BUSY, 4U);
-    struct nrfkit_radio_1mbit_config const config = {
-        .channel = 80U,
-        .address_prefix = 0xC7U,
+    struct nrfkit_radio_packet_config const config = {
+        .phy = NRFKIT_RADIO_PHY_2MBIT,
+        .channel = 16U,
         .maximum_payload = 32U,
         .whitening_iv = 0x53U,
         .whitening_polynomial = 0x89U,
-        .base_address = UINT32_C(0xE7E7E7E7),
+        .access_address = UINT32_C(0x71764567),
         .crc_initial = UINT32_C(0x555555),
         .crc_polynomial = UINT32_C(0x00065B),
     };
     nrfkit_m5_radio_stage = 5U;
-    nrfkit_m5_radio_result = nrfkit_radio_configure_1mbit(
+    nrfkit_m5_radio_result = nrfkit_radio_configure_packet(
         NRFKIT_RADIO_OWNER_PROPRIETARY, &config);
     REQUIRE(nrfkit_m5_radio_result == NRFKIT_RADIO_OK, 5U);
     REQUIRE(nrf_radio_frequency_get(NRF_RADIO) == 2400U + config.channel, 6U);
-    REQUIRE(nrf_radio_base0_get(NRF_RADIO) == config.base_address, 7U);
-    REQUIRE(nrf_radio_prefix0_get(NRF_RADIO) == config.address_prefix, 8U);
+    REQUIRE(nrf_radio_base0_get(NRF_RADIO) == UINT32_C(0x76456700), 7U);
+    REQUIRE(nrf_radio_prefix0_get(NRF_RADIO) == 0x71U, 8U);
     REQUIRE(nrf_radio_datawhiteiv_get(NRF_RADIO) == config.whitening_iv, 9U);
     REQUIRE(nrf_radio_datawhite_poly_get(NRF_RADIO) == config.whitening_polynomial, 10U);
     REQUIRE(nrf_radio_crcinit_get(NRF_RADIO) == config.crc_initial, 11U);

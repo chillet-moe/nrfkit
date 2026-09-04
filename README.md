@@ -58,8 +58,10 @@ It provides cooperative RADIO ownership and an explicit Nordic 1 Mbit packet
 configuration. The single-board TIMER10/DPPIC10 transmission gate has passed. The
 current M5 work establishes repeatable bidirectional known-payload interoperability
 with an external reference peer, followed by CRC/whitening rejection, loss/retry,
-soak, and receiver-wake gates. No complete airborne-link claim is made until those
-reports pass. See
+soak, receiver-wake, and maximum sustainable payload-rate gates. The final speed
+claim measures error-free goodput and latency at the highest PHY shared by both
+ends, not merely a configured PHY register. No complete airborne-link claim is made
+until those reports pass. See
 [`docs/provenance/radio.md`](docs/provenance/radio.md).
 
 The package-discovery skeleton is also usable for ordinary host consumers:

@@ -18,6 +18,9 @@ class RadioContractTests(unittest.TestCase):
             "NRFKIT_RADIO_OWNER_BLE",
             "nrfkit_radio_acquire",
             "nrfkit_radio_release",
+            "nrfkit_radio_configure_packet",
+            "NRFKIT_RADIO_PHY_2MBIT",
+            "NRFKIT_RADIO_PHY_4MBIT",
             "nrfkit_radio_configure_1mbit",
         ):
             self.assertIn(token, header)
@@ -41,12 +44,36 @@ class RadioContractTests(unittest.TestCase):
         self.assertIn("NRFKIT_M5_LINK_TX", source)
         self.assertIn("NRFKIT_M5_LINK_RX", source)
         self.assertIn("nrf_radio_crc_status_check", source)
+        self.assertIn("NRFKIT_RADIO_PHY_2MBIT", source)
+        self.assertIn("output[index] = data[index]", source)
+        self.assertIn("(uintptr_t)output", source)
+        self.assertIn("packet[0] != PACKET_LENGTH", source)
+        self.assertIn("IDLE_ATTEMPT_LIMIT", source)
+        self.assertNotIn("timeout--", source)
+
+        peer = (ROOT / "tests/hardware/m5-radio-peer/src/main.c").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("packet[0] != PACKET_LENGTH", peer)
+        self.assertIn("IDLE_ATTEMPT_LIMIT", peer)
+        self.assertNotIn("timeout--", peer)
+
+    def test_packet_configuration_uses_a_four_byte_access_address(self) -> None:
+        source = (ROOT / "radio/nrf54l/radio.c").read_text(encoding="utf-8")
+        self.assertIn("packet.balen = 3U", source)
+        self.assertIn("config->access_address & UINT32_C(0x00FFFFFF)", source)
+        self.assertIn("config->access_address >> 24U", source)
+        self.assertIn("NRF_RADIO_PREAMBLE_LENGTH_16BIT", source)
 
     def test_dual_board_harness_rejects_a_single_probe(self) -> None:
         cli = (ROOT / "tools/nrfkit_tools/cli.py").read_text(encoding="utf-8")
         self.assertIn('subparsers.add_parser("m5-radio-dual")', cli)
         self.assertIn("requires two distinct probes", cli)
         self.assertIn('receiver_running', cli)
+        self.assertIn('args.rounds', cli)
+        self.assertIn('"airborne-link", round=round_number', cli)
+        self.assertIn('"receiver-ready", round=round_number', cli)
+        self.assertIn('"--ready-file", str(ready_file)', cli)
 
     def test_xo_running_check_preserves_optional_output_contract(self) -> None:
         patch = (ROOT / "patches/nrfx/0002-clock-xo-allow-null-source-output.patch").read_text(

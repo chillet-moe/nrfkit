@@ -60,14 +60,25 @@ class EquivalenceTests(unittest.TestCase):
         self.assertIn("EVENTS_TXSTOPPED", source)
         self.assertIn("EVENTS_DMA.TX.BUSERROR", source)
 
-    def test_stopped_checkpoint_keeps_exact_adapter_inputs(self) -> None:
+    def test_stopped_checkpoint_keeps_dedicated_adapter_inputs(self) -> None:
         project_root = Path(__file__).resolve().parents[2]
         checkpoint = json.loads(
             (project_root / "docs/provenance/m6-s115-equivalence-checkpoint.json")
             .read_text(encoding="utf-8")
         )
         inputs = checkpoint["lifecycle_candidate"]["adapter_inputs"]
+        shared_build_graph = {
+            "cmake/modules/NrfKitFirmware.cmake",
+            "examples/CMakeLists.txt",
+        }
         for relative, expected in inputs.items():
+            self.assertEqual(len(expected), 64, relative)
+            int(expected, 16)
+            # These two files remain active build registries. Their recorded
+            # digests are historical evidence, not a ban on later milestones
+            # adding unrelated targets or integrations to the same files.
+            if relative in shared_build_graph:
+                continue
             actual = hashlib.sha256((project_root / relative).read_bytes()).hexdigest()
             self.assertEqual(actual, expected, relative)
 

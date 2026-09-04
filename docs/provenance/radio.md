@@ -69,7 +69,15 @@ The public validation sequence is deliberately incremental:
 4. prove CRC and whitening mismatch rejection;
 5. add sequence/loss accounting and bounded retry;
 6. run a bounded soak; and
-7. prove receive after sleep wakeup.
+7. prove receive after sleep wakeup;
+8. select the highest PHY supported by both endpoints, then reduce the scheduled
+   interval while measuring sustained payload goodput, latency, loss, retry cost,
+   queue bounds, and counter conservation.
+
+The performance target is the highest repeatable error-free useful rate, not a
+register setting or raw packet-opportunity count. The initial 1 Mbit configuration
+is only a correctness baseline; 2 Mbit/s is evaluated before any final speed claim
+when both endpoints support it.
 
 Each stage records sanitized roles, exact image and source hashes, tool versions,
 bounded commands, result counters, and cleanup status in `.work/`. The external
@@ -85,12 +93,14 @@ tests enabled, then run the guarded paired workflow:
 tools/nrfkit m5-radio-dual \
   --tx-manifest build/m5_radio_tx.device-manifest.json \
   --rx-manifest build/m5_radio_rx.device-manifest.json \
-  --tx-probe <transmitter-probe> --rx-probe <receiver-probe>
+  --tx-probe <transmitter-probe> --rx-probe <receiver-probe> --rounds 3
 ```
 
 The command rejects identical probe identities, starts the receiver first, runs both
-children through the normal manifest/address/program/serial guard, records both child
-reports, and terminates the receiver process group on failure. Before claiming M5,
+children through the normal manifest/address/program/serial guard, repeats the direction
+three times by default, records every child report, and terminates the receiver process
+group on failure. Run the same gate again with endpoint roles reversed before treating
+the known-payload stage as bidirectional. Before claiming M5,
 the harness must also support the fixed staged sequence above and accept an external
 reference-peer adapter without exposing private details in its public arguments or
 reports.

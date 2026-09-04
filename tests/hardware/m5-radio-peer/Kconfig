@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: BSD-3-Clause
+
+mainmenu "M5 laboratory radio peer"
+
+source "Kconfig.zephyr"
+
+config NRFKIT_M5_PEER_TX
+	bool "Transmit the fixed M5 packet stream"
+	default n
+
+config NRFKIT_M5_PEER_RX
+	bool "Receive and verify the fixed M5 packet stream"
+	default n
+
+config NRFKIT_M5_PEER_PHY_1M
+	bool "Use the 1 Mbit diagnostic PHY"
+	default n

@@ -885,17 +885,20 @@ def command_m5_radio_dual(args: argparse.Namespace) -> int:
         raise ToolError("M5 dual-board validation requires two distinct probes")
     tx_manifest = load_manifest(args.tx_manifest)
     rx_manifest = load_manifest(args.rx_manifest)
-    if tx_manifest["oracle"] != "sdk-m5_radio_tx":
-        raise ToolError("M5 transmitter manifest must target m5_radio_tx")
-    if rx_manifest["oracle"] != "sdk-m5_radio_rx":
-        raise ToolError("M5 receiver manifest must target m5_radio_rx")
+    if not tx_manifest["expected_token"].endswith("TX PASS"):
+        raise ToolError("M5 transmitter manifest must declare a TX PASS token")
+    if not rx_manifest["expected_token"].startswith("NRFKIT_M5_") or \
+            "RX PASS" not in rx_manifest["expected_token"]:
+        raise ToolError("M5 receiver manifest must declare an M5 RX PASS token")
+    if args.rounds < 1 or args.rounds > 100:
+        raise ToolError("M5 rounds must be between 1 and 100")
 
     run_dir, report = _new_run("m5-radio-dual")
     report.update({"status": "running", "stages": [], "child_reports": []})
     atomic_json(run_dir / "run.json", report)
     receiver: subprocess.Popen[str] | None = None
-    receiver_log = run_dir / "receiver.log"
     receiver_stream = None
+    ready_file: Path | None = None
     try:
         public_cli = str(project_root() / "tools/nrfkit")
         common = [
@@ -903,35 +906,54 @@ def command_m5_radio_dual(args: argparse.Namespace) -> int:
             "--timeout", str(args.timeout),
             "--token-timeout", str(args.token_timeout),
         ]
-        receiver_stream = receiver_log.open("w", encoding="utf-8")
-        receiver = subprocess.Popen(
-            [
-                public_cli, "run", "--manifest", str(args.rx_manifest.resolve()),
-                "--probe-serial", args.rx_probe, *common,
-            ],
-            text=True, stdout=receiver_stream, stderr=subprocess.STDOUT,
-            start_new_session=True,
-        )
-        time.sleep(3.0)
-        tx_report = _run_p0_child(
-            [
-                public_cli, "run", "--manifest", str(args.tx_manifest.resolve()),
-                "--probe-serial", args.tx_probe, *common,
-            ],
-            run_dir / "transmitter.log", args.gate_timeout,
-        )
-        receiver.wait(timeout=args.gate_timeout)
-        receiver_stream.close()
-        receiver_stream = None
-        if receiver.returncode:
-            raise ToolError("M5 receiver child failed; see receiver.log")
-        lines = [line for line in receiver_log.read_text(encoding="utf-8").splitlines()
-                 if line.strip()]
-        if len(lines) != 1 or not Path(lines[0]).is_file():
-            raise ToolError("M5 receiver child did not return one run report")
-        rx_report = str(Path(lines[0]).resolve())
-        report["child_reports"] = [rx_report, tx_report]
-        _stage(run_dir, report, "airborne-link", receiver=rx_report, transmitter=tx_report)
+        for round_number in range(1, args.rounds + 1):
+            receiver_log = run_dir / f"round-{round_number:03d}-receiver.log"
+            ready_file = run_dir / f"round-{round_number:03d}-receiver-ready.json"
+            receiver_stream = receiver_log.open("w", encoding="utf-8")
+            receiver = subprocess.Popen(
+                [
+                    public_cli, "run", "--manifest", str(args.rx_manifest.resolve()),
+                    "--probe-serial", args.rx_probe, "--ready-file", str(ready_file),
+                    *common,
+                ],
+                text=True, stdout=receiver_stream, stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+            ready_deadline = time.monotonic() + args.gate_timeout
+            while not ready_file.is_file():
+                if receiver.poll() is not None:
+                    raise ToolError(
+                        f"M5 receiver exited before ready in round {round_number}; "
+                        f"see {receiver_log.name}"
+                    )
+                if time.monotonic() >= ready_deadline:
+                    raise ToolError(f"M5 receiver ready timeout in round {round_number}")
+                time.sleep(0.05)
+            _stage(run_dir, report, "receiver-ready", round=round_number)
+            tx_report = _run_p0_child(
+                [
+                    public_cli, "run", "--manifest", str(args.tx_manifest.resolve()),
+                    "--probe-serial", args.tx_probe, *common,
+                ],
+                run_dir / f"round-{round_number:03d}-transmitter.log", args.gate_timeout,
+            )
+            receiver.wait(timeout=args.gate_timeout)
+            receiver_stream.close()
+            receiver_stream = None
+            if receiver.returncode:
+                raise ToolError(
+                    f"M5 receiver child failed in round {round_number}; see {receiver_log.name}"
+                )
+            lines = [line for line in receiver_log.read_text(encoding="utf-8").splitlines()
+                     if line.strip()]
+            if len(lines) != 1 or not Path(lines[0]).is_file():
+                raise ToolError("M5 receiver child did not return one run report")
+            rx_report = str(Path(lines[0]).resolve())
+            report["child_reports"].extend((rx_report, tx_report))
+            _stage(run_dir, report, "airborne-link", round=round_number,
+                   receiver=rx_report, transmitter=tx_report)
+            receiver = None
+            ready_file.unlink(missing_ok=True)
         report["status"] = "ok"
     except BaseException as error:
         report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
@@ -946,6 +968,8 @@ def command_m5_radio_dual(args: argparse.Namespace) -> int:
                 receiver.wait()
         if receiver_stream is not None:
             receiver_stream.close()
+        if ready_file is not None:
+            ready_file.unlink(missing_ok=True)
         report["cleanup"] = {"receiver_running": receiver is not None and receiver.poll() is None}
         atomic_json(run_dir / "run.json", report)
     print(run_dir / "run.json")
@@ -1111,6 +1135,13 @@ def command_run(args: argparse.Namespace) -> int:
                 run_dir, report, "reset", returncode=reset.returncode,
                 duration_seconds=reset.duration_seconds,
             )
+            ready_file = getattr(args, "ready_file", None)
+            if ready_file is not None:
+                ready_file = ready_file.resolve()
+                if not ready_file.is_relative_to((project_root() / ".work").resolve()):
+                    raise ToolError("ready marker must stay inside the ignored .work directory")
+                atomic_json(ready_file, {"schema": "nrfkit-ready/v1", "status": "ready"})
+                _stage(run_dir, report, "ready-marker")
             deadline = time.monotonic() + args.token_timeout
             token = manifest["expected_token"].encode()
             while time.monotonic() < deadline and token not in reader[2]:
@@ -1704,7 +1735,8 @@ def main(argv: list[str] | None = None) -> int:
         "oracle",
         choices=(
             "ncs-hello-world", "nrf-bm-leds-s115",
-            "nrf-bm-ble-hids-mouse-s115", "nrf-bm-m6-s145-central",
+            "ncs-m5-radio-peer", "nrf-bm-ble-hids-mouse-s115",
+            "nrf-bm-m6-s145-central",
         ),
     )
     reference_prepare.add_argument("--root", type=Path, required=True)
@@ -1715,14 +1747,15 @@ def main(argv: list[str] | None = None) -> int:
         "oracle",
         choices=(
             "ncs-hello-world", "nrf-bm-leds-s115",
-            "nrf-bm-ble-hids-mouse-s115", "nrf-bm-m6-s145-central",
+            "ncs-m5-radio-peer", "nrf-bm-ble-hids-mouse-s115",
+            "nrf-bm-m6-s145-central",
         ),
     )
     reference_build.add_argument(
         "--profile",
         choices=(
             "p2", "p3", "bonding", "hid", "product", "reconnect",
-            "bluez-kdist",
+            "bluez-kdist", "tx", "rx", "tx-1m", "rx-1m",
         ),
     )
     reference_build.add_argument("--timeout", type=float, default=900)
@@ -1765,6 +1798,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--build-timeout", type=float, default=900)
     run.add_argument("--token-timeout", type=float, default=10)
     run.add_argument("--serial-ready-delay", type=float, default=0.5)
+    run.add_argument("--ready-file", type=Path, help=argparse.SUPPRESS)
     run.add_argument(
         "--reset-kind", choices=("RESET_DEFAULT", "RESET_PIN"),
         default="RESET_DEFAULT",
@@ -1816,6 +1850,7 @@ def main(argv: list[str] | None = None) -> int:
     m5_dual.add_argument("--timeout", type=float, default=90)
     m5_dual.add_argument("--token-timeout", type=float, default=30)
     m5_dual.add_argument("--gate-timeout", type=float, default=120)
+    m5_dual.add_argument("--rounds", type=int, default=3)
     m5_dual.set_defaults(handler=command_m5_radio_dual)
     m6_ble = subparsers.add_parser("m6-ble-gate")
     m6_ble.add_argument("--device-name", default="nrfkit-m6")
