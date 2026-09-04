@@ -36,6 +36,8 @@ SECTIONS
     *(.glue_7t) *(.glue_7)
     KEEP(*(.init))
     KEEP(*(.fini))
+    FILL(0xFF)
+    . = ALIGN(4);
   } > RRAM
 
   .ARM.extab : ALIGN(4) { *(.ARM.extab* .gnu.linkonce.armextab.*) } > RRAM
