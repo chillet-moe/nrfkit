@@ -2074,6 +2074,8 @@ def main(argv: list[str] | None = None) -> int:
         choices=(
             "p2", "p3", "bonding", "hid", "product", "reconnect",
             "bluez-kdist", "tx", "rx", "tx-1m", "rx-1m",
+            "tx-4m-bt-0-6", "rx-4m-bt-0-6",
+            "tx-4m-bt-0-4", "rx-4m-bt-0-4",
         ),
     )
     reference_build.add_argument("--timeout", type=float, default=900)
