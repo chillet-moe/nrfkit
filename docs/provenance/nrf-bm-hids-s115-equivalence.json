@@ -1,0 +1,1699 @@
+{
+  "autoconf": {
+    "macro_count": 681,
+    "sha256": "516b4d9280e4b45435ad428defc7071e3ae8a2d2032c6e274dceceb535b96fa5"
+  },
+  "compile_entry_count": 276,
+  "compiled_source_count": 273,
+  "nrf_bm_sources": [
+    "nrf-bm/boards/nordic/bm_nrf54lm20dk/init.c",
+    "nrf-bm/drivers/console/console_bm_uarte.c",
+    "nrf-bm/lib/bluetooth/ble_adv/ble_adv.c",
+    "nrf-bm/lib/bluetooth/ble_adv/ble_adv_data.c",
+    "nrf-bm/lib/bluetooth/ble_conn_params/att_mtu.c",
+    "nrf-bm/lib/bluetooth/ble_conn_params/conn_param.c",
+    "nrf-bm/lib/bluetooth/ble_conn_params/data_length.c",
+    "nrf-bm/lib/bluetooth/ble_conn_params/event.c",
+    "nrf-bm/lib/bluetooth/ble_conn_params/phy_mode.c",
+    "nrf-bm/lib/bluetooth/ble_qwr/ble_qwr.c",
+    "nrf-bm/lib/bluetooth/peer_manager/modules/conn_state.c",
+    "nrf-bm/lib/bluetooth/peer_manager/modules/gatt_cache_manager.c",
+    "nrf-bm/lib/bluetooth/peer_manager/modules/gatts_cache_manager.c",
+    "nrf-bm/lib/bluetooth/peer_manager/modules/id_manager.c",
+    "nrf-bm/lib/bluetooth/peer_manager/modules/nrf_ble_lesc.c",
+    "nrf-bm/lib/bluetooth/peer_manager/modules/peer_data_storage.c",
+    "nrf-bm/lib/bluetooth/peer_manager/modules/peer_database.c",
+    "nrf-bm/lib/bluetooth/peer_manager/modules/peer_id.c",
+    "nrf-bm/lib/bluetooth/peer_manager/modules/peer_manager_handler.c",
+    "nrf-bm/lib/bluetooth/peer_manager/modules/pm_buffer.c",
+    "nrf-bm/lib/bluetooth/peer_manager/modules/security_dispatcher.c",
+    "nrf-bm/lib/bluetooth/peer_manager/modules/security_manager.c",
+    "nrf-bm/lib/bluetooth/peer_manager/nrf_strerror.c",
+    "nrf-bm/lib/bluetooth/peer_manager/peer_manager.c",
+    "nrf-bm/lib/bm_buttons/bm_buttons.c",
+    "nrf-bm/lib/bm_gpiote/gpiote.c",
+    "nrf-bm/lib/bm_timer/bm_timer.c",
+    "nrf-bm/lib/boot_banner/banner.c",
+    "nrf-bm/samples/bluetooth/ble_hids_mouse/src/main.c",
+    "nrf-bm/subsys/bluetooth/services/ble_bas/bas.c",
+    "nrf-bm/subsys/bluetooth/services/ble_dis/dis.c",
+    "nrf-bm/subsys/bluetooth/services/ble_hids/hids.c",
+    "nrf-bm/subsys/fs/bm_zms/bm_zms.c",
+    "nrf-bm/subsys/logging/backends/log_backend_bm_uarte.c",
+    "nrf-bm/subsys/softdevice_handler/irq_connect.c",
+    "nrf-bm/subsys/softdevice_handler/irq_forward.s",
+    "nrf-bm/subsys/softdevice_handler/nrf_sdh.c",
+    "nrf-bm/subsys/softdevice_handler/nrf_sdh_ble.c",
+    "nrf-bm/subsys/softdevice_handler/nrf_sdh_info.c",
+    "nrf-bm/subsys/softdevice_handler/nrf_sdh_soc.c",
+    "nrf-bm/subsys/softdevice_handler/rand_seed.c",
+    "nrf-bm/subsys/storage/bm_storage/bm_storage.c",
+    "nrf-bm/subsys/storage/bm_storage/sd/bm_storage_sd.c"
+  ],
+  "oracle": "nrf-bm-ble-hids-mouse-s115",
+  "release": "nRF Connect SDK Bare Metal v2.0.1",
+  "schema": "nrfkit-nrf-bm-equivalence/v1",
+  "sources": {
+    "@build/zephyr/isr_tables.c": {
+      "commands": [
+        "06204676e23dcb0cea9c19303a92cd388e55ca840a34d75ac9310eec43eae930"
+      ],
+      "sha256": "c63571026a7a3c95733e43b0c4caed39129839555d608a60d76f32af85d44db7"
+    },
+    "@build/zephyr/misc/generated/configs.c": {
+      "commands": [
+        "011579fcc73bd62e8df9fc52800878193e5545d0b8f78a3ff1af4ee0ddaecee2"
+      ],
+      "sha256": "0bbdc24257b7813a1de8838796c39a2f80f606bdb7b79d30de95d2f227ba059f"
+    },
+    "modules/crypto/mbedtls/library/asn1parse.c": {
+      "commands": [
+        "6bac8200c8fc2fa1be14eea73a55350a24ffe5a4719b098ec2febde53b8183f8"
+      ],
+      "sha256": "d7d4ab84977626f3cb741ec6d606591f1665defad6d8c17e1c957022803d3ded"
+    },
+    "modules/crypto/mbedtls/library/asn1write.c": {
+      "commands": [
+        "47418542355526307b4f05ea81576513957a5c1596a6fc26622a4e59be2eb764"
+      ],
+      "sha256": "96813aec0001d0b4b212ffe834178e96a793e3157d4b987021d59d89ef47d8d2"
+    },
+    "modules/crypto/mbedtls/library/base64.c": {
+      "commands": [
+        "faf69dbcd31b5254426141192072f32d23241560be3a49e3008d05ddfc9f3476"
+      ],
+      "sha256": "42fb3f63678521d4ba877dc7227337b5534813aa3b8e7beda87335e598bbab6c"
+    },
+    "modules/crypto/mbedtls/library/bignum.c": {
+      "commands": [
+        "29bbd1038daeb8531574708f6722c199194cf557b9255db02d08841d0e5dc7e6"
+      ],
+      "sha256": "e41b8358dd3ac86d16c6a8df19e4c36dedb631bf5d4ec226f5676445715df0a1"
+    },
+    "modules/crypto/mbedtls/library/bignum_core.c": {
+      "commands": [
+        "b2473b5f1835c581322a19eafa138caf570292fdbc1658b08c4223673929f609"
+      ],
+      "sha256": "0881aacce52499184aa33641c24ca6075bf533b31f61c5358923a655490bcfa6"
+    },
+    "modules/crypto/mbedtls/library/cipher.c": {
+      "commands": [
+        "b0160bf279935204b04dacb2913c982836d8d73c432f67abed1aa9e5a799e9e4"
+      ],
+      "sha256": "74b5f043b11216ed427711e795a00583aa1e5239675d4169a321571ebf5a2c50"
+    },
+    "modules/crypto/mbedtls/library/cipher_wrap.c": {
+      "commands": [
+        "af6cb1039133db063ed0bb13ff38d6d02643afba14afd252df2d9caa4ee71a66"
+      ],
+      "sha256": "fb742e7fd4e2c7a8dbf67206e554ec20095a2f6cab3f4d38d1cc846466fea673"
+    },
+    "modules/crypto/mbedtls/library/constant_time.c": {
+      "commands": [
+        "7fb06bebb4921b5608665d62395245a06477581399ebe3d9f08db530ca44980b"
+      ],
+      "sha256": "1a573edd420fece73f996b70cdf6bb58a05a468e434a6ac0c562df592048d3c6"
+    },
+    "modules/crypto/mbedtls/library/dhm.c": {
+      "commands": [
+        "fd893010aa89af9b1f90329bc27b323775061cd43f7eaefcd99ccf96c6dcfc7e"
+      ],
+      "sha256": "6fbee2acfc4c7e732ff784d8db8355e976cb579eace3e0238b04cc34f9bcdb20"
+    },
+    "modules/crypto/mbedtls/library/md.c": {
+      "commands": [
+        "d3b38d18626aa4bab97b81ca048fe7058bac786cd2e831842b44e4e517ad9915"
+      ],
+      "sha256": "5ba79d51ff85951cb4001a22b2428568e4bc1072b367222808f3eac1ad91884d"
+    },
+    "modules/crypto/mbedtls/library/nist_kw.c": {
+      "commands": [
+        "c455dc368e9ee878209c1a22a3aaa56267b4238bc79925820c192340ce032813"
+      ],
+      "sha256": "2d0bb3b6309609888d3ab58fe391e276adba0ae6e23f53c6b3c90970d77d5d00"
+    },
+    "modules/crypto/mbedtls/library/oid.c": {
+      "commands": [
+        "3a3e635b2662118322674d55442993859fc096e0d61a13f85f76671eafbb4c65"
+      ],
+      "sha256": "95a2374b2b59826d631f66f7d8a7777e1c1591d94620c0bde13a2e01a8dc3886"
+    },
+    "modules/crypto/mbedtls/library/padlock.c": {
+      "commands": [
+        "bf7e546eccf8b7c98abd990f8d727d8958785be2bc179a40aa4a2ba5fdc7aef6"
+      ],
+      "sha256": "05fbf8168e6bff3d578e066776280dca143f9579f3c2d6af4e33dec26f6f383b"
+    },
+    "modules/crypto/mbedtls/library/pem.c": {
+      "commands": [
+        "1db311dc99eec1490dcb35a7d3743f8a43972218fe005243c2b2408d46cd38ac"
+      ],
+      "sha256": "a44cefb9ceec63aedf056fb3eca93ade2a420a658c994dfe2269db1b3b079ae7"
+    },
+    "modules/crypto/mbedtls/library/pk.c": {
+      "commands": [
+        "777f4740cbc9eee6799496fc23f4ddff220881d0fb141ccdd28126bc81feac12"
+      ],
+      "sha256": "1bb16cd908ebf84742aa65a9f465878963aed45771cc374abbb82fe765536daf"
+    },
+    "modules/crypto/mbedtls/library/pk_ecc.c": {
+      "commands": [
+        "6b8b7316c87e70d2e0290356e19d3a399e66891068091a9dbcb61be209900aa7"
+      ],
+      "sha256": "19ba6ca1251a610a53e3654a7727ba881c358a29d46f4586ab3c7e07c846b5bf"
+    },
+    "modules/crypto/mbedtls/library/pk_wrap.c": {
+      "commands": [
+        "1a1f816f9c35ed37177f397bae50a9bd89c3250c5365103a4c0f608a58eb925d"
+      ],
+      "sha256": "a7af0fc0b546f0abe1485a16deedb29ea2e77fb62b40e7249851fe44ed848b9d"
+    },
+    "modules/crypto/mbedtls/library/pkcs12.c": {
+      "commands": [
+        "21b974c3ae295eb5df73db264d10a002ebefa3a1cf47c6698ac035790724ce24"
+      ],
+      "sha256": "3c29c70011f35acc5aa46413f5a3d343fa57f8db85115ff896dcd94a3d415174"
+    },
+    "modules/crypto/mbedtls/library/pkcs5.c": {
+      "commands": [
+        "9f86ba6f7541481b855ee19241ff95e8725a52d640b2b59a50490baf24f4c961"
+      ],
+      "sha256": "1d29edc77054f108a204b7358eb039dbc506ed485871708dc35857d7836eee07"
+    },
+    "modules/crypto/mbedtls/library/pkparse.c": {
+      "commands": [
+        "09df1399b4fd9f447b7cc43a988bee17ffb22cb3e22300c7305bcccac1551979"
+      ],
+      "sha256": "36c0590c516a1b4ad99bfefc213da1a19a2e27638ee3f267ea3365cc738ecf17"
+    },
+    "modules/crypto/mbedtls/library/pkwrite.c": {
+      "commands": [
+        "4f3fb129cbf9b10deadb68e56025bd81bd246a3230b13f20caf8b742aa97a11b"
+      ],
+      "sha256": "a9befea5ab74e3d9d7448f9790d7640b95fedf3c8386545bd7837962d26167c7"
+    },
+    "modules/crypto/mbedtls/library/psa_util.c": {
+      "commands": [
+        "f503551f140f0e4e2f05640af0bc2c1aec779885a881d12516c1887c6e0562a7"
+      ],
+      "sha256": "60b3ac409cb132eb13c3fe6e003477311e124e636bfe5797ea2ef40fab5d5e9c"
+    },
+    "modules/crypto/mbedtls/library/version.c": {
+      "commands": [
+        "39284b33a37e90e3c82c553ca1069cf7c428574e77fe337178fc666de023be4d"
+      ],
+      "sha256": "8a76e2b4647b9d26eaa49a9f297f245c99b2a2f05a29e30227cfa9fc6a95cadc"
+    },
+    "modules/crypto/oberon-psa-crypto/library/platform.c": {
+      "commands": [
+        "f2392d8ff70e766f1258823b27a81f4aa5a4d97147aa39b34d28b04249c0e6d2"
+      ],
+      "sha256": "13281b193241193246dfede1307a2177c20c30feb3c9dc77b58893ced26ce2ac"
+    },
+    "modules/crypto/oberon-psa-crypto/library/platform_util.c": {
+      "commands": [
+        "573b261d82a1ff3745f3703402e706fd8ac1c62b7e2b8438cb31a2512abdc590"
+      ],
+      "sha256": "b8eda236c7ed5caf8b76c5157378d1112f39fbc6d483e192e35d8220c1b569ea"
+    },
+    "modules/crypto/oberon-psa-crypto/library/psa_crypto.c": {
+      "commands": [
+        "9d9e732ab6b438f03629856f1d474c83c4ad8bf915c58f2934701e71f9515b21"
+      ],
+      "sha256": "48eaf8837d817674c7e32b3a8f2da3b54aa24a5dfbabe6bb641dedf3bda69090"
+    },
+    "modules/crypto/oberon-psa-crypto/library/psa_crypto_client.c": {
+      "commands": [
+        "4477774a9949e63910d97b48f7ad02dd8b640aee6961422c689e81a4cad7de99"
+      ],
+      "sha256": "d4e3976954912ad46518fad8440bf1b998cf3a4c8aead88a2545ef50236b1ae4"
+    },
+    "modules/crypto/oberon-psa-crypto/library/psa_crypto_slot_management.c": {
+      "commands": [
+        "050fd3611715e10fd4f39b95987af132eac5627cc209f2f38143aec93c62977d"
+      ],
+      "sha256": "30980cd485c1eb554527f9d2130cfb1d8c6fa3120a97a091948bdb03ce2b338c"
+    },
+    "modules/crypto/oberon-psa-crypto/library/psa_crypto_storage.c": {
+      "commands": [
+        "1017ee838d87cffbbf8461484c9f548d5aa7166a5815d04e3195a765f770c7fc"
+      ],
+      "sha256": "63bde2d93efd5a0b2212b512e8ef3dabc94557c7189e7468430e846a308d7bf3"
+    },
+    "modules/hal/nordic/nrfx/bsp/stable/mdk/system_nrf54l.c": {
+      "commands": [
+        "b27f8c421379fdbc9751f6cba250c5d7eea2ab9f925dbf71ce18284661620d19"
+      ],
+      "sha256": "a1288ab9ec1b383618571365f05328a37a1f698be324657a63632f41a848792a"
+    },
+    "modules/hal/nordic/nrfx/bsp/stable/soc/interconnect/nrfx_gppi_d2ppi.c": {
+      "commands": [
+        "5cf3bd1fe0bdb849499b3706df6dd042e09e9ee7e2085ccdaf4addacb3a99a1c"
+      ],
+      "sha256": "5c8f3b72f34882128cbf83c556b2ddb091b7d55ae09d78510ba27b923d1c4687"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_clock.c": {
+      "commands": [
+        "f2428f6153f75713f26b129d949372449f15532478aa775e8c7fa84d1295c981"
+      ],
+      "sha256": "676168c04ad1687cabf26ce6344c31cb3e29c5eb38a6aa6a50c61ae8351adb65"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_clock_hfclk.c": {
+      "commands": [
+        "d27a775cc6516bf12e81f4f926d98c756ca730a185352f03098badcd265b041a"
+      ],
+      "sha256": "334b49236c0687714dba92ce9babd3f14c7823004f3386bee1306e5429ffb982"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_clock_hfclk192m.c": {
+      "commands": [
+        "09d1c166dd2efbc86635f28e42d6fba51372c8f292c2a403bca6639d8c454303"
+      ],
+      "sha256": "853e7fe922ddcbb2c22692c7c5817851e7135aec956ad29aa6819d2ee7e65871"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_clock_hfclkaudio.c": {
+      "commands": [
+        "80ef2af07182d6ebbf704796ce841707bea4e2617b48954e5a4bc245f6afb174"
+      ],
+      "sha256": "fe68119c2bbb964918d7127b1aa5adf0191d72a89c261f2a3342f1205ee15b06"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_clock_lfclk.c": {
+      "commands": [
+        "3cf40c775d6089f6db944fb685acc1abd0973a730df66da5717edfd72e266ab1"
+      ],
+      "sha256": "21cb9c76f7f3cdf7b430b41463b49a8bfa6ac85630d183ae9dd07b8307941c40"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_clock_xo.c": {
+      "commands": [
+        "deb494fac31eff41677aa384995859bbb54223d8a7500785f107640ec5ecd6a3"
+      ],
+      "sha256": "785cfa894ac8ca90aafe434c40c8f04e5ff50892f11c1543d206f0aea5b4a271"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_clock_xo24m.c": {
+      "commands": [
+        "f9b8ed09eb08fb9cc1c9db04b052d21f59427ed2f6f74c2cf07f6f1145a5239e"
+      ],
+      "sha256": "9650b2181cd45368d6583224502ccf428ec292d5e0ed9cba03824fec7757565d"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_comp.c": {
+      "commands": [
+        "17405281b022d5c032ca391c2b8071617b5270138a11c1e46c390813fd614b27"
+      ],
+      "sha256": "4ee0fe6cefb4e4c35ed96ef7ee0859c5fce1988c71fdcfa431a1b1a5c2cea6d7"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_egu.c": {
+      "commands": [
+        "066fdd8f78585460572f4b13fe3874eb593d099287b992cdb2100983a2b7be50"
+      ],
+      "sha256": "a42b9764785d006fd024daa030f06551a08da3b7d144112f5e6d20b16c307cc7"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_gpiote.c": {
+      "commands": [
+        "66f3d48ace98c1f34220d227e32382f719e63f4cef765eb1fdd385b4c79a83f4"
+      ],
+      "sha256": "817d1241a91ab1a17d0bf46eae93a4be6db8effccba82d06ab0dd344200b0845"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_grtc.c": {
+      "commands": [
+        "17dfe1959bbbad078164af07d7d1b54bfb528ea522c11ca7e9fef07a6de69693"
+      ],
+      "sha256": "97975fe4061510e68ad46ce07ac977b7a0201974cdbbb2b1dea43553b89e1b4c"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_nfct.c": {
+      "commands": [
+        "26d45ccac39c15041f14dcfe0e988cbbb8fe855ec05d3fc3d5cf9c63b5b081f9"
+      ],
+      "sha256": "fb6e92ae12e96ed558999a90f00e83e017a4e022d0411c69df80d01b5cea6257"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_pdm.c": {
+      "commands": [
+        "fb8f828833d881aba429673ab27fd4d2f1765bc373a6d1feac31d8f231593da0"
+      ],
+      "sha256": "a6f61394a0b51afb7ccc371292648c88e42ccc6bb636941b26c8136591cff3ec"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_power.c": {
+      "commands": [
+        "360c1d4f243c25d769786f637d5c8e510004ee6bf84bb78f6d415f09ea4dcbad"
+      ],
+      "sha256": "f069559fd6a5c7aa9687ef9558af9d6c74fa2fe588ea573a6cc2d09a51636afe"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_pwm.c": {
+      "commands": [
+        "dba063b1cd04d2f0f6e0994a55e3886a1c12e65155f6acf7ccb577e1d961ad2a"
+      ],
+      "sha256": "8c6f9a15d40e53146d40f7149732f44dcf80d7cd34fd5aced84c49431d59709b"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_qdec.c": {
+      "commands": [
+        "5b20eb94e5c3358ff3932fdb6146c08aa3368b4bccdacd0544b35b57df297f14"
+      ],
+      "sha256": "4fb567e5c8ab36dd4b1211b2ec215b596a98b929cc736979e574df2beb142f43"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_rramc.c": {
+      "commands": [
+        "7d506fbaba303441fd80a2ceac12bc3c48609a8422a4820e26f53d636689e0a7"
+      ],
+      "sha256": "9389b23524c88d920f60cd34ce68eda586e1c96ce01eb78d244861c984dc2898"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_saadc.c": {
+      "commands": [
+        "28284a7a6a7ed87a25e50586bdeed6c571da5ac995c96d9889aabee5ece8a08b"
+      ],
+      "sha256": "b5b96f37a076a0c37d4741dd12564c7df2846dd3abac8d7f5d286f66a99b75cc"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_spim.c": {
+      "commands": [
+        "927cd3684d87074de8fad47760cd2f1835a836005ff5787127550a78f0168c22"
+      ],
+      "sha256": "6fd0f1e9bab8f90670d56f3537065338d4dc95f28b9b87b32ed01d9001f15b79"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_spis.c": {
+      "commands": [
+        "c5139f3bff82b56ef5c1c0722758cd70a1bfb8fb6e25cc240af61d3d8b98d988"
+      ],
+      "sha256": "001bd96e2d0648d2ddc335b69c5ee62a6b41483312a30b870412ad74d79fb01f"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_systick.c": {
+      "commands": [
+        "930eed7137ca8e580a2f44d2a9b20376b619034f807587cd003ad8d96f9d6efa"
+      ],
+      "sha256": "c78b69c5310b69c6b6e635d8e73fde8d3b727b068a7e032aad31966d9e6afadb"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_temp.c": {
+      "commands": [
+        "5b4d04e31fb25a3c2244529749028a998b96b2487c03752673e0da3ba01d7601"
+      ],
+      "sha256": "fb9b1ff2b18599969fe2617142f555bbfc0ba8924f25bc008a4dbe543332fb16"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_timer.c": {
+      "commands": [
+        "e7d2a52220cf3a6955d2528c66dffb063058435f20269a5297615205db628ec4"
+      ],
+      "sha256": "6d0da5f5cd372dc2da0140c822e465415519f9030ae9e34b65bf705a5fca3363"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_twi_twim.c": {
+      "commands": [
+        "83249bfc2f81b51d3554c8edb4f4026bf70bbfe4763aa20f41a138f749d2d51a"
+      ],
+      "sha256": "218cdb75e19a4961ca4a8e0c5386dd3d1525137b80228520eace8c6774631504"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_twim.c": {
+      "commands": [
+        "a16dffd79582a1a06936cf634eec3d796166a80b129e4d39528903251d794a9f"
+      ],
+      "sha256": "1f7037d68c22fd3f3d9e6b8e76db6512beac8b5b5abe4face5fbbfe1305e2e29"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_uarte.c": {
+      "commands": [
+        "021c1d90dbb86a5936bd31cbb779ff5072a1849ba2339b54cf79e46473db93cf"
+      ],
+      "sha256": "965293a0a9102f0d78515f8610407755425e057d6ffccc3e78b2ecfbfb9b6721"
+    },
+    "modules/hal/nordic/nrfx/drivers/src/nrfx_wdt.c": {
+      "commands": [
+        "3a37d6bb22206a81d2b3513740127ad67c2315e326de988ece960f64ddffb14a"
+      ],
+      "sha256": "fa7d6a521f53ce78c1559b162b86bce832844dc5601648896b7778d251a60dcd"
+    },
+    "modules/hal/nordic/nrfx/helpers/nrfx_flag32_allocator.c": {
+      "commands": [
+        "44410e389d3ddba57a3fd47b36f2d8aa2ac0cf17c946aaaebbdbd8d29396c002"
+      ],
+      "sha256": "ee581983f8e52b6ab2f05796d65891b85810a3434b58b50ecd11aed6a85ffd23"
+    },
+    "modules/hal/nordic/nrfx/helpers/nrfx_gppi_dppi.c": {
+      "commands": [
+        "2af834de781c1e3d5e9ef534fde0a6bea32a30a821af63ca1723273f8414a47d"
+      ],
+      "sha256": "2c81e8337dc3f32ffb18fd0b799269ebbb401c0533446e0a19b7f1405fa5e3d3"
+    },
+    "modules/hal/nordic/nrfx/helpers/nrfx_ram_ctrl.c": {
+      "commands": [
+        "ed4bc1d4704ef8971f58d5d7e00d08eccc917b2c00398bcc3b1d19356da31749"
+      ],
+      "sha256": "68384ac96990767f48b28c92af444792424456d0dda0c568d56f154da68e872b"
+    },
+    "nrf-bm/boards/nordic/bm_nrf54lm20dk/init.c": {
+      "commands": [
+        "dfc683c1c4f3f32b7e45865d1d55c4579de1d1fdbbf876d4da25a8231123e2c2"
+      ],
+      "sha256": "2a1ff4714d2456731d476d4731295cddade55b1aeb337dac37ee679363c69a62"
+    },
+    "nrf-bm/drivers/console/console_bm_uarte.c": {
+      "commands": [
+        "3078816aea4afd486508a1055b4c4555e854ef1df3df28f4619ddd093e28c195"
+      ],
+      "sha256": "6d8feabd0760d3d93bdfaf6637d1677983b6183e2338eccc176e697bcc68522f"
+    },
+    "nrf-bm/lib/bluetooth/ble_adv/ble_adv.c": {
+      "commands": [
+        "8d66ba61f22239dfdd3423c4a3d7b0b7fdcdc534399257ab85504e1e6d4ae08d"
+      ],
+      "sha256": "be38ec0fce417614147b0f78bf04c5a7ecb8083179211c1c2aec369d58f9a81f"
+    },
+    "nrf-bm/lib/bluetooth/ble_adv/ble_adv_data.c": {
+      "commands": [
+        "c4405ecda33bd5a62f0105c547b29978110b58ea11855f766e23f50336762c98"
+      ],
+      "sha256": "530dd9622cc7ac2c21fa95f3d427aa7e2d11c0f32415dde7f16fb023799fccc7"
+    },
+    "nrf-bm/lib/bluetooth/ble_conn_params/att_mtu.c": {
+      "commands": [
+        "690913fa7b95e6e2d787ac608b5563cc6ae28c89d5911130e1fb9dc73a6dbfa1"
+      ],
+      "sha256": "85e0d112594ded48a9c933f0c7381e264536c39b90ee8101ef615f484426cb63"
+    },
+    "nrf-bm/lib/bluetooth/ble_conn_params/conn_param.c": {
+      "commands": [
+        "a6232ea97a6da864bcbc6238fc89a565229f41b5c1138c84d3c4eaaae8e751cd"
+      ],
+      "sha256": "fcff5e984deb2572cae639c6c45245f284838ec851c83b4f15717a19a6ac2e2e"
+    },
+    "nrf-bm/lib/bluetooth/ble_conn_params/data_length.c": {
+      "commands": [
+        "201c49bfe00af09fe28bd59f2e46df6ba40debb399bfdd33f0955f956fa13bee"
+      ],
+      "sha256": "a614b208d682cbc7f7e43566470950a720d6a46b3dc2af88b9338ab8f874c34a"
+    },
+    "nrf-bm/lib/bluetooth/ble_conn_params/event.c": {
+      "commands": [
+        "8518a06b101485deca632c8dc779ca03f59f17e8dd08bd0851eeab0aa2508e23"
+      ],
+      "sha256": "81b4fece0956eeee2d8e1ea086778e537452388fb144db9f557584fc5b34bd2d"
+    },
+    "nrf-bm/lib/bluetooth/ble_conn_params/phy_mode.c": {
+      "commands": [
+        "b82d37a94991e31073197e14c483aa43b8413e7a94b44a60d376b9271104f730"
+      ],
+      "sha256": "1654b2d4e1f8c1b378b315df680809a3d0f7fbf3d2c6d2d61cf8b53988f6f7b7"
+    },
+    "nrf-bm/lib/bluetooth/ble_qwr/ble_qwr.c": {
+      "commands": [
+        "12f036808e6549cf38528eaf234a8b8a6a301256234fb23f2073219acf0a2d22"
+      ],
+      "sha256": "4a56b3bc664418f82cccf151338441ffc169cc78e5ec0608ba6b8e45a5061d7a"
+    },
+    "nrf-bm/lib/bluetooth/peer_manager/modules/conn_state.c": {
+      "commands": [
+        "7aefb877883b738b64b5bcb592fcf2ec335f387e79b394e22e5560557816e857"
+      ],
+      "sha256": "f87563c6ad339fc12da33e1f344f848c0b38e070cf62fd59a9653e465d0a1ed9"
+    },
+    "nrf-bm/lib/bluetooth/peer_manager/modules/gatt_cache_manager.c": {
+      "commands": [
+        "1620c6e258ee57131924fcb14767455a050ead394a655b89fe095e64113d37c6"
+      ],
+      "sha256": "8a37b905652230a93e704f3ead59c960867d8bb1823e566911fbbb04b7ba5792"
+    },
+    "nrf-bm/lib/bluetooth/peer_manager/modules/gatts_cache_manager.c": {
+      "commands": [
+        "5ae05294e040ab24b530d841852d1953de718540fa0537cd02a2687cff464882"
+      ],
+      "sha256": "ff86d3d266f7845d1994b51b6640ee326ff8b3978a8e520bad278a779af81544"
+    },
+    "nrf-bm/lib/bluetooth/peer_manager/modules/id_manager.c": {
+      "commands": [
+        "9052581fa50d89ef4592a9dd9360696f8234d0f2a06332038a83445d8ce79b43"
+      ],
+      "sha256": "f10d9d59cfcfbb1856e63125701a4494388b5fe3b15ed23e6ebf00d974db0354"
+    },
+    "nrf-bm/lib/bluetooth/peer_manager/modules/nrf_ble_lesc.c": {
+      "commands": [
+        "e8c62f99926073b43ef75f0c11a76bee08bcbada6f169258b246d248052a8b13"
+      ],
+      "sha256": "949eaa11a3b26112f652b83106f66d53bdd17925bf181b057ee68e7095a61d67"
+    },
+    "nrf-bm/lib/bluetooth/peer_manager/modules/peer_data_storage.c": {
+      "commands": [
+        "29d3f18114183e06d3774e657a6fb5ae500a3b496b29640298ba828959c45f84"
+      ],
+      "sha256": "2279103aa83f3537c10b83c34ac36a5e3fe18ebc49b0e8637ba3e096502cb2c4"
+    },
+    "nrf-bm/lib/bluetooth/peer_manager/modules/peer_database.c": {
+      "commands": [
+        "6e439c29121a53768ef066bfbb8d7a80b454d78ae65226af21441eedc19a43f0"
+      ],
+      "sha256": "0d1e33803149d128244c1a3cbb3480450ad36d443c9c62fe5a9173137da00f11"
+    },
+    "nrf-bm/lib/bluetooth/peer_manager/modules/peer_id.c": {
+      "commands": [
+        "8ceff5e55e6dacf4f2ecccc48e2995bda55c1f4ad4366bad59db2e7f19c6ceb3"
+      ],
+      "sha256": "ba30b947be20f0a169c1e7ef1d2cedda2fe5e5d2a126a584e709f04377a95baf"
+    },
+    "nrf-bm/lib/bluetooth/peer_manager/modules/peer_manager_handler.c": {
+      "commands": [
+        "148d8ce3806349c49f8e6dac0b4e581c992d7410b1ed5a3cdae95848c7000eee"
+      ],
+      "sha256": "7267fb56513fa34bdadb7147d038d014c3b48e3b796faa52e30c4a8ed5663fd3"
+    },
+    "nrf-bm/lib/bluetooth/peer_manager/modules/pm_buffer.c": {
+      "commands": [
+        "bc4bdc5d4482ff2c32189d36299b200c1f78c6072fa7a3b5d31f767080fb30e9"
+      ],
+      "sha256": "d3e00b5987a053603b3f42a8fec5d865089d25cb35a28a54acffcd89522b528a"
+    },
+    "nrf-bm/lib/bluetooth/peer_manager/modules/security_dispatcher.c": {
+      "commands": [
+        "7ed9e32553e30fc7af24148e96b5c665ff886aa1df38f675231613636b9983b2"
+      ],
+      "sha256": "7dd337c51a2775ffa5b66a169b9c3d148e8edb2bad23c374a9d984a51b05ef19"
+    },
+    "nrf-bm/lib/bluetooth/peer_manager/modules/security_manager.c": {
+      "commands": [
+        "cb76ea78d93ea51f8382dbc59726c94879c8262f766aa9ed2ea0b38b189622a3"
+      ],
+      "sha256": "57a4a85a33651f52bcbaea93788ea919723c88629d22c5c71bb9693ccd8ca231"
+    },
+    "nrf-bm/lib/bluetooth/peer_manager/nrf_strerror.c": {
+      "commands": [
+        "b77325853927faad8369dc7cf79b0a91afdefafc9289bc5e560a1ac6599bde6b"
+      ],
+      "sha256": "2674d9e4b377b54e8fe53039ce8e6fbffb2a37b46654f31498d55c45cb4e4840"
+    },
+    "nrf-bm/lib/bluetooth/peer_manager/peer_manager.c": {
+      "commands": [
+        "f105de466a0c8f7f7c337e58a096338e4e7a68e1edb17be8eafdaf5a1bb04d0f"
+      ],
+      "sha256": "d1bc4105bd85bee3cf7108cfb60a0855a37e5c72f849566093e896dc3e2adb09"
+    },
+    "nrf-bm/lib/bm_buttons/bm_buttons.c": {
+      "commands": [
+        "f7dcea585459e247aa369825136ca7ceeb589b22c5a8b3bfeefd470cb9ebdd5a"
+      ],
+      "sha256": "2a667a5714dddbe20e6fe69399740076868e1a8ab94a4ee73ec9893bda59df19"
+    },
+    "nrf-bm/lib/bm_gpiote/gpiote.c": {
+      "commands": [
+        "963e8dc1168b1c6a43deb6a46d2a66bcf67a58889d2807a9451f17195b50c073"
+      ],
+      "sha256": "694797f1dc7bd101c1b14c9500da8a4779418723d7c8acb4d00d2e4c874af08a"
+    },
+    "nrf-bm/lib/bm_timer/bm_timer.c": {
+      "commands": [
+        "fb317e1b602833597cf475328d1d904617a1b8fcb463863af2af71ad70fb25f2"
+      ],
+      "sha256": "de14503741ec59191149605d5e09875580960145e0697a3833e5cd7fb403368f"
+    },
+    "nrf-bm/lib/boot_banner/banner.c": {
+      "commands": [
+        "6f0d426fde71dbb05946ed058ae4bb43d33e87c1123187ddeb48411aa83e582a"
+      ],
+      "sha256": "e3a86439a577d3fb17d041fa5077432d082eed134476826f3741a94dacc69713"
+    },
+    "nrf-bm/samples/bluetooth/ble_hids_mouse/src/main.c": {
+      "commands": [
+        "ca5c87af851f35c224999813350e6d9f9c8a559e353f285cbd84fff0360e7c35"
+      ],
+      "sha256": "8b44872199b3118fd940371ed9ea12d6ec7df9c11f0b38ad2f517b6ebe3bafef"
+    },
+    "nrf-bm/subsys/bluetooth/services/ble_bas/bas.c": {
+      "commands": [
+        "c84a66847e81b29003c077bc2c6f1a360f564adceeaff11a1ba0847d8fa123df"
+      ],
+      "sha256": "32a7f91f96e7285668db0a81f4fcb626d4bfc03163da3c6785a75c4dc512629d"
+    },
+    "nrf-bm/subsys/bluetooth/services/ble_dis/dis.c": {
+      "commands": [
+        "2c24b01d5dd159a49345b2f93a8b4594dcbc0c5067c560272c36368e91223b37"
+      ],
+      "sha256": "60a500824da18824a2349d73066aaf2a5a43daa2fa942277e5b41f6456def320"
+    },
+    "nrf-bm/subsys/bluetooth/services/ble_hids/hids.c": {
+      "commands": [
+        "e8d8eae3db50f265acc0ba7399063a5044615cfb6aca6a8aca8277908325923f"
+      ],
+      "sha256": "3ac503a2c97e6015cb86f041d4c1ad6c2b45a0ff4e3daa00f2eeb82b19cacb06"
+    },
+    "nrf-bm/subsys/fs/bm_zms/bm_zms.c": {
+      "commands": [
+        "274c5c62b9260a456279e3527679e120cda6ee1707f176fbdb9dd244d027a9e0"
+      ],
+      "sha256": "3ba6a65049ce477f4ca80fb8f580cbf84b160d9ecaa50d134c995aaac1752604"
+    },
+    "nrf-bm/subsys/logging/backends/log_backend_bm_uarte.c": {
+      "commands": [
+        "750a98dae663225efa210fd2d121f18187206fb241fcb208487c5fb2c6466a6b"
+      ],
+      "sha256": "39bf77db518c16f4ae9383c2f3f874ff44323afb5309692197c01bbb3dd2d4d3"
+    },
+    "nrf-bm/subsys/softdevice_handler/irq_connect.c": {
+      "commands": [
+        "041945f22b116654033239bdadc5cf427ba821ca2907fa526da00938df0a8c9e"
+      ],
+      "sha256": "063dc7644d4f025ea77131e0ae9b8f517368ab8f9fd6c0a54dcfa9af8d844162"
+    },
+    "nrf-bm/subsys/softdevice_handler/irq_forward.s": {
+      "commands": [
+        "3d43021e3aaa7786551d4f1ba446ab2e863adf48520e43d0385641bccfc9ec49"
+      ],
+      "sha256": "5f35d0be21aaf18f3bb4645e2bac28550d9ddfa94c11e50898ff16f3a31af2a1"
+    },
+    "nrf-bm/subsys/softdevice_handler/nrf_sdh.c": {
+      "commands": [
+        "6a34937bfd61cb1d0cc454a1ab92fd3a35fcfaec0597d69f38071b710057dd21"
+      ],
+      "sha256": "66554bcdf9179c15f8fb1bbd8eea7d58761889555e674575f678a4c7d91b5cf2"
+    },
+    "nrf-bm/subsys/softdevice_handler/nrf_sdh_ble.c": {
+      "commands": [
+        "bfe6127877d09f11d00f3cabed802fd34f5ceaef2f98eb614fb93baa7ce5269f"
+      ],
+      "sha256": "8d16eaa0525122a5df1eae7d9452dea6def4b480acac31d5cc4efd7cad43f22b"
+    },
+    "nrf-bm/subsys/softdevice_handler/nrf_sdh_info.c": {
+      "commands": [
+        "189a143a35ca2a241d31be3d3a39c8e8e6aeb25a2585959ba5166cbfd591d1bb"
+      ],
+      "sha256": "87855a41bf3530fd15f68cba92eb0a6a97989784a016a50b00e5ab70123091da"
+    },
+    "nrf-bm/subsys/softdevice_handler/nrf_sdh_soc.c": {
+      "commands": [
+        "5019c4975e72a9c3ae4c1ff708bf6712aec2b7ff395fb5f13c3786a27e2b69ea"
+      ],
+      "sha256": "55387fd006776ab0fb41504708942974084f1808c5a639be8d7e4b3f104eb670"
+    },
+    "nrf-bm/subsys/softdevice_handler/rand_seed.c": {
+      "commands": [
+        "379ebfa07e79fd8a3f04b5c4c42add87460e2e0794ff3878d3ca89150f7fa0b9"
+      ],
+      "sha256": "83c755bdfd224685aa71bacb0b79af99180c4bc4f750c61fa25eb3849b67a06c"
+    },
+    "nrf-bm/subsys/storage/bm_storage/bm_storage.c": {
+      "commands": [
+        "89b1ffe4f0e4154a3ee9a621c0027b688c163054053463f1d95c834ce905d691"
+      ],
+      "sha256": "f6805161372e4f0e6813d1eef3a92cd4936e6d61c15641a5e5c2e2b40de63383"
+    },
+    "nrf-bm/subsys/storage/bm_storage/sd/bm_storage_sd.c": {
+      "commands": [
+        "fa8a080be0c26267cfaa29f0385245dfb79b208dfead19a88fe53854eb757dc6"
+      ],
+      "sha256": "689d50f42a3448e859a3ff8bc2ba36cadc134c8cc0de0664d265f8887284f1f3"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/common/src/cracen/common.c": {
+      "commands": [
+        "fd5c8ae26651962ebc084a51ac42195cb61afea1e67f7c47b499156fa9609a83"
+      ],
+      "sha256": "cb94084bb7b4487087f87a9c859f2497374718306a940d600ef7b32639887fe4"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/common/src/cracen/cracen_rndinrange.c": {
+      "commands": [
+        "5095a2562482f092f66f44d7f243608df6bb5153de1b4091955abf85ee71fd1e"
+      ],
+      "sha256": "9b067f17006e6ae8d4bd381d41db9f43a329bc12b26f1cb492de74a5b57d5aea"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/common/src/cracen/ec_helpers.c": {
+      "commands": [
+        "b3f7a48f486b640e9a800e355934837ce3096196f9a444f6a8bd69740149d6e4"
+      ],
+      "sha256": "d8bc626dea5bd39dca5461f976913acaae4823a4c09ad9881276b24b802e7b13"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/common/src/cracen/hardware/hardware.c": {
+      "commands": [
+        "fc895212185372badeba1473ecfa58062b3a10865be5ed13d1a0d82bd25b3133"
+      ],
+      "sha256": "2a28aef4643ca868bd61f84eb6455ed80fd54b87e36f4c1e7df34176eea7b35f"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/common/src/cracen/lib_kmu.c": {
+      "commands": [
+        "226cedaf759514b2bf5babd1faac2961392d6989fffa6876ad1e3dcd0f29622d"
+      ],
+      "sha256": "a06939b1116417b303e881b48cb959e403469a388ef2e278e477fb710f5ec1d4"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/common/src/cracen/mem_helpers.c": {
+      "commands": [
+        "c2aaae7078f7f5d416735a7522159186f69654ac8cd883afc842ff966e7ca6fb"
+      ],
+      "sha256": "b8fb9c9ee34999499200123f0c0ff8fc88a6ae75ea14f2abd168531435b61abd"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/common/src/cracen/prng_pool.c": {
+      "commands": [
+        "86fb1b2306c2a04c7aae92ef275763a7be47345895a41e4e51ceb0c8fe7c2541"
+      ],
+      "sha256": "8a180f90322b6cd2b5f880da9a480c3a4417faa9b7ba323852c15c7b4cb2d052"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracen_sw/src/cracen_sw_cipher.c": {
+      "commands": [
+        "5e1632136851f5540d2ad1568359d3a5574fb0384b85247c351d3a7315077fb5"
+      ],
+      "sha256": "7b43ccde6fb17c1a794630c0a972124bcf377de255521fb3a97d022cc5c0a62a"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracen_sw/src/cracen_sw_common.c": {
+      "commands": [
+        "53516b87575d5803fe647e75089e37214c1e074b7e305d16cb5d171133649a14"
+      ],
+      "sha256": "d5e6019b735684383b1c876a683de032834134d3b11eef2009c4702804546c3c"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa.c": {
+      "commands": [
+        "fae7f3b4bacf5aa657f5c1a1eaa7bdaf664b78408c9dcc05d55ad7af340cc0a7"
+      ],
+      "sha256": "5ac161ad1ba8ba58339b3f5fb46adc22571cfbb2c7ebef4009c78d7040709e7a"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_ctr_drbg.c": {
+      "commands": [
+        "08bd9d7f6e9cad48101091b9f19fc9208f6a5c8f5a0558a275755a412a4b6988"
+      ],
+      "sha256": "16cb211b2c44d3d94b05afcf55df86f21b6f5c94d6048a1da0326ffb8ba3e786"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_ikg.c": {
+      "commands": [
+        "d96f265d904d5587f3141c8e7c41a6f73732dde9ca8327afbb54fc5968d5170b"
+      ],
+      "sha256": "df84d0b43ea13b2aec05ea98ae798aa6d81f693a836fe7f90bd15ebf1a66948b"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_key_derivation.c": {
+      "commands": [
+        "2745abb369b6b986877fb6f8299e8b8c6b96e33437464e5292b26519dc2ecec4"
+      ],
+      "sha256": "601c5c9a929ee5711e114501315b7c417698a4e92fae5925fa178d17ff00a8f0"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_key_management.c": {
+      "commands": [
+        "7eec25860694f8452e296a9df85cd17e81547b8f145ed719e407aa396f22b51a"
+      ],
+      "sha256": "357d8f9e32d3ecdb049524d42637019bb8221ed53ee6a9dda250186f0f853ab4"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/cracen_psa_kmu.c": {
+      "commands": [
+        "95cfcb4ddad97a1386ee29e37a6a7cee216fd61dbf236134d7d3d89658f36490"
+      ],
+      "sha256": "ffecc344c6a397af9b1e96a86e036ac549cac975d8562d7ab689f407cd053785"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_ecc_helpers.c": {
+      "commands": [
+        "b10abacfc1b86e732529a91f1e64bb5dc0f63055e9ce1088c99586a302762726"
+      ],
+      "sha256": "aeb785d31594190c766c358f3a3cad09b99d6c7d36456a222283ed83d49c39ec"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_ecc_key_management.c": {
+      "commands": [
+        "c66d53a40195db3ace89fc6b7c6277be00d2410cfdb6d4f17b775bf9883837ea"
+      ],
+      "sha256": "12c17d48eb5db658b25f0518755d6f1ed8686c381e8d80ebce630e2edc7d5c19"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_ecc_keygen.c": {
+      "commands": [
+        "33c03bf0bfb04fae832ad03cb3bca3b77b8c39de5a019c32af13bcbc27b92c83"
+      ],
+      "sha256": "7588c9c5107f5a994380418010d6f62c529fbed930f6bbecccb40e6fbcf87d93"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_ecdsa.c": {
+      "commands": [
+        "0a5029658118b0c66381b5c734d4e7ca90b4acede3c2e6f7ba715e4fdad62904"
+      ],
+      "sha256": "105b254ea246718a1acc7eeb0e0e983f15d86bcfad7c323e2f3f4131db562bf6"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_eddsa_ed25519.c": {
+      "commands": [
+        "b0a330512808324da3cc3cc3c3ef351b7edf47d69b2eb5b2dba49c5ac41bff2e"
+      ],
+      "sha256": "7da7e719305853f89057a36e325f4b94daf582eb801e50f41bba086be6c3d832"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_eddsa_ed448.c": {
+      "commands": [
+        "3612183990713e56b847fbb9909502b64251d93dad8c0a068dad6158bd493888"
+      ],
+      "sha256": "46e73f8b206261faf0f1a7d425f8d2a8de67c1fedb7bd070fc8995e9ebb0b2b7"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecc/cracen_montgomery.c": {
+      "commands": [
+        "07a88f8467a2ef8a0958393225dd7630a5d0c31f93a7d7212e1e7ed2cabd6ffb"
+      ],
+      "sha256": "e9afd2467aca914b9d5ed5135737c37e496154f18aeaf642b658226e6f83885c"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecdh/cracen_ecdh_montgomery.c": {
+      "commands": [
+        "20616b2071a1a50101dceee7cd50fedf01720f5a3d2aaf3b24508d2ad726b41c"
+      ],
+      "sha256": "3372f2d98da85ef4620e7ffe2f15d2b87be49857c0bc81c264fe3ef06858d8fa"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/ecdh/cracen_ecdh_weierstrass.c": {
+      "commands": [
+        "a64009ab0eb866241f5db62ae31f5b6b6e35aa97d120903f4e854964a0141849"
+      ],
+      "sha256": "61001d2470c1258473fde3247f33134b5865d75e9d816684548d91b5b48b1165"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/key_derivation/cracen_kdf_common.c": {
+      "commands": [
+        "ea97d951b914007d0cb6a83d6b50e1f8c8a681709636b10fcae36f5089252e74"
+      ],
+      "sha256": "4deeb0f1379e54f4bf97a7094fa3749492a5b78539126208604523125c62916b"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/pake/cracen_spake2p_key_management.c": {
+      "commands": [
+        "6aa4229717f58f0c3e8688c5a1f9556dc425e4eb7dfd88e8dfa8fdbdec82e430"
+      ],
+      "sha256": "61a3faf5746bea2631f9cc617fb4d26593adf2f6ae4f14aaaa14151cb9ba3c2f"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/pake/cracen_srp_key_management.c": {
+      "commands": [
+        "49608563e946ad514043df30f4d1aff5a48e27229e0073d5badba6fa0388f1a9"
+      ],
+      "sha256": "df11b16d910e6baa1d3431590fe9a8f9532e05590ac0020aa21c5671a8f7d752"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/pake/cracen_wpa3_key_management.c": {
+      "commands": [
+        "57044864107933c70f0ba679312024475bde0b341d045159b1c4498a5c8177f2"
+      ],
+      "sha256": "cdd4da0236eb753965aec3b375ddccbe26c3a714dc72749e6642a9abb8c34519"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/cracenpsa/src/internal/rsa/cracen_rsa_key_management.c": {
+      "commands": [
+        "ef5b3a7b449890d40bdcfd782ece056efcc5865e553c84d40ee0b8ae2c85544a"
+      ],
+      "sha256": "b214d68b35f239c7406989c88532074f02f2e8160c92825519a3962e1cbc9674"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/silexpk/interface/sxbuf/sxbufops.c": {
+      "commands": [
+        "48af0add8a3f1f23cb4594f506594e06f458d97a44931d2a79538ec567f08dce"
+      ],
+      "sha256": "8b83f70f5a9b3cb24731d915b9ba366e80710eecbc012ebdc7b620717bccaf6a"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/silexpk/src/blind.c": {
+      "commands": [
+        "48b1225c241921dc3e5e77e04ae1fea0c9e2605f88ac9a96b12f11824af5d4e7"
+      ],
+      "sha256": "d73a7478b67d8cfcecf18cdec01ba2d25134899a2d7029c64ff62f95698c12d9"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/silexpk/src/ed25519.c": {
+      "commands": [
+        "2cdcb1fe341e735f094f21e299f7cb3a6c3bd65539af4042b79296e1bd00af25"
+      ],
+      "sha256": "fd648cace19b2b61ba1b7ac201e9e292ac6eae77de077f61dabab23b57e1d23e"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/silexpk/src/ed448.c": {
+      "commands": [
+        "46946132bdf6e993a1b118fdd9baa6a1f1840c07f128d0cb503cbb1f379c92d1"
+      ],
+      "sha256": "791e5f007e5bbae898e8a9f0c42d36a49374452c533dbd5faa2b11fd7ac977df"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/silexpk/src/iomem.c": {
+      "commands": [
+        "04584b848609650484d5480ab7efb11c1c7ae2e5c8cb7df8c6cdf2fdb805ded0"
+      ],
+      "sha256": "f8c21e822eb35969a9426dfcd34a8fe205141302a41afda2fcb8a95a41198378"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/silexpk/src/montgomery.c": {
+      "commands": [
+        "b341eca2559d0e7fe30d669adf2eb7a85cc13a1914bb28e9eca9745317bd625a"
+      ],
+      "sha256": "2e3988504990128a6cd33bccaea8564a9a3d74c703da63382e12a3ab3e2e214f"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/silexpk/src/statuscodes.c": {
+      "commands": [
+        "9242ed736e6b2fdaa25ad12a11432c6a5a2c8e3a1e3f28865e96f0c1828466b7"
+      ],
+      "sha256": "e575871dd240cd3d4cba5b98667d076ffba5c5d608d805410500487f83b7af87"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/baremetal_ba414e_with_ik/pk_baremetal.c": {
+      "commands": [
+        "2a7beb70399bddb4bf9887629c72c427591f03415a543c51c936aac4d6da0fea"
+      ],
+      "sha256": "e4dcb90f3699697cc77e0950e3bed41a24ce89f5d07fa5a92a946d70ae998306"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/hw/ba414/ba414_status.c": {
+      "commands": [
+        "d1fdfbcff7f9815520d1f45d988ec3595e0f1b43a5e7ecabcadf89daca76ce56"
+      ],
+      "sha256": "0f94a6d64a2c723d58be66721acb9a7f1a659f13a03c9939b4ca357035f5d084"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/hw/ba414/cmddefs_ecc.c": {
+      "commands": [
+        "c1a0517ec4c0f6e813677663fd8f831d2622469537d31b371670c264f141b9bb"
+      ],
+      "sha256": "3e66dd0548fe9adc2a92d150965d49d4f7fe54b4bfac1f1593623daa31519879"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/hw/ba414/cmddefs_ecjpake.c": {
+      "commands": [
+        "a89a9b183d18b0c82917ab8b03a08b3c00a65da3d1d82bf2c30efcb6bf469704"
+      ],
+      "sha256": "6c555ec0905c369588d93cf8ec087a97454d19ad9e5c8ee719ee1a202c3ac05f"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/hw/ba414/cmddefs_modmath.c": {
+      "commands": [
+        "84972288a266b9df2f71d27066715937b5da2af91305fbe9eca192674ded4ae8"
+      ],
+      "sha256": "649a25a8d791f3136550aa3c5b6212eff95426ea8f57fe7461ac3122673edd0d"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/hw/ba414/ec_curves.c": {
+      "commands": [
+        "799ff1611ef60232080cd4f2ec23986d5540744955c2c1bb65b919dc46bd3e8e"
+      ],
+      "sha256": "9f858ac065d7f1db58441f9e8e26999e5dd0c6de6f24b5fc50a73bd089a77af8"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/silexpk/target/hw/ba414/pkhardware_ba414e.c": {
+      "commands": [
+        "214f82c743c45353d749b1b7ee55fbf9a58391f2a0db9a88333701532a91befb"
+      ],
+      "sha256": "33792c0db219cd066540c69fdea546f5aa64b8371c78e980f209b67899fe3d0a"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/aead.c": {
+      "commands": [
+        "140848c6bcc2b58b747381c3cd34ffd48e673216db7735293f5c035766f72272"
+      ],
+      "sha256": "1366d1f603b693ee02c9e97c47e898293af59fec530c874bd2479ae979fa9d90"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/blkcipher.c": {
+      "commands": [
+        "a98b7bf44907c23f1561413e5198a0c10d63c81d1480593aeb703d957f9ca7ce"
+      ],
+      "sha256": "d160054f473d322972e2d788db2b5097be585199fd8d5393a5bb1ac72443028b"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/chachapoly.c": {
+      "commands": [
+        "22f0150f6564e5f2f8393469456a7004c2da102f8c671c0b25beb0589e5727e1"
+      ],
+      "sha256": "74f1203fef4c64a522ac94a28589897a7d3a7e840e8e1bf68f1549d84538248c"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/cmac.c": {
+      "commands": [
+        "be9745e2cfeff5b31da14d34e42e87c00a2ede0b1dde1a20f56ca91271b6ce66"
+      ],
+      "sha256": "05aa20e6ba881044973336f428e90eecab4dde987fdc2b93564a106680b1ac4f"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/cmdma.c": {
+      "commands": [
+        "b573fb817ba575f0aa48dd2ce5eba8dbd34188d68432a0c9bdf494dcf2915f28"
+      ],
+      "sha256": "6c8c8d8ec2652698224d87002f88833edf96c69c1dd9cabab46d8911608f138a"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/cmmask.c": {
+      "commands": [
+        "0bec414c2ec6334d45a415f18bb124731b7e6f80057a8885c83e6cac0b8df614"
+      ],
+      "sha256": "3cb89a71fe191236a88b33bb996715dde2ea31762a13c62a7f8194957c15659b"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/hash.c": {
+      "commands": [
+        "63aa3e41a8b650346dfa5cc3794d9e2bf102ed110c619467b7a641c3b0f6a2b9"
+      ],
+      "sha256": "3b1bbc8857ce21fe403b6bf8ea1a4e85b3dd85df47df57453dd3d0d79a846b6e"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/hmac.c": {
+      "commands": [
+        "85b6374872cd35f064a1c8ee52cdeaa69df77ac3fd9a492fb473aad7fec148fe"
+      ],
+      "sha256": "11389427673406f68f9700a131fe8b1c2786f4b763530e107b57d8177d10f929"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/keyref.c": {
+      "commands": [
+        "a0a190ce70b6d8397128e30291deab34cd745cd45872477108d551cbe4e7bcb6"
+      ],
+      "sha256": "157ea76a4fe5b97e4a268a975bf8d1bc4a6435db872a98debe166c30077b00e4"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/mac.c": {
+      "commands": [
+        "223ecdab6012e3ba0d528042245d8c416d0e7aad2d28c315fe0eed715d326f31"
+      ],
+      "sha256": "62a7fed216b6899fb4d44355443565854f9cecba1cb674a5589a6c94d09ee1e7"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/platform/baremetal/cmdma_hw.c": {
+      "commands": [
+        "0adb5150768e59f6a4de5dada59ef7421b34a6f021102b6a1b9cf1b765ec0dc5"
+      ],
+      "sha256": "f080c091f9dd360752dc62274e4fc3e97c8a6601274e03db243bf8d213202a70"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/platform/baremetal/interrupts.c": {
+      "commands": [
+        "3b5908564ed9932aa8e8ad57923e346b00d23bca9502570a97428b4223b81dc6"
+      ],
+      "sha256": "e3556146ecdda51aae45ce79eb6c76e80a9fdd75a000a3b139a6f68d1c30f159"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/sha3.c": {
+      "commands": [
+        "888afcaf7db84c2bfd4376fac28b5bfab35474c2bc99a7b45331b1b729021ca7"
+      ],
+      "sha256": "c45c31ec901df542fc29d80780de4b55ea8ff9d1454db5da5ecc55471dd4bd26"
+    },
+    "nrf/subsys/nrf_security/src/drivers/cracen/sxsymcrypt/src/trng.c": {
+      "commands": [
+        "47ce151c70765627b9b84ce546699565791df51d46f9e22dc60634842ec0d453"
+      ],
+      "sha256": "2e5ec0fdde721d6ae363152f9a6df469de256bd10d87e568162c277b5bbc7378"
+    },
+    "nrf/subsys/nrf_security/src/mbedtls_psa_platform.c": {
+      "commands": [
+        "f47797fa6394eb299c37cbc129a0c41447b88150b1e5a4588afd8c29ee695bc1"
+      ],
+      "sha256": "8a87d4affdb1318371b2c0135394965cd0d127cd2e44283d705786ed0ed7acd7"
+    },
+    "nrf/subsys/nrf_security/src/psa_crypto_driver_wrappers.c": {
+      "commands": [
+        "0ee9b97f51c482a763c0ff1293a15e7c2fd63cd9f4691c228200168b98ecbc23"
+      ],
+      "sha256": "95a7a82fb93b45a068ef779ad31c73d97cf76571d19409a3c607ec4a0d164243"
+    },
+    "nrf/subsys/nrf_security/src/utils/nrf_security_core.c": {
+      "commands": [
+        "5dcdf14bd248232494791cd773b2bc92a4f8fab6b2f96b01c4531acd44a38637"
+      ],
+      "sha256": "97e99f9d8639da73c63f636416a4add758520a36942856ef8f965bdc50048c57"
+    },
+    "nrf/subsys/nrf_security/src/utils/nrf_security_events.c": {
+      "commands": [
+        "53281c2756dd2a00ca79b798a09266b2e19d646cf90d19fc53d43df0a5265e5b"
+      ],
+      "sha256": "54cf78723c370e54041ef2e7c9fd43fddc5d4331d4998f7fb7712bd766bf244b"
+    },
+    "nrf/subsys/nrf_security/src/utils/nrf_security_mutexes.c": {
+      "commands": [
+        "1466f34405cc45025cfcecb464bc5197d42aec4ed0f9522229bf3ca2396ed303"
+      ],
+      "sha256": "601fb2c5cebc2b2f6a9a0047423baed8618063ca838c7a9256b93daf12023dd2"
+    },
+    "nrf/subsys/nrf_security/src/zephyr/psa_crypto_init.c": {
+      "commands": [
+        "558e5250c9908b89a0c75084f04768d6d9dd64a08955f4222b4a07ba739e951c"
+      ],
+      "sha256": "aa44fbbda8de2004f821d0ee9056c606f818df51cc8223589706c1c28ab80abd"
+    },
+    "zephyr/arch/arm/core/cortex_m/__aeabi_read_tp.S": {
+      "commands": [
+        "66e0a4680808bbc7c158a31b128965438f3af73ebcd844d1690e3c029bcf8343"
+      ],
+      "sha256": "1ba5712dbc2a5d48a57fde5070b2cdc0f6b2bb86a740ae2f55811aaf1bea0aa1"
+    },
+    "zephyr/arch/arm/core/cortex_m/cmse/arm_core_cmse.c": {
+      "commands": [
+        "54f7a42a52815075560077073dd63a06d5b82d0e2de57eadecfd5d1a151d9c86"
+      ],
+      "sha256": "68acd9ff9a3a136badcd59a9338e398346de68a752441f5d02392e020ee77fdb"
+    },
+    "zephyr/arch/arm/core/cortex_m/cpu_idle.c": {
+      "commands": [
+        "89e9257ba9ba8607d646e77f4d069214c153238f2fb490b9053b8d832e3c12be"
+      ],
+      "sha256": "1c578ba319af2a7d14221297644f31eb079bdd7e11541ac73470c4ddd3966c15"
+    },
+    "zephyr/arch/arm/core/cortex_m/exc_exit.c": {
+      "commands": [
+        "fbc709869544ac5d4cd79db774f6822443ab70816b7ba5d8091b4fb2d0f8886b"
+      ],
+      "sha256": "48cf48662b76320596ecbc79bd790c30f40adbd445d7c0c345723cfafea75736"
+    },
+    "zephyr/arch/arm/core/cortex_m/fault.c": {
+      "commands": [
+        "d8cfc7ee465b0f9ca4344337e2d3720b03d0a644b7e3233aedac645f2af9b01d"
+      ],
+      "sha256": "b384780fcba27a208a159d337107c68f9e743d9b7e27c67a5807e868e5e2354c"
+    },
+    "zephyr/arch/arm/core/cortex_m/fault_s.S": {
+      "commands": [
+        "67d91ae9f21a3175b327b330caddb063a34679f0c50eb7297dde2876d273cc73"
+      ],
+      "sha256": "6f429f96c4d3af65eb79dcf0e2ef5d96d99208dcc98312175b132155ea1d90a1"
+    },
+    "zephyr/arch/arm/core/cortex_m/fpu.c": {
+      "commands": [
+        "59576e2bfadd32f2a88c897099f82ba4e72cd76b8c3006d1c2fd5e0ffca20862"
+      ],
+      "sha256": "f99d1b636cf51c65208d4c5bc237d6169322740368c82c41a59a99d42d29a93b"
+    },
+    "zephyr/arch/arm/core/cortex_m/irq_init.c": {
+      "commands": [
+        "83e3b9a406f1a01b514453ecd865e75e8139541484e84fd3a59dda0542d3db22"
+      ],
+      "sha256": "feb7840f9e141f967a40c7772819442101ff58b96e286a293893b4989bf2329f"
+    },
+    "zephyr/arch/arm/core/cortex_m/irq_manage.c": {
+      "commands": [
+        "7aeb43109f5f8841763158e5983308b4e0ad1d1dfa27482d8b1012111109ff68"
+      ],
+      "sha256": "608b69006b96850fe9ee83207c951a3bd8cd8526e06f7667d82fea37039331ea"
+    },
+    "zephyr/arch/arm/core/cortex_m/prep_c.c": {
+      "commands": [
+        "444ed500832a5b3e59a4bade25767c164d38f25fb2c664efc1523b86762bfd4c"
+      ],
+      "sha256": "12a858aacff355befa7ea40fdebbc36129406bc24b8b41d465642213b26295e6"
+    },
+    "zephyr/arch/arm/core/cortex_m/reset.S": {
+      "commands": [
+        "6f9446d9099f586214dd4db4a91bf8adc2f9a6106bcca68318a4cda80b270e3d"
+      ],
+      "sha256": "47938e87db6c4bb3e1d32b2361bbd34794ed44a8cfc113c687353599fc23faac"
+    },
+    "zephyr/arch/arm/core/cortex_m/scb.c": {
+      "commands": [
+        "f96e7f7283875c32afaaac9b519825e394a022f9c0baa5df83b780f335f62e00"
+      ],
+      "sha256": "1eaba4d27835e89e62f030f91f6a3eb923c23dce8c29767edd9250d69b7aec7d"
+    },
+    "zephyr/arch/arm/core/cortex_m/thread.c": {
+      "commands": [
+        "73ff38d99583ac4b073aeb99779691c739d745650365980c916ae4882ae3ec20"
+      ],
+      "sha256": "bb8c2bd3c6dfe2e82643475dac93a7d5e08ea35348632c7e15c610475f72fb6e"
+    },
+    "zephyr/arch/arm/core/cortex_m/thread_abort.c": {
+      "commands": [
+        "0bb3eb55ee7fa224a0b70f72ffc41ac2e7aebebcbf12db844d348e672d244383"
+      ],
+      "sha256": "09da0fce1729d57f3d576eea1ff1927df4d220350e4662e99e832f1d0ed95b8d"
+    },
+    "zephyr/arch/arm/core/cortex_m/vector_table.S": {
+      "commands": [
+        "0f8871ff7bc834f1a2b9b115c8e5f086c70e3dc4f073808caf03e46593e06db8"
+      ],
+      "sha256": "d1aac835adce29cdc7a029869baf968c0c9fd50eaa751bfbad5b03818c70b61f"
+    },
+    "zephyr/arch/arm/core/fatal.c": {
+      "commands": [
+        "3d8599c056fc8274a8dbb3aca0758ef01fea3ee25b3cc2e108b6d2cab37cb93f"
+      ],
+      "sha256": "3141363ed552a9890574d0b4df59652eb647a680e7b0f47babda86ebde599e72"
+    },
+    "zephyr/arch/arm/core/mpu/arm_core_mpu.c": {
+      "commands": [
+        "a5d089eaf23edd4b3071d4c939e76ca58854f566198e215ef5c16af49c17f301"
+      ],
+      "sha256": "7b4e5c8f88fd2d30e08c09e3296c460f67089086ce89c8812ed7774558ce3b7d"
+    },
+    "zephyr/arch/arm/core/mpu/arm_mpu.c": {
+      "commands": [
+        "fb6fd35025dcde49834ff9ce32db9e128ba393da2da0a0fd36e2e56b868c159c"
+      ],
+      "sha256": "e1557deb664fa2cd53612c8e0a2d4d4b15ad79e8a0977ead80fc99d7b9807afb"
+    },
+    "zephyr/arch/arm/core/mpu/arm_mpu_regions.c": {
+      "commands": [
+        "2e12167113158480832fb540a4cac7de4b4c8847038b6704a2f46a1173f3314e"
+      ],
+      "sha256": "b1edc3f4d8bdf474fc798f98aa0e85e77894f1219691993a3a91b919e1539dbb"
+    },
+    "zephyr/arch/arm/core/nmi.c": {
+      "commands": [
+        "a95048cd5c459356edae1d8f8920d703aca19ac5ec5282b6b7f6d55bd194183a"
+      ],
+      "sha256": "1040c563d990239fabbff96e9052c665c5ec109759e3e78690620ce030211440"
+    },
+    "zephyr/arch/arm/core/nmi_on_reset.S": {
+      "commands": [
+        "ce31c7bfcbdd2ef551da2bd7203379e98af649ccd54600e756d2fc796b40b8fd"
+      ],
+      "sha256": "8634e18bb3d11a8ad8721fe891191a7e9abaef738ba5a1126fca462affd7cc7c"
+    },
+    "zephyr/arch/arm/core/offsets/offsets.c": {
+      "commands": [
+        "776cd7d7c626e3aecd30fd5b8413b063558c8a93918f06b8046a3ec9e46a97ba"
+      ],
+      "sha256": "187ae52b0c651f4030463161d50b55af702112c9199c4f1c901384dfe5f115d9"
+    },
+    "zephyr/arch/arm/core/tls.c": {
+      "commands": [
+        "8ce823837174d616c74bb9ca55a2e84153ebd7b5b15b1ef77a1b19ca43667e24"
+      ],
+      "sha256": "d893b89922a45e3c8f79c817c25faddf4a9fe87f1c9af086bb3c26ac1029137a"
+    },
+    "zephyr/arch/common/init.c": {
+      "commands": [
+        "ca40b3605e6b15de459f923d1fde63e193957fb62cdaf9ff658147dcd3cd49ac"
+      ],
+      "sha256": "6fb2603e7dda134debf05d0d46fc160c77ebd9a5000b2af6ef9c7a223840f4ae"
+    },
+    "zephyr/arch/common/isr_tables.c": {
+      "commands": [
+        "b9594f359865edfa5fbdc45e95a5f201f3b243bb734d500cd27da2b933d3d019"
+      ],
+      "sha256": "8c92f91f6b0c252f2a57020b39262a4b958faa355b25de42a22049ee31296f58"
+    },
+    "zephyr/arch/common/sw_isr_common.c": {
+      "commands": [
+        "b7821e0581f063955447a810dd341df268a49468a81c155f413a64b56960ad15"
+      ],
+      "sha256": "e19826a72f066b8f6a5523fd74630b73df7108544b88cdd60fe6d1758b5fa2e1"
+    },
+    "zephyr/arch/common/xip.c": {
+      "commands": [
+        "c8eb4c0c8b2f66d98e286b9e7d006c35d6564c409912c53798ecb052b8ffd0e8"
+      ],
+      "sha256": "687868ecec68464bff7ef44044cbfb94dfeff31b92ee852e6d62c8b1d159b1b0"
+    },
+    "zephyr/drivers/cache/cache_nrf.c": {
+      "commands": [
+        "2274bc9e0250e85a5701e2648136390ecc23045a0243e13943bed99fbfc66122"
+      ],
+      "sha256": "0599993ca7ff6f633d8860292077e4568ae057c382b6129fe66dfa7bd4438636"
+    },
+    "zephyr/drivers/timer/nrf_grtc_timer.c": {
+      "commands": [
+        "be21b5b592026fbd90d7277355ca0d50da2be506fa0b36a79b9bc9149162ed45"
+      ],
+      "sha256": "9284575c0447ddd6683e03458c369046a80277c045f1d538101feafe737aa4a2"
+    },
+    "zephyr/drivers/timer/sys_clock_init.c": {
+      "commands": [
+        "080d7eb251ea9f785a401444721374f3817bb56629e18c26a7b68ad097df3086"
+      ],
+      "sha256": "426a9d15a2a26d8f250dbd44057f5a56a73efddf9184d2664faec796d578354c"
+    },
+    "zephyr/kernel/banner.c": {
+      "commands": [
+        "64be3695aeae9e3387eb8f37d7e5bc2ca50da5b2bb3ab8c8ebe9d410f24d404f"
+      ],
+      "sha256": "2319b404a9dce5e3d26d692aab552f24a84429e3d2e6ae45365e5d391c9ab19a"
+    },
+    "zephyr/kernel/busy_wait.c": {
+      "commands": [
+        "0fb65d89800de47c4931f599926913b4bef66edda90c102966e6630cc06bf12d"
+      ],
+      "sha256": "fa71ef2d8e936a4269744056b02d8690f39d8a0db76975985a3266fc6cdcd6dc"
+    },
+    "zephyr/kernel/device.c": {
+      "commands": [
+        "3c7c54f8614e0ced8a2e40bf6853ad01fc95ba8b0e950924240abbb8eb4c3fff"
+      ],
+      "sha256": "3bfb8a7855e03bd33cc11eea2220b93977fe5df639fcedc8d076412f95788b4e"
+    },
+    "zephyr/kernel/dynamic_disabled.c": {
+      "commands": [
+        "4f6c5279fe93f43131c84e4c2b6a162abdc1bb5a46b3821adf12ca7ad6af4b99"
+      ],
+      "sha256": "7d2627bcb64f6eef6536d14f7458bca1db35ace85134782ef921d6bc989aa31a"
+    },
+    "zephyr/kernel/errno.c": {
+      "commands": [
+        "3a89d0cc60aaf446734ce2dafd3b3edb90668c4d8b810a7f154a960a85bfc291"
+      ],
+      "sha256": "79083970578e3c46fa4eb83c35858dccc9048db3a3df82d87e7fbbbd92bcff55"
+    },
+    "zephyr/kernel/fatal.c": {
+      "commands": [
+        "8ad2ed15b0df1c3a8ef7d7040ae4422f05c548063a13f5bb21931a451567fc97"
+      ],
+      "sha256": "63a403ccdf73d0961e7a8d3b586e8a06908b1352ce226073434cdef5298fc30f"
+    },
+    "zephyr/kernel/float.c": {
+      "commands": [
+        "4a085099e86d76a860be27572865dc63522ab259796761361f70943b7abb1c8a"
+      ],
+      "sha256": "81d352f3d5b6231ee66301375cb8ac38b77cb4638f0592212151ede00f58b51a"
+    },
+    "zephyr/kernel/init.c": {
+      "commands": [
+        "db3253e2f6b35757fe5d711621439ef4dfe489a347c0309605a5088b6f073ddb"
+      ],
+      "sha256": "3bac71d1819fd8479848964cc7950edc59dd025135d8f445bbf2fd4fd19ca439"
+    },
+    "zephyr/kernel/kheap.c": {
+      "commands": [
+        "2959417064d69107d63685868c6e74af7c3fdc68d7ef0aa15d69b90ba144a891"
+      ],
+      "sha256": "187d9b6ae3277d11b6e30e84e45aee2da5bdc852eaf0d6c4baa8938bbdab8767"
+    },
+    "zephyr/kernel/main_weak.c": {
+      "commands": [
+        "15ac5ec9c6f4693bb2e5ecc70d7ce2ad12db70af4637bd6680e4182418dd8f86"
+      ],
+      "sha256": "42fbf6062eaaf4e3787134f71327eb48ca5b263dda8e32e3e264d625595e91ae"
+    },
+    "zephyr/kernel/mem_slab.c": {
+      "commands": [
+        "d37a19d108887b27e0188e862943b6d5a6f18c1e9e19a1a25e153db0fa9002b5"
+      ],
+      "sha256": "e04ffa4e9c256eeb2083b5db9ead6ee736bb0fb46bb6a6b162c8302d4043b3ed"
+    },
+    "zephyr/kernel/mempool.c": {
+      "commands": [
+        "d1a4c17550a6387c1b8c3887ed86e89952ab58f7c3fdf2c8a348e970219af5d6"
+      ],
+      "sha256": "b0672460bce0716c8fcbc58278e3ada1970badc6ebfaba87c0f3716f90b2bcf2"
+    },
+    "zephyr/kernel/nothread.c": {
+      "commands": [
+        "9a12482c561a3f0d0b9177f3148d2fe1e83cef431915e655b2647a8744b05050"
+      ],
+      "sha256": "5508e8b9a273d8783189711bc9d4caed4920fd93b68d73a5bd0787819948d5bd"
+    },
+    "zephyr/kernel/timeout.c": {
+      "commands": [
+        "54f86d32c80dddcef7edc9f5ea64ea2a9695707667396006cc02f78e4247c538"
+      ],
+      "sha256": "ed13b760397faa6def139f62973900cf37d9c4040b9488a78c6215d06d15b74d"
+    },
+    "zephyr/kernel/timer.c": {
+      "commands": [
+        "3a8d20839e647769902e356ef4afb54c54a7f461b2e114ca70be79b283bfaae5"
+      ],
+      "sha256": "0318fa685deb5c14173dbfd90ca6d1bddb0d616c93afcb94079524445c1ff409"
+    },
+    "zephyr/kernel/version.c": {
+      "commands": [
+        "46c78608ced2a17e44676f0bad05c279600b9f047e17ec4db225565964770853"
+      ],
+      "sha256": "c03c0e0b32c550cd044490a6efa1ef0fc6b5b550cbdb191fc024a7a2c3cb0314"
+    },
+    "zephyr/lib/heap/heap.c": {
+      "commands": [
+        "52afd60e6747843e5f99215ac5482c5a4e2e3e20a7c0fcf88c93f74c8560aefd"
+      ],
+      "sha256": "46d0e10066c77a380859f4038e85252f05ba37a8f2f6af3d159cd4f4084c4cd9"
+    },
+    "zephyr/lib/libc/common/source/stdlib/abort.c": {
+      "commands": [
+        "1382f278e02ecd4f68226c274d41f6880731ba7864b6e31e0a6728bc32e88cb1"
+      ],
+      "sha256": "1bdf701115a6779f79ad94284c2e4aed4d3949164d3bdff07fd30e65da5745f2"
+    },
+    "zephyr/lib/libc/common/source/stdlib/malloc.c": {
+      "commands": [
+        "0425ad8918d0eba99c435efff7308a449fbbef43120dfd362da51f07f6da7e6a"
+      ],
+      "sha256": "c383bc98cf0c2e18682187fbaab83e4c80b59c4359c4c5dea4ffcbf9a9ed1c97"
+    },
+    "zephyr/lib/libc/common/source/time/time.c": {
+      "commands": [
+        "f1168272d9ff18e2c1f9cc2028ea83173833df4100e81b62fb2ff5fe36457fc4"
+      ],
+      "sha256": "87b97a2f0aa0c29cd2d083241f957ef51522750f7b38386b8d551498098e6866"
+    },
+    "zephyr/lib/libc/picolibc/assert.c": {
+      "commands": [
+        "85910fd19af46bb8a49bf5132bc13ebe53609601296a6adabf564501e1f99e07"
+      ],
+      "sha256": "d1fd4cbd6cac5c9a8fadf6791d7ccf7d98329ef393b7561a6575a65535e2c8ed"
+    },
+    "zephyr/lib/libc/picolibc/cbprintf.c": {
+      "commands": [
+        "8058e311091e39706a3f66c7f509e5c869277e92ef6a6534df473c729352efdd"
+      ],
+      "sha256": "9ccd095d5159b94585f7b70fe9ff07218a561920587f96ef86decb8180ebd8c1"
+    },
+    "zephyr/lib/libc/picolibc/chk_fail.c": {
+      "commands": [
+        "b4dffb457267f19f35eaae5c38eca5da15e2e912ee48ffe96e66fe728680b3c1"
+      ],
+      "sha256": "705fc796458995926f9eb208f4a92a3084da8377ec8307dc5a69dd9e40303c58"
+    },
+    "zephyr/lib/libc/picolibc/errno_wrap.c": {
+      "commands": [
+        "f280889676a14ef2384e715eb557f3a86212f9991c7b94f55564f1c93ba59081"
+      ],
+      "sha256": "3ab1673e88c424788fcd093527058d727b776a12677e9996b434083d553f5940"
+    },
+    "zephyr/lib/libc/picolibc/exit.c": {
+      "commands": [
+        "727aa4d93c1f6a010e64f6c15a4e3649e80acde3d791b0046c964d294b5000bf"
+      ],
+      "sha256": "d6c02e06cace94d70c9ea241dba2e9d46dc5d446ec8f8aa745d9ce1064c6d074"
+    },
+    "zephyr/lib/libc/picolibc/locks.c": {
+      "commands": [
+        "1a29d5a74d5915bedad631d203e73b01b92ce66ebe19e4a5629883f7e136c1f5"
+      ],
+      "sha256": "134dff8e0cdf6a159cf4d7db1e920245a48c63f283da6e2835a0218796038d48"
+    },
+    "zephyr/lib/libc/picolibc/stdio.c": {
+      "commands": [
+        "bdab4edf75d7ae974fbcd4fa6280be87032a6e9aa8302609d8a63538314abad7"
+      ],
+      "sha256": "164e7af711517c219af88560d5a7c9d3517c6364339182be50bb1150f7eb55db"
+    },
+    "zephyr/lib/libc/validate_libc.c": {
+      "commands": [
+        "e8271540367bf5c37d5a1695c1ba73451dcb84e59db6ce69eb82716c846f4bcf"
+      ],
+      "sha256": "6bc651f7181d4906d48531af5904dd305fe69fc13d1bf021bb6a6f068224e2b9"
+    },
+    "zephyr/lib/os/assert.c": {
+      "commands": [
+        "a0540ce06d5b8dae5af7546360cce437da307296fc75776a40e06d7590429e14"
+      ],
+      "sha256": "6a5ed7e790b9860c1fd29089c67437e272822eb830a30835ddce1835c8072bf1"
+    },
+    "zephyr/lib/os/cbprintf_complete.c": {
+      "commands": [
+        "eb45e2c0f9f7d5c89b5a5c6d44894d3c43531e31ed7e9542c13aee3177466458"
+      ],
+      "sha256": "f7a5409d8764650e5c9a8f05c27f91e22521cf3317415af4097ea3d0979336bc"
+    },
+    "zephyr/lib/os/cbprintf_packaged.c": {
+      "commands": [
+        "41230152c96f30cd9011b60c5497fbd279b4c0b9713c4c12960153e640555687"
+      ],
+      "sha256": "44cd5100ee7419d9dba3174742eaca222de86f06c2cf2b8d2277e209383942fb"
+    },
+    "zephyr/lib/os/clock.c": {
+      "commands": [
+        "c531202081d9823e0a9b4a2ea321add811a5d870f809fe1f2c41b32b8ad3eeb5"
+      ],
+      "sha256": "7d04d0e77b6576a65efa1c8b32468805c83e3716efaeb28cd0156d445a895d66"
+    },
+    "zephyr/lib/os/mpsc_pbuf.c": {
+      "commands": [
+        "962908723d013638fcd9acd880a71027321b9f3ad34f9c0a01f55170a576b3bc"
+      ],
+      "sha256": "2619174366df61de945c9c29d5989b036affce791fed7d39e2cbfedda1c47ae4"
+    },
+    "zephyr/lib/os/printk.c": {
+      "commands": [
+        "2ad77c41a0448e888474911a8afa090908563ac997739881d831c8a6361ef42a"
+      ],
+      "sha256": "744075f915c522cf0f776739390ab04ab580945bfa6aade5228d76c89c09d180"
+    },
+    "zephyr/lib/os/sem.c": {
+      "commands": [
+        "b3d2a33fe126a976a2555bce7de6a6ec4ea860d69e0b19ee9ec4fc421db1b3c5"
+      ],
+      "sha256": "ebf54b1f8ce07c21ffc7120dac844062228d850c68d4c4f0bb98976d9f9d2493"
+    },
+    "zephyr/lib/os/thread_entry.c": {
+      "commands": [
+        "d5db246ab995f1d10686636655a7f2379cca92a06037d1a1964b403332be063d"
+      ],
+      "sha256": "804bac4ee4318aefd5e1b57b677383366108cd24c2625688fc43309385b4fff2"
+    },
+    "zephyr/lib/posix/c_lib_ext/fnmatch.c": {
+      "commands": [
+        "1c7bfd04ad57d11494fb8a60838142bdcef797823adfee06be2574257cdacf6a"
+      ],
+      "sha256": "6eb71389917dc01bb5b4cd8a7931e13fb19938f7da7418a176c2408e63316771"
+    },
+    "zephyr/lib/posix/c_lib_ext/getentropy.c": {
+      "commands": [
+        "8039f3077da9536344bd0db70539b016fbff103774b05302a657d9327a943a16"
+      ],
+      "sha256": "bcb824c2fbf67db6c4fa6557eef8366961fc3ae22981360fbb1689b17b0541a4"
+    },
+    "zephyr/lib/posix/c_lib_ext/getopt_shim.c": {
+      "commands": [
+        "44fb22cbc45551899ea98d76a7586db0b76f258ea4cce06b0f2b519655fb1c9f"
+      ],
+      "sha256": "1d93002bb25482de006a88af3e52f2343dba260501a741293b86d878cc081dd5"
+    },
+    "zephyr/lib/utils/bitarray.c": {
+      "commands": [
+        "45eb17caa501052308cc30b639c771f4ba4c3395186face1eb43350f90df0163"
+      ],
+      "sha256": "9ef876c65835e0344d956d96e164e982c01ec31284ba44f07e87b46cca9b5239"
+    },
+    "zephyr/lib/utils/bitmask.c": {
+      "commands": [
+        "ffe2d0430436ee8617512b9e0df48cce336bcbd81cdff73f22cb551d4fd2e957"
+      ],
+      "sha256": "264a17d6646b7eac0cbdf3aa5cff388aa8fa576cf67fa73f31656df8110311ca"
+    },
+    "zephyr/lib/utils/dec.c": {
+      "commands": [
+        "cd9ba95f7d7dbe1f3410353f71dad74b9b8931cba2d289f3551559d376ac46df"
+      ],
+      "sha256": "b6991d4a5dd46650e0b3a85ed0adcdb87842832bc4c5108fc0918f125316ade0"
+    },
+    "zephyr/lib/utils/getopt/getopt.c": {
+      "commands": [
+        "c5cc7beb4d4533045dc2043dde7e88d3c6ca9727d833e2b19c2669da0646c5f3"
+      ],
+      "sha256": "c0bafb860b2fcc627aacaedac509360ebacac0cab8da169c7785ddaa4ed6b51f"
+    },
+    "zephyr/lib/utils/getopt/getopt_common.c": {
+      "commands": [
+        "45b810981edc59db3172264e71d3a8e472d42c33d87839dc541a68d57974a4cc"
+      ],
+      "sha256": "b08caf78cbfe2138068bf12c2ca2802f833f7d598048bee55fb9c0a1d05c4366"
+    },
+    "zephyr/lib/utils/hex.c": {
+      "commands": [
+        "3c48db376092237dde2a4ede0b7d1f8e222e3bdfa8201db1189f0f859ff74002"
+      ],
+      "sha256": "7d999d00f81e38a56bb8e11e82c691504c12e3fdbd5e1b6e02ae4f63c683b99d"
+    },
+    "zephyr/lib/utils/last_section_id.c": {
+      "commands": [
+        "57f147f0921005bc99987a220a4218c20fdc404bec2af9a2d7020c8be099983b"
+      ],
+      "sha256": "e45c01dca52130f43b1c1dc2422762ea4d7dbde468085dc3534bfef3c5ef600d"
+    },
+    "zephyr/lib/utils/rb.c": {
+      "commands": [
+        "95c31625d6830fbd37e214ac928f233d9bafc2aedaf7b95df7de03d5e226d5e9"
+      ],
+      "sha256": "9ffd8e4d737a2a7f060f0c3a412895ddf5d093f41adbca6af301564ec319b961"
+    },
+    "zephyr/lib/utils/ring_buffer.c": {
+      "commands": [
+        "e208c22fba24e24316535ef07fd4e73959016aac250f11fa2e05bdbd1d5adc52"
+      ],
+      "sha256": "f9b6ce0d0aed74e80164beb61671b144fe6bc1b1093922145c3372cad7ff0fa1"
+    },
+    "zephyr/lib/utils/timeutil.c": {
+      "commands": [
+        "40239523a784ec4923f12b7e9e54b5fdc07c12f7a76c6d6a957658777c5be293"
+      ],
+      "sha256": "56a6f900dafc999d8bd34ceba5c915d40d7bf4888fb3d5919812a80a4cd3de59"
+    },
+    "zephyr/misc/empty_file.c": {
+      "commands": [
+        "7171a7defbd60e47b681e8fd2783e9209d75349dd1d72c022fb9dab346c8c5c1",
+        "8c96233dcb1fe779aee2c7e592a07f009b3ca9570d8065e335414ab3f4b81c38",
+        "b396a0594bbf5a8a2935a159fb0f16c7bddc760abfd1fe23d0bad1a5acf5a2fa",
+        "fc7d7688c1e389a204fb71da2636721ca9fac5458440a3b4f50db3d6353a3eea"
+      ],
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "zephyr/modules/hal_nordic/nrfx/nrfx_glue.c": {
+      "commands": [
+        "85ef55ad1f6b3e8bda7357769d0f5816bb28524484985534bdc8d5f77fe6e0b7"
+      ],
+      "sha256": "dc8cf5c37db565f2d10123ac81940ac06c64c3c21766b3492675ef930af6949d"
+    },
+    "zephyr/soc/nordic/common/gpiote_nrfx.c": {
+      "commands": [
+        "e6025ff96d80fa8c0d5846c70f30f04ae9b5c02f311bc941723e143f8cee8b29"
+      ],
+      "sha256": "be76952ff8e1932cd5d465cee0a6e2921e081de1df1fcb439e257a6e55591925"
+    },
+    "zephyr/soc/nordic/common/gppi_init.c": {
+      "commands": [
+        "7406a127a13a5994e45df98aacca1f056f28408aced7f7e2613917bcfc2b82ad"
+      ],
+      "sha256": "552c63871df619812936270054d98a9f3fa59a012987cd06e998c3a546b21193"
+    },
+    "zephyr/soc/nordic/common/reboot.c": {
+      "commands": [
+        "f1962a99fd5a9a03cc0b9f33fb749a1e3fd8d8e1a892f19a1c027a08b27f06e8"
+      ],
+      "sha256": "87b2b405ca1ad6fc4a53e30a526e920ba70e40bb90a3191131ac0e699340c2bb"
+    },
+    "zephyr/soc/nordic/nrf54l/soc.c": {
+      "commands": [
+        "6695783670443b6985790143da61d37724dd5d3abe96f37e50ea4213cee4602e"
+      ],
+      "sha256": "89e319253877168a4ecf7c185b29a17619ad9db00f192690c2f5e19d26a817a5"
+    },
+    "zephyr/soc/nordic/validate_base_addresses.c": {
+      "commands": [
+        "1c7fb3f9cca7bab28c47494e2a85a7ae2bdf7fd0375d12d84c1107839ad57a2f"
+      ],
+      "sha256": "fd07ad84f976c18bd075a80e422ea6c0d47c3b666ecbff4f3f51c06fb5d44441"
+    },
+    "zephyr/soc/nordic/validate_binding_headers.c": {
+      "commands": [
+        "4cabf5522c6093e2d199cbdf9892ab15cbb28741d9b7cb1f578fde59605fd3d7"
+      ],
+      "sha256": "ce50cf31906382ec3004a4211ffbf50f0220accdfebfb7612ff929f26e556714"
+    },
+    "zephyr/soc/nordic/validate_enabled_instances.c": {
+      "commands": [
+        "6df53a5e34fc1087a52a4d2d8c20d893fe6cf887a17a117e23aae313ce20e257"
+      ],
+      "sha256": "4f7737e02e12a2f386d5e02db4d63e9680042652aa7e7c9ffb2b9a357143a147"
+    },
+    "zephyr/soc/nordic/validate_rram_partitions.c": {
+      "commands": [
+        "2f251000fa331d9ddc057204d05a57464e9c6c9f6fc3a37f426999e8ef4a97fe"
+      ],
+      "sha256": "0c1117880dd29deabfc118deee0adf04eb33f7593a4eba920b127245d55e37d1"
+    },
+    "zephyr/subsys/crc/crc16_sw.c": {
+      "commands": [
+        "76f7c08c414ddad20b35cd6c283237738dbc780416489d0800821edfa807e7db"
+      ],
+      "sha256": "85198aa44f857eb6005e14873a08938fc0c99a5c234fbd290a7e7d502dff4727"
+    },
+    "zephyr/subsys/crc/crc24_sw.c": {
+      "commands": [
+        "d37ee75f04cf03ef09373af4e3994e81cb216681a9f6610ae57fb7dd357c97a2"
+      ],
+      "sha256": "25f8436284c990e0c669a46987d334dc7e4d6d6d5939d950c31d14464f43c30e"
+    },
+    "zephyr/subsys/crc/crc32_sw.c": {
+      "commands": [
+        "ff8520b9fe97a4486cf583bdf859ef15488d26c9397d364dae09c5cf87ace732"
+      ],
+      "sha256": "ae414c1bac9e8fe81d2f04b3d5ea53743d63dc1394b192b2d49c9fc379eb65ce"
+    },
+    "zephyr/subsys/crc/crc32c_sw.c": {
+      "commands": [
+        "41c85ffba1e042f668e1bd7fd71d456752688fc6430ec05d0e34d571987b01fd"
+      ],
+      "sha256": "6f4ea66a9d5820dfcf40507ad486981a795bc7e558be8947eba2704eb2eacdae"
+    },
+    "zephyr/subsys/crc/crc32k_4_2_sw.c": {
+      "commands": [
+        "1a1f3534bd6c51e0eeae97d000916f7f91e696602778836cd352474f5fdedd1d"
+      ],
+      "sha256": "86a05a7bbebb32ae8eb2767f24edfefc6df56b8fa6715f074a475e43ebbe2f1a"
+    },
+    "zephyr/subsys/crc/crc4_sw.c": {
+      "commands": [
+        "6983efe3884c986222a030f31dbf4c01dc761e0bd6ddc0aa838593f09ecba497"
+      ],
+      "sha256": "220fa9a36e6e1200401f8e3a3dc89528f037b2ec043d1f68578d35b1aacc4039"
+    },
+    "zephyr/subsys/crc/crc7_sw.c": {
+      "commands": [
+        "0340602d44323113b337098ab1a132ab1e66db3313a783eb11fd82f41e156e31"
+      ],
+      "sha256": "80eb12447417fca4c98c4c58e5b1889df0f7a1b51b6bffc4151decfcd9b4ef2e"
+    },
+    "zephyr/subsys/crc/crc8_sw.c": {
+      "commands": [
+        "9fb434060c1389d8a663b426f5acc44aeb0f2008ef01f66f4b9bb7824987a8d0"
+      ],
+      "sha256": "ce7956f6d9ad311eed543b1eca1a69190cb2f111fe22723958f42e03b382c39e"
+    },
+    "zephyr/subsys/logging/log_cache.c": {
+      "commands": [
+        "8c712384269ba931e971ec1eda5410ebce1ca8677cacf5e9bf67c13ffe5b5ad8"
+      ],
+      "sha256": "db31bafa9a65e6f0e5bd0fbeba946512e2d2549c8524ef99c5d68e77d666a555"
+    },
+    "zephyr/subsys/logging/log_core.c": {
+      "commands": [
+        "c5bbbd9b2e15f3f6611aa6b6cea9d08d983ecd0dcba28bd83803c2024a1ac778"
+      ],
+      "sha256": "1ddca5c80f8b0b1f669e69dbbea80db4b0be36240230aae8f63ca27d47db8af1"
+    },
+    "zephyr/subsys/logging/log_mgmt.c": {
+      "commands": [
+        "cbc69777799250fec5e1cacfa1fa485e89b456774279230cc254bddad05db122"
+      ],
+      "sha256": "0398e4e13239ee3bab956c75cd0314177bca90e454e9fceeb961da0557dcfda9"
+    },
+    "zephyr/subsys/logging/log_msg.c": {
+      "commands": [
+        "4161741b9ea59625fbc6f4c98eba8c09ac565880ed22541d053a34016de75995"
+      ],
+      "sha256": "b3c065ea1547191ac78b17b55cd43ad3c0f2495202127664f6f274ec4d20bba5"
+    },
+    "zephyr/subsys/logging/log_output.c": {
+      "commands": [
+        "b5122992b3c5d194a93ceff2b6937e990f471d60f3f0cbe492bee72fc1fe4823"
+      ],
+      "sha256": "ae4f62902a58d29973e867f9d3e937425d673f05446be1a65101068988b2e5cd"
+    },
+    "zephyr/subsys/mem_mgmt/mem_attr.c": {
+      "commands": [
+        "4ad214ba159ac6320c8c15ddc8ae6df8c7c04e7e08f91a428e01ad24fb0fbd31"
+      ],
+      "sha256": "9530ee0c032812b263a32d4f95f57e449550aad3d7b1bf31f611f76efe6eb3cf"
+    },
+    "zephyr/subsys/tracing/tracing_none.c": {
+      "commands": [
+        "490b4895a05ae654d8a9dd1df12452a4b5119370f326f9de8736530c6b3f7b77"
+      ],
+      "sha256": "f8105978be522f4d6e6d90403d808af633e4781a327d04121c0519ebe205b78d"
+    }
+  }
+}

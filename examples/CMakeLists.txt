@@ -95,7 +95,9 @@ endforeach()
 
 if(NRF_SOFTDEVICE_ROOT AND NRF_OBERON_ROOT)
   if(NRF_BM_ROOT)
-    add_executable(m6_ble_official_baseline m6-official-baseline/main.c)
+    # The S115 equivalence target obtains the version-locked sample main.c from
+    # the audited nRF-BM input. No project-owned application handler is used.
+    add_executable(m6_ble_official_baseline)
     nrfkit_configure_target(m6_ble_official_baseline
       SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding)
     _nrfkit_enable_s115_baseline(m6_ble_official_baseline VERSION 10.0.1
@@ -199,7 +201,7 @@ if(NRFKIT_ENABLE_HARDWARE_TESTS)
       COMMAND "${NRFKIT_TOOL}" sdk manifest
         --build-dir "$<TARGET_FILE_DIR:m6_ble_official_baseline>"
         --target m6_ble_official_baseline
-        --expected-token "NRFKIT_M6_OFFICIAL READY"
+        --expected-token "BLE HIDS Mouse sample initialized"
       VERBATIM
     )
   endif()

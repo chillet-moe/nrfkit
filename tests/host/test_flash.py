@@ -12,7 +12,7 @@ import unittest
 from unittest import mock
 
 from nrfkit_tools.cli import (
-    ToolError, _probe_has_msd, _probe_lock, _serial_cleanup, _serial_open,
+    ToolError, _default_gdb, _probe_has_msd, _probe_lock, _serial_cleanup, _serial_open,
     _serial_reader, _serial_reader_stop, _set_probe_msd, command_flash,
     command_m2_gate, command_p0_gate, command_probe_msd, command_run, load_manifest,
 )
@@ -43,6 +43,10 @@ class FlashCommandTests(unittest.TestCase):
         self.assertIn("reset=RESET_NONE", joined)
         self.assertNotIn("ERASE_ALL", joined)
         self.assertNotIn("recover", argv)
+
+    def test_gdb_discovery_accepts_explicit_environment_path(self) -> None:
+        with mock.patch.dict(os.environ, {"NRF_GDB": "/opt/arm/bin/arm-none-eabi-gdb"}):
+            self.assertEqual(_default_gdb(), "/opt/arm/bin/arm-none-eabi-gdb")
 
     def test_reset_command_can_request_a_pin_reset(self) -> None:
         argv = reset_argv(
@@ -492,7 +496,7 @@ class FlashCommandTests(unittest.TestCase):
             ):
                 with self.assertRaisesRegex(ToolError, "before hardware"):
                     command_run(args)
-            doctor.assert_called_once_with(args)
+            doctor.assert_called_once_with(args, require_debug_tools=False)
             reference_build.assert_called_once_with(
                 mock.ANY, "ncs-hello-world", 900, "west"
             )

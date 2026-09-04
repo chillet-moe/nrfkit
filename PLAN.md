@@ -754,45 +754,47 @@ bonding 通过。这些带 RAM-only storage 或预编译对象的定位层不是
 临时私钥、DHKey 和其他敏感中间值只能存在于当次 ignored 进程内存，不能写入准备
 提交或发布的源码、报告或构建产物。
 
-官方源码整体纯 CMake 基线已经建立，但实板验收失败，因此当前 S115 移植分支按退出
-条件停止。该基线从锁定的 nRF-BM commit 复制并逐文件校验 `irq_forward`、完整
-`nrf_sdh`、advertising、connection-parameter、QWR、Peer Manager、ZMS persistence
-和 HIDS 源码到 ignored consumer cache；项目只跟踪选择、适配和补丁，不导入完整
-上游源码树。consumer configure/build 未调用 west、sysbuild、Kconfig、Devicetree
-或 Zephyr runtime，Clang/LLD 构建和启动 token 均通过。静态向量中的 SoftDevice
-事件入口也已复现官方 direct ISR 的 Cortex-M interrupt calling convention 和 8-byte
-栈对齐。
+早期自写 `m6-official-baseline/main.c` 及其对象替换结果只作为已停止的预等价诊断，
+不能证明 S115 ABI 是否可脱离官方构建系统。随后已从 nRF-BM v2.0.1 官方
+`ble_hids_mouse` 构建提取全部 276 个 compile entries、273 个唯一源码、43 个
+nRF-BM 源码及逐项 command/source hash，并逐字节锁定含 681 个 `CONFIG_` 宏的
+官方 `autoconf.h`。公共 `reference equivalence-audit` 会在 source list、源码内容、
+编译配置或静态兼容配置漂移时失败。consumer 直接使用官方 `main.c`、完整 `nrf_sdh`、
+Peer Manager/LESC、storage、BAS/DIS/HIDS、advertising、buttons/timer 源码集合；上游
+源码只进入按 hash 准备的 ignored cache，未将完整 nRF 库纳入版本控制。普通
+configure/build 未调用 west、sysbuild、Kconfig、Devicetree 或 Zephyr。
 
-同一 BlueZ 主机与适配器上的官方 HIDS oracle 仍可完成明文连接，而纯 CMake 基线在
-fresh device discovery 后的第一条明文 `Connect` 就稳定失败为
-`org.bluez.Error.Failed: le-connection-abort-by-local`；固件没有收到连接事件，失败对象
-已由 D-Bus 门禁删除并验证清理。这个失败发生在 SMP、LESC、Peer Manager、HIDS 和
-持久化之前，因而禁止再通过修改这些上层模块继续试错。最小复现、精确源码边界和
-官方 ELF 中仍存在而纯 CMake 基线未引入的运行时单元记录在
-`docs/architecture/m6-official-baseline-failure.md`。现有证据只能把剩余边界收敛到
-Zephyr 的 LM20 SoC/platform initialization、system clock/GRTC device initialization
-及静态/动态 IRQ 启动基础设施；不能诚实地把其中任一单独宣称为已证明的唯一依赖。
-重新进入 S115 移植必须先取得能够区分这三组依赖的新非敏感证据，而不是继续刷写
-局部实验。
+2026-09-05 在同一 LM20、BlueZ adapter 和 host 上重新运行官方 oracle：官方初始化
+token、fresh pairing、bond、受保护 HID Report Map 读取、断开和 bonded reconnect
+全部通过。随后严格官方应用 consumer 通过 Clang/LLD 构建、镜像范围审计以及显式
+目标、逐探针锁、`ERASE_NONE` 和 read-back verify 的烧写，但复位后只输出官方第一条
+日志的首字节 `B`，没有到达初始化 token；同一 BlueZ oracle 门禁在 120 秒硬超时内
+未发现广播并完成清理。官方 `main.c` 的第一条日志发生在 button 初始化和
+`nrf_sdh_enable_request()` 之前，因此首个行为分歧已定位到项目 UART/log platform
+shim，当前运行尚未执行任何 S115 API，不能据此判断 S115 ABI、IRQ、LESC、Peer
+Manager、HIDS 或持久化。
+
+精确源码/config receipt、consumer ELF/HEX hash、最小 patch/shim 清单和结构化门禁
+结果记录在 `docs/provenance/nrf-bm-hids-s115-equivalence.json`、
+`docs/provenance/m6-s115-equivalence-checkpoint.json` 与
+`docs/architecture/m6-official-baseline-failure.md`。按本轮停止条件，不再围绕该镜像
+进行重复刷写、GDB 差分或局部对象替换；只有取得能以单变量替换或消除阻塞
+log/platform shim 的新非敏感证据后才可重新进入 S115 适配。
 
 当前检查点不自行实现 BLE Link Layer、L2CAP、ATT、GATT、SMP、LESC 或 HOGP。
 一次受限的 LM20 RADIO 广播诊断曾用规范固定的 advertising access address、CRC、
 whitening 和三个 primary channel 发射非连接广播，并被同一 BlueZ D-Bus 扫描门禁
 识别；诊断代码未保留为产品实现。它证明 HFCLK、RADIO BLE 1M 发射和主机扫描路径
 可工作，并暴露了 LM20 `DATAWHITE` 初值必须包含固定 bit 6 的寄存器语义，但不能
-证明 SoftDevice 的接收、GRTC 调度或 IRQ 启动链正确。后续产品工作仍须从锁定官方
-`ble_hids_mouse` 的原始 `main.c`、完整 source list 和官方生成配置建立严格等价的
-纯 CMake 基线；应用 handler 不得重写，平台差异只能是逐项说明的最小 shim 或补丁。
-每次只引入并验证一个可追溯的平台初始化层，不得用现有自写 baseline 的失败替代
-严格等价结论。
+证明 SoftDevice 的接收、GRTC 调度或 IRQ 启动链正确。后续产品工作不得用早期自写
+baseline 的失败替代上述严格官方应用检查点，也不得将尚未执行到 S115 的结果描述为
+S115 不可用。
 通用 `m6-ble-scan` 门禁保留，用于有硬超时地验证广播，并在所有退出路径停止由其
 启动的 discovery、删除或确认 BlueZ 已自行删除临时设备对象。
 
-严格等价基线必须先在同一硬件和主机上重跑官方 oracle，再运行完全相同的 BlueZ
-门禁。若通过，才从外围服务向内逐层裁剪；若仍失败，只提交一次可复现的最小失败，
-记录精确 source/config 哈希、首个行为分歧和不可剥离依赖，随后停止 S115 适配。
-只有完成这个检查点后，才允许按广播、明文单连接、Link Layer 控制过程、链路加密、
-L2CAP/ATT/GATT/SMP/LESC/HOGP、BlueZ/功耗/soak 的固定顺序进入 LM20-only 底层路线。
+严格等价官方应用检查点已按上述顺序执行并停止。后续按广播、明文单连接、Link
+Layer 控制过程、链路加密、L2CAP/ATT/GATT/SMP/LESC/HOGP、BlueZ/功耗/soak 的固定
+顺序进入 LM20-only 底层路线。
 每一阶段仍必须有 LM20 实板和可靠空口证据，且不得臆测寄存器或协议行为。
 只有项目固件再通过正常 BlueZ bonding、HID、持久化重连和连接 soak 后才可标记
 M6 完成。随后再运行 LM20+L15 的 M5 双板门禁。

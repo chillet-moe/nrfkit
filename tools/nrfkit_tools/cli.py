@@ -39,6 +39,7 @@ from .ble_validation import (
     scan_ble_advertisement,
 )
 from .image import ImageContractError, parse_elf, parse_ihex, require_allowed
+from .equivalence import audit_equivalence
 from .process import atomic_json, run_logged
 from .reference import (
     ReferenceContractError, build, load_receipt, official_toolchain_compiler,
@@ -166,7 +167,17 @@ def _run_version(argv: list[str]) -> dict[str, Any]:
         return {"argv": argv, "returncode": None, "error": str(error)}
 
 
-def _doctor(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
+def _default_gdb() -> str | None:
+    return (
+        os.environ.get("NRF_GDB")
+        or shutil.which("arm-none-eabi-gdb")
+        or shutil.which("gdb-multiarch")
+    )
+
+
+def _doctor(
+    args: argparse.Namespace, *, require_debug_tools: bool = True,
+) -> tuple[dict[str, Any], bool]:
     tools = {
         "cmake": _run_version([args.cmake, "--version"]),
         "ninja": _run_version([args.ninja, "--version"]),
@@ -174,9 +185,13 @@ def _doctor(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
         "nrfutil": _run_version([args.nrfutil, "--log-output", "stdout", "--version"]),
         "jlink_gdb_server": _run_version([args.jlink, "-version"]),
     }
-    gdb = args.gdb or shutil.which("arm-none-eabi-gdb") or shutil.which("gdb-multiarch")
+    gdb = args.gdb or _default_gdb()
     tools["gdb"] = _run_version([gdb, "--version"]) if gdb else {
-        "returncode": None, "error": "arm-none-eabi-gdb and gdb-multiarch are both missing"
+        "returncode": None,
+        "error": (
+            "no Arm-capable GDB was found in PATH; pass --gdb or set NRF_GDB "
+            "to arm-none-eabi-gdb or gdb-multiarch"
+        ),
     }
     if gdb and tools["gdb"]["returncode"] == 0:
         lock_path = project_root() / "docs/provenance/toolchains.lock"
@@ -207,10 +222,13 @@ def _doctor(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
             "returncode": None, "error": "an official reference toolchain was not selected",
         }
     payload = {"schema": "nrfkit-doctor/v1", "tools": tools}
-    required = ("cmake", "ninja", "west", "nrfutil", "jlink_gdb_server", "gdb")
+    required = ["cmake", "ninja", "west", "nrfutil"]
+    if require_debug_tools:
+        required.extend(("jlink_gdb_server", "gdb"))
     healthy = all(tools[name].get("returncode") == 0 for name in required)
     toolchain_healthy = tools["official_toolchain"].get("returncode") == 0
-    return payload, healthy and toolchain_healthy and tools["gdb"].get("locked") is True
+    debug_healthy = not require_debug_tools or tools["gdb"].get("locked") is True
+    return payload, healthy and toolchain_healthy and debug_healthy
 
 
 def command_doctor(args: argparse.Namespace) -> int:
@@ -250,6 +268,26 @@ def command_build(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_equivalence_audit(args: argparse.Namespace) -> int:
+    project = project_root()
+    app_build = args.build_dir.resolve()
+    output = audit_equivalence(
+        args.root, app_build,
+        app_build / "compile_commands.json",
+        app_build / "zephyr/include/generated/zephyr/autoconf.h",
+        project / "docs/provenance/nrf-bm-hids-s115-equivalence.json",
+        project / "config/nrf-bm-hids-s115-autoconf.h",
+        update=args.update,
+    )
+    print(json.dumps({
+        "status": "ok", "updated": args.update,
+        "compiled_source_count": output["compiled_source_count"],
+        "nrf_bm_source_count": len(output["nrf_bm_sources"]),
+        "autoconf_sha256": output["autoconf"]["sha256"],
+    }, indent=2, sort_keys=True))
+    return 0
+
+
 def command_inspect(args: argparse.Namespace) -> int:
     run_dir, report = _new_run("inspect")
     try:
@@ -279,6 +317,46 @@ def command_sdk_manifest(args: argparse.Namespace) -> int:
         project_root(), args.build_dir, args.target, args.expected_token
     )
     print(output)
+    return 0
+
+
+def command_device_list(args: argparse.Namespace) -> int:
+    run_dir, report = _new_run("device-list")
+    report["stages"] = []
+    try:
+        devices = _enumerate(args.nrfutil, run_dir / "device-list.log", args.timeout)
+        inventory = [
+            {
+                "board_version": device.get("devkit", {}).get("boardVersion"),
+                "jlink": device.get("traits", {}).get("jlink") is True,
+                "vcom_count": len(device.get("serialPorts", [])),
+                "msd": _probe_has_msd(device),
+            }
+            for device in devices
+        ]
+        _stage(run_dir, report, "device-enumeration", inventory=inventory)
+        if args.board_version is not None:
+            serial = resolve_probe_alias(
+                args.probe_serial, args.board_version,
+                project_root() / ".local" / "hardware-aliases.json",
+            )
+            selected = select_device(devices, args.board_version, serial)
+            _stage(
+                run_dir,
+                report,
+                "device-selection",
+                board_version=selected.get("devkit", {}).get("boardVersion"),
+                jlink=selected.get("traits", {}).get("jlink") is True,
+                vcom_count=len(selected.get("serialPorts", [])),
+                msd=_probe_has_msd(selected),
+            )
+        report.update({"status": "ok", "device_count": len(devices)})
+    except BaseException as error:
+        report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
+        atomic_json(run_dir / "run.json", report)
+        raise
+    atomic_json(run_dir / "run.json", report)
+    print(run_dir / "run.json")
     return 0
 
 
@@ -985,7 +1063,7 @@ def command_run(args: argparse.Namespace) -> int:
         if getattr(args, "oracle", None):
             if getattr(args, "official_toolchain", None) is None:
                 _, args.official_toolchain, _ = load_receipt(project_root(), args.oracle)
-            doctor_payload, healthy = _doctor(args)
+            doctor_payload, healthy = _doctor(args, require_debug_tools=False)
             report["tools"] = doctor_payload["tools"]
             report["stages"] = []
             if not healthy:
@@ -1604,9 +1682,20 @@ def main(argv: list[str] | None = None) -> int:
     doctor.add_argument("--west", default=shutil.which("west") or "west")
     doctor.add_argument("--nrfutil", default=shutil.which("nrfutil") or "nrfutil")
     doctor.add_argument("--jlink", default=shutil.which("JLinkGDBServerCLExe") or "JLinkGDBServerCLExe")
-    doctor.add_argument("--gdb")
+    doctor.add_argument("--gdb", default=_default_gdb())
     doctor.add_argument("--official-toolchain", type=Path, required=True)
     doctor.set_defaults(handler=command_doctor)
+
+    device_list = subparsers.add_parser(
+        "device-list", help="enumerate probes and optionally resolve one local board alias"
+    )
+    device_list.add_argument(
+        "--board-version", choices=("PCA10184", "PCA10156")
+    )
+    device_list.add_argument("--probe-serial", default=os.environ.get("NRF_PROBE_SERIAL"))
+    device_list.add_argument("--nrfutil", default=shutil.which("nrfutil") or "nrfutil")
+    device_list.add_argument("--timeout", type=float, default=10.0)
+    device_list.set_defaults(handler=command_device_list)
 
     reference = subparsers.add_parser("reference")
     reference_commands = reference.add_subparsers(dest="reference_command", required=True)
@@ -1639,6 +1728,11 @@ def main(argv: list[str] | None = None) -> int:
     reference_build.add_argument("--timeout", type=float, default=900)
     reference_build.add_argument("--west", default=shutil.which("west") or "west")
     reference_build.set_defaults(handler=command_build)
+    reference_audit = reference_commands.add_parser("equivalence-audit")
+    reference_audit.add_argument("--root", type=Path, required=True)
+    reference_audit.add_argument("--build-dir", type=Path, required=True)
+    reference_audit.add_argument("--update", action="store_true")
+    reference_audit.set_defaults(handler=command_equivalence_audit)
 
     sdk = subparsers.add_parser("sdk")
     sdk_commands = sdk.add_subparsers(dest="sdk_command", required=True)
@@ -1681,12 +1775,12 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument(
         "--jlink", default=shutil.which("JLinkGDBServerCLExe") or "JLinkGDBServerCLExe"
     )
-    run.add_argument("--gdb")
+    run.add_argument("--gdb", default=_default_gdb())
     run.add_argument("--official-toolchain", type=Path)
     run.set_defaults(handler=command_run)
     gdb = subparsers.add_parser("gdb-smoke")
     add_device_arguments(gdb)
-    gdb.add_argument("--gdb")
+    gdb.add_argument("--gdb", default=_default_gdb())
     gdb.add_argument("--jlink", default=shutil.which("JLinkGDBServerCLExe") or "JLinkGDBServerCLExe")
     gdb.add_argument("--verify-token", action="store_true")
     gdb.add_argument("--post-main-break")

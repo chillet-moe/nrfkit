@@ -3,7 +3,7 @@
 include_guard(GLOBAL)
 
 set(_NRFKIT_NRFX_DRIVERS
-  clock gpio gpiote grtc timer dppi uarte spim twim pwm saadc rramc watchdog
+  clock power gpio gpiote grtc timer dppi uarte spim twim pwm saadc rramc watchdog
   reset retention cracen
 )
 
@@ -147,6 +147,9 @@ endfunction()
 
 function(_nrfkit_prepare_nrf_bm_hids nrf_bm_root out_var)
   set(source_files
+    boards/nordic/bm_nrf54lm20dk/init.c
+    boards/nordic/bm_nrf54lm20dk/include/board-config.h
+    samples/bluetooth/ble_hids_mouse/src/main.c
     subsys/softdevice_handler/irq_connect.c
     subsys/softdevice_handler/irq_connect.h
     subsys/softdevice_handler/irq_forward.s
@@ -177,6 +180,9 @@ function(_nrfkit_prepare_nrf_bm_hids nrf_bm_root out_var)
     lib/bluetooth/peer_manager/modules/pm_buffer.c
     lib/bluetooth/peer_manager/modules/security_dispatcher.c
     lib/bluetooth/peer_manager/modules/security_manager.c
+    lib/bm_buttons/bm_buttons.c
+    lib/bm_gpiote/gpiote.c
+    lib/bm_timer/bm_timer.c
     subsys/storage/bm_storage/bm_storage.c
     subsys/storage/bm_storage/sd/bm_storage_sd.c
     subsys/fs/bm_zms/bm_zms.c
@@ -195,7 +201,7 @@ function(_nrfkit_prepare_nrf_bm_hids nrf_bm_root out_var)
   list(SORT source_files)
 
   set(state
-    "nrf-bm=51484143c09199e19bccc16fa3b437f7a502a72b\nadapter=7\n")
+    "nrf-bm=51484143c09199e19bccc16fa3b437f7a502a72b\nadapter=8\n")
   foreach(relative IN LISTS source_files)
     set(source "${nrf_bm_root}/${relative}")
     if(NOT EXISTS "${source}")
@@ -269,6 +275,15 @@ function(_nrfkit_prepare_nrf_bm_hids nrf_bm_root out_var)
           "nrfkit_sd_evt_dispatch();" contents "${contents}")
         string(REPLACE "\t\t\t      sd_direct_isr, 0);"
           "\t\t\t      SD_EVT_IRQHandler, 0);" contents "${contents}")
+      elseif(relative STREQUAL "samples/bluetooth/ble_hids_mouse/src/main.c")
+        # The official GCC build accepts this enum-compatible callback with a
+        # warning.  Clang correctly rejects the mismatched function-pointer
+        # type, so make only the parameter type explicit; handler logic and
+        # registration remain the official implementation.
+        string(REPLACE
+          "static void button_handler(uint8_t pin, uint8_t action)"
+          "static void button_handler(uint8_t pin, enum bm_buttons_evt_type action)"
+          contents "${contents}")
       endif()
       if(relative MATCHES "\\.c$")
         string(PREPEND contents "#include <nrfkit/bm_port.h>\n")
@@ -395,6 +410,9 @@ function(_nrfkit_enable_s115_baseline target)
     "${api}"
     "${oberon}/include"
   )
+  target_compile_options("${target}" PRIVATE
+    $<$<COMPILE_LANGUAGE:C>:-include;${NrfKit_ROOT}/config/nrf-bm-hids-s115-autoconf.h>
+  )
   # The locked official nRF-BM S115 oracle is built with CONFIG_FPU disabled.
   # Keep the complete S115 target on the same exception-frame and calling ABI.
   if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
@@ -414,6 +432,8 @@ function(_nrfkit_enable_s115_baseline target)
     "${NrfKit_ROOT}/radio/ownership.c")
   _nrfkit_prepare_nrf_bm_hids("${nrf_bm_root}" prepared_hids)
     set(official_sources
+      boards/nordic/bm_nrf54lm20dk/init.c
+      samples/bluetooth/ble_hids_mouse/src/main.c
       subsys/softdevice_handler/irq_connect.c
       subsys/softdevice_handler/nrf_sdh.c
       subsys/softdevice_handler/nrf_sdh_ble.c
@@ -442,9 +462,14 @@ function(_nrfkit_enable_s115_baseline target)
       lib/bluetooth/peer_manager/modules/pm_buffer.c
       lib/bluetooth/peer_manager/modules/security_dispatcher.c
       lib/bluetooth/peer_manager/modules/security_manager.c
+      lib/bm_buttons/bm_buttons.c
+      lib/bm_gpiote/gpiote.c
+      lib/bm_timer/bm_timer.c
       subsys/storage/bm_storage/bm_storage.c
       subsys/storage/bm_storage/sd/bm_storage_sd.c
       subsys/fs/bm_zms/bm_zms.c
+      subsys/bluetooth/services/ble_bas/bas.c
+      subsys/bluetooth/services/ble_dis/dis.c
       subsys/bluetooth/services/ble_hids/hids.c)
     list(TRANSFORM official_sources PREPEND "${prepared_hids}/")
     target_sources("${target}" PRIVATE ${official_sources}
@@ -453,91 +478,17 @@ function(_nrfkit_enable_s115_baseline target)
       "${prepared_hids}/subsys/softdevice_handler/irq_forward.s")
     target_include_directories("${target}" PRIVATE
       "${prepared_hids}/include"
+      "${prepared_hids}/boards/nordic/bm_nrf54lm20dk/include"
       "${prepared_hids}/lib/bluetooth/peer_manager/include"
       "${prepared_hids}/subsys/fs/bm_zms")
-    target_compile_definitions("${target}" PRIVATE
-      CONFIG_NRF_SDH_BLE_GATT_MAX_MTU_SIZE=23
-      CONFIG_NRF_SDH_BLE_PERIPHERAL_LINK_COUNT=1
-      CONFIG_NRF_SDH_BLE_CENTRAL_LINK_COUNT=0
-      CONFIG_NRF_SDH_BLE_TOTAL_LINK_COUNT=1
-      CONFIG_NRF_SDH_BLE_CONN_TAG=99
-      CONFIG_NRF_SDH_BLE_GAP_EVENT_LENGTH=3
-      CONFIG_NRF_SDH_BLE_VS_UUID_COUNT=0
-      CONFIG_NRF_SDH_BLE_GATTS_ATTR_TAB_SIZE=1408
-      CONFIG_NRF_SDH_BLE_SERVICE_CHANGED=0
-      CONFIG_NRF_SDH_BLE_LOG_SD_RAM_USAGE=0
-      CONFIG_NRF_SDH_LOG_SD_INFO=0
-      CONFIG_NRF_SDH_CLOCK_LF_SRC=1
-      CONFIG_NRF_SDH_CLOCK_LF_RC_CTIV=0
-      CONFIG_NRF_SDH_CLOCK_LF_RC_TEMP_CTIV=0
-      CONFIG_NRF_SDH_CLOCK_LF_ACCURACY=0
-      CONFIG_NRF_SDH_CLOCK_HFCLK_LATENCY=1500
-      CONFIG_NRF_SDH_CLOCK_HFINT_CALIBRATION_INTERVAL=60
-      CONFIG_NRF_SDH_DISPATCH_MODEL_IRQ=1
-      CONFIG_SOC_SERIES_NRF54L=1
-      CONFIG_SOFTDEVICE_PERIPHERAL=1
-      CONFIG_SOFTDEVICE_DATA_LENGTH_UPDATE=1
-      CONFIG_BLE_ADV_USE_ALLOW_LIST=1
-      CONFIG_BLE_ADV_DIRECTED_ADVERTISING_HIGH_DUTY=1
-      CONFIG_BLE_ADV_DIRECTED_ADVERTISING=1
-      CONFIG_BLE_ADV_FAST_ADVERTISING=1
-      CONFIG_BLE_ADV_SLOW_ADVERTISING=1
-      CONFIG_BLE_ADV_RESTART_ON_DISCONNECT=1
-      CONFIG_BLE_ADV_DIRECTED_ADVERTISING_TIMEOUT=128
-      CONFIG_BLE_ADV_DIRECTED_ADVERTISING_INTERVAL=0
-      CONFIG_BLE_ADV_FAST_ADVERTISING_INTERVAL=32
-      CONFIG_BLE_ADV_FAST_ADVERTISING_TIMEOUT=0
-      CONFIG_BLE_ADV_SLOW_ADVERTISING_INTERVAL=64
-      CONFIG_BLE_ADV_SLOW_ADVERTISING_TIMEOUT=18000
-      CONFIG_BLE_ADV_PRIMARY_PHY=0
-      CONFIG_BLE_ADV_SECONDARY_PHY=0
-      CONFIG_BLE_CONN_PARAMS_INITIATE_ATT_MTU_EXCHANGE=0
-      CONFIG_BLE_CONN_PARAMS_ATT_MTU=23
-      CONFIG_BLE_CONN_PARAMS_INITIATE_DATA_LENGTH_UPDATE=0
-      CONFIG_BLE_CONN_PARAMS_DATA_LENGTH_TX=27
-      CONFIG_BLE_CONN_PARAMS_DATA_LENGTH_RX=27
-      CONFIG_BLE_CONN_PARAMS_DISCONNECT_ON_FAILURE=0
-      CONFIG_BLE_CONN_PARAMS_PHY=0
-      CONFIG_BLE_CONN_PARAMS_MIN_CONN_INTERVAL=6
-      CONFIG_BLE_CONN_PARAMS_MAX_CONN_INTERVAL=256
-      CONFIG_BLE_CONN_PARAMS_PERIPHERAL_LATENCY=0
-      CONFIG_BLE_CONN_PARAMS_SUP_TIMEOUT=100
-      CONFIG_BLE_CONN_PARAMS_MAX_PERIPHERAL_LATENCY_DEVIATION=6
-      CONFIG_BLE_CONN_PARAMS_MAX_SUP_TIMEOUT_DEVIATION=400
-      CONFIG_BLE_CONN_PARAMS_NEGOTIATION_RETRIES=2
-      CONFIG_PM_LESC=1
-      CONFIG_PM_MAX_REGISTRANTS=4
-      CONFIG_PM_MAX_BONDS=8
-      CONFIG_PM_FLASH_BUFFERS=4
-      CONFIG_PM_CONN_STATE_USER_FLAG_COUNT=24
-      CONFIG_PM_HANDLER_SEC_DELAY_MS=0
-      CONFIG_BM_STORAGE_BACKEND_SD=1
-      CONFIG_BM_STORAGE_BACKEND_SD_MAX_WRITE_SIZE=128
-      CONFIG_BM_STORAGE_BACKEND_SD_QUEUE_SIZE=4
-      CONFIG_BM_STORAGE_BACKEND_SD_MAX_RETRIES=8
-      CONFIG_BM_ZMS_OP_QUEUE_SIZE=4
-      CONFIG_BM_ZMS_DATA_CRC=1
-      CONFIG_PM_BM_ZMS_SECTOR_SIZE=1024
-      CONFIG_BLE_DIS_MANUFACTURER_NAME="NrfKit"
-      CONFIG_BLE_DIS_MODEL_NUMBER="LM20"
-      CONFIG_BLE_DIS_SERIAL_NUMBER=""
-      CONFIG_BLE_DIS_HW_REVISION="DK"
-      CONFIG_BLE_DIS_FW_REVISION="M6"
-      CONFIG_BLE_DIS_SW_REVISION="baseline"
-      CONFIG_BLE_HIDS_BOOT_MOUSE=1
-      CONFIG_BLE_HIDS_DEFAULT_PROTOCOL_MODE=1
-      CONFIG_BLE_HIDS_INPUT_REPORT_MAX_NUM=1
-      CONFIG_BLE_HIDS_INPUT_REPORT_MAX_LEN=4
-      CONFIG_BLE_HIDS_OUTPUT_REPORT_MAX_NUM=0
-      CONFIG_BLE_HIDS_OUTPUT_REPORT_MAX_LEN=0
-      CONFIG_BLE_HIDS_FEATURE_REPORT_MAX_NUM=0
-      CONFIG_BLE_HIDS_FEATURE_REPORT_MAX_LEN=0
-      CONFIG_BLE_HIDS_MAX_CLIENTS=1)
-    target_compile_definitions("${target}" PRIVATE CONFIG_BLE_GATT_DB_MAX_CHARS=16)
+    # Every CONFIG_ value comes byte-for-byte from the official generated
+    # autoconf header.  Do not add approximate hand-transcribed definitions.
   set(irq_forward "${prepared_hids}/subsys/softdevice_handler/irq_forward.s")
   set_property(SOURCE "${irq_forward}" TARGET_DIRECTORY "${target}"
     APPEND PROPERTY COMPILE_OPTIONS -x assembler-with-cpp)
-  nrfkit_enable_nrfx("${target}" DRIVERS cracen)
+  nrfkit_enable_nrfx("${target}" DRIVERS clock power cracen gpiote)
+  target_compile_definitions("${target}" PRIVATE
+    NRFX_GPIOTE20_ENABLED=1 NRFX_GPIOTE30_ENABLED=1)
   target_compile_definitions("${target}" PRIVATE NRFKIT_S115_10_0_1=1)
   set_target_properties("${target}" PROPERTIES
     NRFKIT_SOFTDEVICE "s115"
@@ -823,6 +774,16 @@ function(_nrfkit_finalize_nrfx target)
     string(APPEND config_definitions "#define NRFX_DPPI20_ENABLED 1\n")
   endif()
 
+  get_target_property(softdevice "${target}" NRFKIT_SOFTDEVICE)
+  if(softdevice STREQUAL "s115")
+    # nRF-BM connects the shared IRQs itself.  The standalone nrfx IRQ alias
+    # header would otherwise rename the callable nrfx handlers to vector names
+    # and collide with the audited forwarding shim.
+    set(nrfx_irqs_include "")
+  else()
+    set(nrfx_irqs_include "#include <soc/nrfx_irqs.h>\n")
+  endif()
+
   string(CONCAT config_content
     "/* Generated by nrfkit; target-local and not for source control. */\n"
     "#ifndef NRFKIT_GENERATED_NRFX_CONFIG_H\n"
@@ -831,7 +792,7 @@ function(_nrfkit_finalize_nrfx target)
     "${config_definitions}"
     "#include <templates/nrfx_config_common.h>\n"
     "#include <bsp/stable/templates/nrfx_config_nrf54lm20a_application.h>\n"
-    "#include <soc/nrfx_irqs.h>\n"
+    "${nrfx_irqs_include}"
     "#endif\n"
   )
   file(WRITE "${config_dir}/nrfx_config.h" "${config_content}")
@@ -857,6 +818,8 @@ function(_nrfkit_finalize_nrfx target)
         drivers/src/nrfx_clock_xo.c
         drivers/src/nrfx_clock_xo24m.c
       )
+    elseif(driver STREQUAL "power")
+      list(APPEND sources drivers/src/nrfx_power.c)
     elseif(driver STREQUAL "gpiote")
       list(APPEND sources drivers/src/nrfx_gpiote.c helpers/nrfx_flag32_allocator.c)
     elseif(driver STREQUAL "grtc")

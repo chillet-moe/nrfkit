@@ -1,0 +1,70 @@
+{
+  "schema": "nrfkit-m6-s115-equivalence-checkpoint/v1",
+  "date": "2026-09-05",
+  "scope": "nRF Connect SDK Bare Metal v2.0.1 ble_hids_mouse on nRF54LM20 with S115 10.0.1",
+  "official_input": {
+    "oracle": "nrf-bm-ble-hids-mouse-s115",
+    "source_receipt_sha256": "6828e3ec9897beb5667486b701336a4bbae15b1dadd0e2ec9d91a5efed49ccfa",
+    "softdevice_hex_sha256": "c2b5bcf2b436e11daa9a85e9dca12060052244c2eec50032bf54d87a4a77c3a2",
+    "application_hex_sha256": "c44218340703a6e2c9dbb15914108c4d576b9b2019f885fdda87766a497e8648",
+    "serial_initialization_token": true,
+    "bluez_oracle_gate": {
+      "status": "pass",
+      "fresh_pairing": true,
+      "paired": true,
+      "bonded": true,
+      "encrypted_attribute_read": true,
+      "hid_gatt": true,
+      "disconnect": true,
+      "bonded_reconnect": true,
+      "cleanup_complete": true
+    }
+  },
+  "official_build_equivalence": {
+    "receipt": "docs/provenance/nrf-bm-hids-s115-equivalence.json",
+    "receipt_sha256": "648e5437df5bb9c70d31aaa29dc6ae8eaae38fee94c9b51d84b80a3590f2060e",
+    "compiled_source_count": 273,
+    "nrf_bm_compiled_source_count": 43,
+    "autoconf_macro_count": 681,
+    "autoconf_sha256": "516b4d9280e4b45435ad428defc7071e3ae8a2d2032c6e274dceceb535b96fa5",
+    "drift_audit": "pass"
+  },
+  "pure_cmake_consumer": {
+    "oracle": "sdk-m6_ble_official_baseline",
+    "source_receipt_sha256": "5f51a436b09bef862961b8e39ae18cfb72f10ddd4f5876eb785ce03ceebfe4cd",
+    "elf_sha256": "89659e4fdf1f24dfe08b0e5c58ff779042ec10d255502569674f046173d6a3e6",
+    "application_hex_sha256": "4c5cce5bbb200e879544a732f7de3bd36646dca9ee63b4a7d6c1391b85662521",
+    "softdevice_hex_sha256": "c2b5bcf2b436e11daa9a85e9dca12060052244c2eec50032bf54d87a4a77c3a2",
+    "adapter_inputs": {
+      "cmake/modules/NrfKitFirmware.cmake": "0d12afc02d35d2058b36664bf625209154e7212b91834f81abbf17d495eadda6",
+      "examples/CMakeLists.txt": "95dbed9b19fceba48a178fa5ad2bac84474f9a76ba16627f3406b50128066fd4",
+      "include/cracen_psa.h": "47da77ba26227b131a647864f25f8adf439edfdf24ebad13f3b14599ab5b710f",
+      "include/nrfkit/bm_port.h": "c6c252504dcc627092f5e7c012df65503ec81532ef7e6cb5a262ecf11a28bd48",
+      "softdevice/nrf54l/bm_crypto.c": "8b6e7dfb5e71d0308af83e8e9a6ca10d0141b5b45ffb7ba9ad53f88c3ca398c0",
+      "softdevice/nrf54l/bm_port.c": "f31be7625e1ee9a7ea66c8077d2471549334baf6f40cd70a4f58863f94b9d704"
+    },
+    "configure_without_official_build_system": true,
+    "build": "pass",
+    "image_range_audit": "pass",
+    "guarded_program_and_verify": "pass",
+    "serial_initialization_token": false,
+    "serial_bytes_before_timeout": "B",
+    "bluez_oracle_gate": {
+      "status": "fail",
+      "failure": "advertising target not discovered before the 120 second hard timeout",
+      "cleanup_complete": true
+    }
+  },
+  "first_behavioral_divergence": {
+    "stage": "first application log call, before button initialization and before nrf_sdh_enable_request",
+    "observation": "the consumer emitted only the first byte of the first official log message and made no further visible progress",
+    "boundary": "repository UART/log compatibility shim and its platform runtime prerequisites",
+    "s115_abi_exercised": false
+  },
+  "stopping_decision": {
+    "m6_complete": false,
+    "s115_portability_conclusion": "unresolved because the failure precedes the first S115 API call",
+    "resume_condition": "replace or eliminate the blocking log/platform shim using new non-sensitive evidence; do not resume with repeated flashing or GDB object substitution",
+    "next_route": "PLAN.md LM20-only staged lower-layer route"
+  }
+}

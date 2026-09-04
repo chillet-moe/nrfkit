@@ -10,6 +10,12 @@ static uint8_t private_key[32] __aligned(4);
 static uint8_t public_key[64] __aligned(4);
 static bool key_available;
 
+psa_status_t cracen_get_trng(uint8_t *output, size_t output_size)
+{
+	return nrfx_cracen_entropy_get(output, output_size) == 0
+		? PSA_SUCCESS : PSA_ERROR_INSUFFICIENT_ENTROPY;
+}
+
 psa_status_t psa_crypto_init(void)
 {
 	return PSA_SUCCESS;

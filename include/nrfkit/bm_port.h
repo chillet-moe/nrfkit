@@ -47,6 +47,8 @@
 #define BITS_PER_BYTE 8U
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof((array)[0]))
 #define SIZEOF_FIELD(type, member) sizeof(((type *)0)->member)
+#define CONTAINER_OF(pointer, type, member) \
+	((type *)((char *)(pointer) - offsetof(type, member)))
 #define MIN(left, right) ((left) < (right) ? (left) : (right))
 #define MAX(left, right) ((left) > (right) ? (left) : (right))
 #define CLAMP(value, low, high) MIN(MAX((value), (low)), (high))
@@ -77,14 +79,14 @@
 #define _NRFKIT_BM_ENABLED_STEP3(ignore, result, ...) result
 #define IS_ENABLED(value) _NRFKIT_BM_ENABLED_STEP1(value)
 #define _NRFKIT_BM_DEBRACKET(...) __VA_ARGS__
-#define _NRFKIT_BM_COND_PICK(ignore, result, ...) _NRFKIT_BM_DEBRACKET result
-#define _NRFKIT_BM_COND_IMPL(value, if_true, if_false) \
-	_NRFKIT_BM_COND_PICK(_NRFKIT_BM_ENABLED_##value if_true, if_false)
-#define _NRFKIT_BM_COND_EXPAND(value, if_true, if_false) \
-	_NRFKIT_BM_COND_IMPL(value, if_true, if_false)
+#define _NRFKIT_BM_COND_0(if_true, if_false) _NRFKIT_BM_DEBRACKET if_false
+#define _NRFKIT_BM_COND_1(if_true, if_false) _NRFKIT_BM_DEBRACKET if_true
+#define _NRFKIT_BM_COND_SELECT(value) _NRFKIT_BM_COND_##value
+#define _NRFKIT_BM_COND_EXPAND(value) _NRFKIT_BM_COND_SELECT(value)
 #define COND_CODE_1(value, if_true, if_false) \
-	_NRFKIT_BM_COND_EXPAND(value, if_true, if_false)
-#define IS_EMPTY(...) 0
+	_NRFKIT_BM_COND_EXPAND(IS_ENABLED(value))(if_true, if_false)
+#define _NRFKIT_BM_FIRST(first, ...) first
+#define IS_EMPTY(...) _NRFKIT_BM_FIRST(__VA_OPT__(0,) 1)
 
 #define H_NRF_SDH_OBSERVER_PRIO_HIGHEST_HIGH 0
 #define H_NRF_SDH_OBSERVER_PRIO_HIGHEST_USER 0
@@ -117,9 +119,9 @@
 #define LOG_MODULE_REGISTER(...)
 #define LOG_MODULE_DECLARE(...)
 #define LOG_DBG(...) ((void)0)
-#define LOG_INF(...) ((void)0)
-#define LOG_WRN(...) ((void)0)
-#define LOG_ERR(...) ((void)0)
+#define LOG_INF(...) nrfkit_bm_log(__VA_ARGS__)
+#define LOG_WRN(...) nrfkit_bm_log(__VA_ARGS__)
+#define LOG_ERR(...) nrfkit_bm_log(__VA_ARGS__)
 #define log_panic() ((void)0)
 #define log_flush() ((void)0)
 #define printk(...) (0)
@@ -127,12 +129,19 @@
 
 int sprintf(char *buffer, const char *format, ...);
 int snprintf(char *buffer, size_t size, const char *format, ...);
+void nrfkit_bm_log(const char *format, ...);
 
 #define APPLICATION 0
 #define IRQ_ZERO_LATENCY 1U
+#define GRTC_IRQn GRTC_2_IRQn
 #define ISR_DIRECT_DECLARE(name) int name(void)
 #define BM_IRQ_DIRECT_CONNECT(irqn, priority, handler, flags) \
-	do { (void)(handler); (void)(flags); NVIC_SetPriority((irqn), (priority)); } while (false)
+	do { \
+		(void)(handler); \
+		(void)(flags); \
+		NVIC_SetPriority((irqn), (priority)); \
+		NVIC_EnableIRQ((irqn)); \
+	} while (false)
 #define BM_IRQ_SET_PRIORITY(irqn, priority) NVIC_SetPriority((irqn), (priority))
 #define irq_enable(irqn) NVIC_EnableIRQ((irqn))
 #define _NRFKIT_BM_SYS_INIT_NAME_INNER(function) nrfkit_sys_init_##function
@@ -142,6 +151,31 @@ int snprintf(char *buffer, size_t size, const char *format, ...);
 	static void _NRFKIT_BM_SYS_INIT_NAME(function)(void) { (void)function(); }
 
 int nrfkit_nrf_bm_irq_init(void);
+
+typedef struct {
+	int64_t ticks;
+} k_timeout_t;
+
+struct k_timer {
+	void (*expiry)(struct k_timer *timer);
+	void *user_data;
+	uint32_t period_ticks;
+	bool active;
+};
+
+#define K_NO_WAIT ((k_timeout_t){ .ticks = 0 })
+#define k_us_to_ticks_floor32(us) ((uint32_t)(((uint64_t)(us) * 31250U) / 1000000U))
+#define k_us_to_ticks_ceil32(us) ((uint32_t)((((uint64_t)(us) * 31250U) + 999999U) / 1000000U))
+#define k_ms_to_ticks_floor32(ms) ((uint32_t)(((uint64_t)(ms) * 31250U) / 1000U))
+#define k_ticks_to_us_ceil32(ticks) \
+	((uint32_t)((((uint64_t)(ticks) * 1000000U) + 31249U) / 31250U))
+
+void k_timer_init(struct k_timer *timer, void (*expiry)(struct k_timer *),
+		  void (*stop)(struct k_timer *));
+void k_timer_start(struct k_timer *timer, k_timeout_t duration, k_timeout_t period);
+void k_timer_stop(struct k_timer *timer);
+void k_timer_user_data_set(struct k_timer *timer, void *user_data);
+void *k_timer_user_data_get(const struct k_timer *timer);
 
 #define FIXED_PARTITION_OFFSET(partition) 0x001E3800UL
 #define NRFKIT_DT_CHOSEN_zephyr_sram nrfkit_application_sram
