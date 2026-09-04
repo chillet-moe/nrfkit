@@ -5,6 +5,8 @@ from __future__ import annotations
 import unittest
 from argparse import Namespace
 from contextlib import nullcontext
+import io
+import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -18,6 +20,7 @@ from nrfkit_tools.hci import (
     command_packet,
 )
 from nrfkit_tools.cli import command_m6_sdc_oracle
+from nrfkit_tools.ble_validation import host_le_advertisement
 from nrfkit_tools.process import ProcessResult
 
 
@@ -69,7 +72,8 @@ class HciTests(unittest.TestCase):
                 }.get(opcode, b"")
 
             def next_event(self, deadline: float):
-                data = bytes.fromhex("020106")
+                name = b"nrfkit-host-peer"
+                data = bytes.fromhex("020106") + bytes((len(name) + 1, 0x09)) + name
                 parameters = (
                     bytes((0x02, 0x01, 0x00, 0x01))
                     + bytes((0x66, 0x55, 0x44, 0x33, 0x22, 0x11))
@@ -90,8 +94,9 @@ class HciTests(unittest.TestCase):
         args = Namespace(
             manifest=Path("manifest.json"), nrfutil="nrfutil", timeout=5.0,
             probe_serial="LM20", reset_kind="RESET_DEFAULT", hci_timeout=1.0,
-            advertising_timeout=1.0, scan_timeout=1.0, scan_reports=1,
+            advertising_timeout=1.0, scan_timeout=1.0,
             serial_ready_delay=0.0, device_name="nrfkit-sdc-oracle",
+            scan_peer_name="nrfkit-host-peer", bluetoothctl="bluetoothctl",
         )
         with TemporaryDirectory() as directory:
             run_dir = Path(directory)
@@ -132,6 +137,10 @@ class HciTests(unittest.TestCase):
                     },
                 ),
                 patch(
+                    "nrfkit_tools.cli.host_le_advertisement",
+                    return_value=nullcontext({"registered": True, "cleaned": True}),
+                ),
+                patch(
                     "nrfkit_tools.cli._serial_cleanup",
                     return_value=({"serial_closed": True}, None),
                 ),
@@ -143,6 +152,39 @@ class HciTests(unittest.TestCase):
             self.assertIn(0x2005, opcodes)
             self.assertEqual(report["status"], "ok")
             self.assertEqual(opcodes[:4], [0x0C03, 0x1001, 0x1003, 0x2003])
+
+    def test_host_advertisement_is_owned_and_cleaned_up(self) -> None:
+        read_descriptor, write_descriptor = os.pipe()
+        os.write(write_descriptor, b"Advertising object registered\n")
+        os.close(write_descriptor)
+
+        class Process:
+            pid = 31415
+            returncode = None
+            stdin = io.BytesIO()
+            stdout = os.fdopen(read_descriptor, "rb", buffering=0)
+
+            def poll(self):
+                return self.returncode
+
+            def wait(self, timeout: float):
+                self.returncode = 0
+                return 0
+
+        process = Process()
+        self.addCleanup(process.stdout.close)
+        with TemporaryDirectory() as directory, patch(
+            "nrfkit_tools.ble_validation.subprocess.Popen", return_value=process,
+        ):
+            with host_le_advertisement(
+                bluetoothctl="bluetoothctl",
+                device_name="nrfkit-host-peer",
+                log=Path(directory) / "host-advertisement.log",
+                timeout=1.0,
+            ) as state:
+                self.assertTrue(state["registered"])
+            self.assertTrue(state["cleaned"])
+        self.assertIn(b"advertise off\nquit\n", process.stdin.getvalue())
 
 
 if __name__ == "__main__":

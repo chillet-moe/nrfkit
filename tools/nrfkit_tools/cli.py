@@ -36,7 +36,7 @@ from .bond import (
 )
 from .ble_validation import (
     BleValidationError, bluetooth_info_argv, run_ble_validation,
-    scan_ble_advertisement,
+    host_le_advertisement, scan_ble_advertisement,
 )
 from .image import ImageContractError, parse_elf, parse_ihex, require_allowed
 from .hci import H4Session, HciContractError, advertising_name, advertising_reports
@@ -1202,30 +1202,33 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
             )
             scan_enabled = False
             reports_seen = 0
-            names_seen: set[str] = set()
-            try:
-                session.command(0x200C, b"\x01\x01", args.hci_timeout)
-                scan_enabled = True
-                deadline = time.monotonic() + args.scan_timeout
-                while time.monotonic() < deadline and reports_seen < args.scan_reports:
-                    event = session.next_event(deadline)
-                    for item in advertising_reports(event):
-                        reports_seen += 1
-                        name = advertising_name(item["data"])
-                        if name:
-                            names_seen.add(name)
-            finally:
-                if scan_enabled:
-                    session.command(0x200C, b"\x00\x01", args.hci_timeout)
-            if reports_seen < args.scan_reports:
-                raise ToolError(
-                    f"Controller observed only {reports_seen} advertising reports; "
-                    f"required {args.scan_reports}"
-                )
+            peer_observed = False
+            with host_le_advertisement(
+                bluetoothctl=args.bluetoothctl,
+                device_name=args.scan_peer_name,
+                log=run_dir / "host-advertisement.log",
+                timeout=args.hci_timeout,
+            ) as host_advertisement:
+                try:
+                    session.command(0x200C, b"\x01\x01", args.hci_timeout)
+                    scan_enabled = True
+                    deadline = time.monotonic() + args.scan_timeout
+                    while time.monotonic() < deadline and not peer_observed:
+                        event = session.next_event(deadline)
+                        for item in advertising_reports(event):
+                            reports_seen += 1
+                            if advertising_name(item["data"]) == args.scan_peer_name:
+                                peer_observed = True
+                finally:
+                    if scan_enabled:
+                        session.command(0x200C, b"\x00\x01", args.hci_timeout)
+            if not peer_observed:
+                raise ToolError("Controller did not observe the bounded host advertising peer")
             _stage(
                 run_dir, report, "hci-scanning-on-air",
                 reports_seen=reports_seen,
-                named_reports_seen=len(names_seen),
+                peer_name=args.scan_peer_name,
+                host_advertisement_cleanup=host_advertisement,
             )
         report.update({
             "status": "ok",
@@ -2061,7 +2064,10 @@ def main(argv: list[str] | None = None) -> int:
     m6_sdc_oracle.add_argument("--hci-timeout", type=float, default=5.0)
     m6_sdc_oracle.add_argument("--advertising-timeout", type=float, default=30.0)
     m6_sdc_oracle.add_argument("--scan-timeout", type=float, default=10.0)
-    m6_sdc_oracle.add_argument("--scan-reports", type=int, default=1)
+    m6_sdc_oracle.add_argument("--scan-peer-name", default="nrfkit-host-peer")
+    m6_sdc_oracle.add_argument(
+        "--bluetoothctl", default=shutil.which("bluetoothctl") or "bluetoothctl"
+    )
     m6_sdc_oracle.add_argument("--serial-ready-delay", type=float, default=0.5)
     m6_sdc_oracle.set_defaults(handler=command_m6_sdc_oracle)
     m6_bond_clear = subparsers.add_parser("m6-bond-clear")
@@ -2136,8 +2142,6 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--reconnect-cycles must be positive")
     if getattr(args, "stress_seconds", 1) <= 0:
         parser.error("--stress-seconds must be positive")
-    if getattr(args, "scan_reports", 1) <= 0:
-        parser.error("--scan-reports must be positive")
     if getattr(args, "sdk_runtime_contract", False) and not args.post_main_break:
         parser.error("--sdk-runtime-contract requires --post-main-break")
     for symbol in getattr(args, "observe", []):

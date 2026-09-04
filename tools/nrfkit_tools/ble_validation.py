@@ -136,6 +136,91 @@ def optional_hci_capture(
             state["cleaned"] = bool(trace.get("cleaned", False))
 
 
+@contextmanager
+def host_le_advertisement(
+    *, bluetoothctl: str, device_name: str, log: Path, timeout: float,
+) -> Iterator[dict[str, Any]]:
+    if timeout <= 0:
+        raise BleValidationError("host advertisement timeout must be positive")
+    if not device_name.isascii() or not device_name or any(
+        character.isspace() for character in device_name
+    ):
+        raise BleValidationError("host advertisement name must be non-empty ASCII without spaces")
+    process = subprocess.Popen(
+        [bluetoothctl],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+    )
+    transcript = bytearray()
+    failures: list[OSError] = []
+
+    def drain() -> None:
+        assert process.stdout is not None
+        try:
+            while True:
+                data = os.read(process.stdout.fileno(), 65536)
+                if not data:
+                    return
+                transcript.extend(data)
+        except OSError as error:
+            failures.append(error)
+
+    reader = threading.Thread(target=drain, name="bluetoothctl-reader", daemon=True)
+    reader.start()
+    state: dict[str, Any] = {
+        "requested": True, "registered": False, "cleaned": False,
+        "device_name": device_name,
+    }
+    try:
+        assert process.stdin is not None
+        process.stdin.write(
+            f"menu advertise\nname {device_name}\nback\nadvertise on\n".encode("ascii")
+        )
+        process.stdin.flush()
+        deadline = time.monotonic() + timeout
+        marker = b"Advertising object registered"
+        while marker not in transcript and time.monotonic() < deadline:
+            if process.poll() is not None:
+                raise BleValidationError("bluetoothctl exited before registering advertisement")
+            time.sleep(0.05)
+        if marker not in transcript:
+            raise BleValidationError("timed out registering host LE advertisement")
+        state["registered"] = True
+        yield state
+    finally:
+        if process.poll() is None:
+            try:
+                assert process.stdin is not None
+                process.stdin.write(b"advertise off\nquit\n")
+                process.stdin.flush()
+                process.wait(timeout=3)
+            except (BrokenPipeError, subprocess.TimeoutExpired):
+                try:
+                    os.killpg(process.pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+                try:
+                    process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    process.wait(timeout=3)
+        reader.join(timeout=1)
+        log.parent.mkdir(parents=True, exist_ok=True)
+        log.write_bytes(transcript)
+        state["cleaned"] = process.poll() is not None and not reader.is_alive()
+        if failures:
+            state["cleanup_error"] = str(failures[0])
+        if not state["cleaned"] or failures:
+            raise BleValidationError(
+                "host LE advertisement cleanup failed", details={"cleanup": state}
+            )
+
+
 def _uuid(value: Any) -> str:
     return str(value).lower()
 
