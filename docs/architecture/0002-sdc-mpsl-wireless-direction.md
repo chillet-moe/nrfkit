@@ -68,5 +68,8 @@ The old S115 artifacts and immutable checkpoint remain useful historical evidenc
 but they no longer determine milestone order. The project takes on a deliberate
 binary-vendor dependency and must preserve Nordic's license and attribution, while
 gaining a documented Controller boundary and the vendor-supported multiprotocol
-scheduler. Claims of BLE, 4 Mbit/s, coexistence, performance, or power remain pending
-until their explicit hardware gates pass.
+scheduler. Explicit hardware gates now support BLE Controller behavior, both
+proprietary 4 Mbit modes, direct and Timeslot air links, bounded retry/soak, rate
+comparison, and active-connection coexistence. Electrical power remains separate:
+measured duty is not reported as current or energy, and M7 stays open until an
+external current instrument completes that gate.

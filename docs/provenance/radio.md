@@ -1,4 +1,4 @@
-# nRF54LM20 direct proprietary RADIO evidence
+# nRF54LM20 proprietary RADIO evidence
 
 The RADIO implementation uses the following authority order:
 
@@ -31,10 +31,12 @@ READY-to-START and PHYEND-to-DISABLE shortcuts. The CPU waits for the DISABLED I
 which proves that a hardware-scheduled packet traversed the transmit state machine.
 
 The locked LM20 and L15 MDK register definitions also expose Nordic proprietary
-4 Mbit/s modes (`Nrf_4Mbit_0BT6` and `Nrf_4Mbit_0BT4`). The current adapter has not
-implemented or validated them yet. M7 treats 4 Mbit/s as the primary PHY target and
-requires a documented mode/errata choice plus real reception in both directions;
-2 Mbit/s and 1 Mbit/s remain compatibility and diagnostic baselines.
+4 Mbit/s modes (`Nrf_4Mbit_0BT6` and `Nrf_4Mbit_0BT4`). The adapter exposes both as
+explicit packet modes. Both passed three-round bidirectional known-payload gates;
+BT=0.6 is the default because its tested rounds were clean, while BT=0.4 observed one
+correctly rejected CRC packet. The exact results and report IDs are in
+[`m7-radio-evidence.md`](m7-radio-evidence.md). The 2 and 1 Mbit/s modes remain
+compatibility and rate-comparison baselines.
 
 ## Clock and errata
 
@@ -64,28 +66,31 @@ be encoded in the M6/M7 resource contract rather than guessed by this adapter.
 
 The single-board test checks ownership transitions, configuration register readback,
 TIMER/DPPI scheduling, RADIO READY/END/PHYEND/DISABLED progression, interrupt wake,
-and one real transmission. Register readback is not evidence that another receiver
-accepted whitening or CRC. End-to-end CRC, whitening, address filtering, loss, soak,
-and receiver wake remain pending. The public two-board executor and LM20/L15
-validation images are implemented and build-tested, but have not yet produced a
-dual-board air report. They are retained as M7 inputs rather than claimed evidence.
+and one real transmission. Register readback alone is not receiver evidence. The
+two-board gates now add known-payload reception, CRC and whitening rejection, sequence
+accounting, bounded retry, channel switching, sleep wake, 20-round soak, and
+active-BLE Timeslot coexistence. Only the paired reports support those claims.
 
-The public validation sequence is deliberately incremental:
+The completed functional validation sequence was deliberately incremental:
 
-1. audit both documented 4 Mbit/s modes and applicable errata, then lock source/image
+1. audited both documented 4 Mbit/s modes and applicable errata, then locked source/image
    receipts and 4 Mbit/s host packet vectors;
-2. exchange one fixed 4 Mbit/s known payload in each direction and repeat the
+2. exchanged fixed 4 Mbit/s known payloads in each direction and repeated the
    bidirectional gate three times;
-3. at 4 Mbit/s, prove CRC and whitening mismatch rejection;
-4. at 4 Mbit/s, add sequence/loss accounting, bounded retry, and channel switching;
-5. at 4 Mbit/s, run a bounded soak and prove receive after sleep wakeup;
-6. compare both 4 Mbit/s modes, select the evidenced default, then reduce the
+3. at 4 Mbit/s, proved CRC and whitening mismatch rejection;
+4. added sequence/loss accounting, bounded retry, and channel switching;
+5. ran a bounded soak and proved receive after foreground sleep wakeup;
+6. compared both 4 Mbit/s modes, selected the evidenced default, then reduced the
    scheduled interval while measuring sustained payload goodput, latency, loss,
    retry cost, queue bounds, counter conservation, stability, and power;
-7. only after the 4 Mbit/s gate, repeat the applicable functional/performance subset
+7. only after the 4 Mbit/s gate, repeated the applicable performance subset
    at 2 and 1 Mbit/s as compatibility and diagnostic comparisons; and
-8. repeat the 4 Mbit/s-first sequence through the MPSL Timeslot backend with SDC
-   disabled, advertising, and an active BLE connection.
+8. repeated the 4 Mbit/s-first sequence through the MPSL Timeslot backend with SDC
+   disabled lifecycle, advertising, and an active BLE connection.
+
+Electrical current/energy remains outside this completed functional sequence because
+the available setup has no current instrument. Reservation duty is recorded as a
+power proxy but is not presented as amperes, watts, or joules.
 
 The performance target is repeatable error-free useful rate, not a register setting
 or raw packet-opportunity count. The initial 1 Mbit/s and current 2 Mbit/s
@@ -115,10 +120,10 @@ The command rejects identical probe identities, starts the receiver first, runs 
 children through the normal manifest/address/program/serial guard, repeats the direction
 three times by default, records every child report, and terminates the receiver process
 group on failure. Run the same gate again with endpoint roles reversed before treating
-the known-payload stage as bidirectional. Before claiming M7, the harness must add
-explicit 4 Mbit/s profiles, support the fixed staged sequence above and the Timeslot
-backend, and accept an external reference-peer adapter without exposing private
-details in its public arguments or reports.
+the known-payload stage as bidirectional. `tools/nrfkit m7-coexistence` composes the
+sequence-gated peer with the raw-HCI Controller oracle and requires a packet that can
+only be emitted during the active-connection burst. Neither command exposes local
+probe identities in tracked files.
 
 Official documentation used for this audit:
 

@@ -1,6 +1,6 @@
 # nrfkit：目标与执行计划
 
-> 状态：P0、M0、M1、M2、M3、M6 已完成；M4 部分完成且暂不阻塞无线主线；M5 direct-RADIO 基线已收束；M7 MPSL Timeslot 与 4 Mbit/s 优先私有 2.4 GHz 为当前核心任务<br>
+> 状态：P0、M0、M1、M2、M3、M6 已完成；M4 仅余直连拓扑 remote wake；M5 direct-RADIO 基线已收束；M7 功能、时序与共存门禁已完成，仅余外部仪器电气功耗测量<br>
 > 计划基线：2026-09-05<br>
 > 唯一 SDK 支持目标：nRF54LM20A / nRF54LM20 DK<br>
 > 实验室夹具：nRF54L15 DK（不属于 SDK 支持目标）<br>
@@ -851,6 +851,16 @@ central 与有界 BlueZ 工具作为诊断资产保留，但不继续扩充或�
   不直接碰触未获授权的 RADIO/timer/DPPI 资源；
 - BLE connection 与私有链路的延迟/吞吐/功耗权衡可审计，无饿死、死锁或资源泄漏；
 - 公共实现和 Git 历史不含 external reference peer 的私有名称、业务协议或本机标识。
+
+M7 当前检查点：两种 4 Mbit/s mode 已完成 LM20/L15 双向三轮，BT=0.6 由数据选为
+默认；CRC/白化负向、序号、限定重试、队列上界、四次信道切换、睡眠唤醒和 20 轮
+soak 均通过。4/2/1 Mbit/s 已用同一 DWT/16-byte payload 方法量化。Timeslot backend
+完成 grant/deadline/extend/blocked/cancel/close 清理，并在 SDC-disabled lifecycle、广播和
+活动连接下通过；最终三轮双板共存门禁要求 L15 实收只在活动连接 burst 才会出现的
+序号 15，同时 LM20 保持双向 raw ACL。完整公开结果在
+`docs/provenance/m7-radio-evidence.md`。M7 尚未标记完成：当前输入与 USB inventory 没有
+PPK2、示波器、电流表或功率分析仪，官方 DK 测量流程要求外部仪器；已有 60.55% retry
+reservation duty 和 11.27% 共存 burst duty 只是功耗代理，不能替代安培/瓦特/焦耳。
 
 ### M8：首个私有下游集成与 LM20 release candidate
 

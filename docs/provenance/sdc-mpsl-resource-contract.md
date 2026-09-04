@@ -145,3 +145,22 @@ and Host-to-Controller raw ACL, and all baseline HCI commands. Each role-only ar
 proves its applicable subset. The independent final GDB report ID is
 `20260905-044223-gdb-smoke-733811`. No Host, ATT/GATT, profile, Zephyr component,
 or S115 shim enters these images.
+
+## M7 Timeslot closure
+
+The project-owned Timeslot backend retains MPSL independently of SDC, uses one static
+session context, requests guaranteed-XTAL normal-priority grants, and arms the MPSL
+TIMER0 cleanup compare before calling application code. RADIO ownership exists only
+inside a grant. Deadline, END, extension failure, overstay, invalid return, blocked,
+cancelled, idle, and asynchronous close paths all converge on bounded cleanup before
+MPSL can be uninitialized.
+
+The startup lifecycle gate closes and reopens a session while SDC is disabled, then
+tests extension after SDC re-enable without mixing that lifecycle probe with RADIO
+work. Explicit advertising and active-connection commands run finite eight-grant
+4 Mbit BT=0.6 bursts. A blocked or cancelled request consumes a 16-attempt retry
+budget and is resubmitted from serialized foreground context. Three paired-board
+runs received the active-connection sequence 15 with zero loss or invalid payload
+while raw bidirectional ACL remained live. Detailed rate, latency, negative, soak,
+scheduling, and remaining electrical-power evidence is in
+[`m7-radio-evidence.md`](m7-radio-evidence.md).

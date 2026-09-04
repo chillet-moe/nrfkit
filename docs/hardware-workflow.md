@@ -48,8 +48,14 @@ but direct RADIO access is forbidden outside an MPSL-granted Timeslot whenever M
 owns the documented resources. The gate additionally records lifecycle re-entry,
 actual Controller memory, final map/ELF RAM budget, Controller-buffer canaries, stack
 watermark, persisted fault state, both connection roles, disconnection, and both raw
-ACL directions. M7 must exercise Timeslot grant, blocked, cancel,
-extend, deadline, and teardown behavior with SDC disabled, advertising, and connected.
+ACL directions. M7 exercises Timeslot grant, blocked, cancel, extend, deadline, and
+teardown behavior with SDC-disabled lifecycle, advertising, and a connection.
+`tools/nrfkit m7-radio-dual` runs the direct or Timeslot two-endpoint profiles;
+`tools/nrfkit m7-coexistence` starts the sequence-gated peer first and then composes
+the SDC oracle. Its PASS requires both raw ACL and a peer-received private packet
+from the connected-stage burst. Both commands reject a shared probe and clean up the
+receiver process group on failure. Electrical power is a separate instrumented gate;
+firmware duty counters are not accepted as current or energy measurements.
 
 The M4 USB device gate is `tools/nrfkit m4-usb-gate`. Its default contract performs
 100 controlled reconnects, transfer/HID stress, and Linux runtime-PM suspend plus

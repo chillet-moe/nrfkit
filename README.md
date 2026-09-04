@@ -4,7 +4,7 @@
 
 This project is not affiliated with or endorsed by Nordic Semiconductor. Nordic Semiconductor, nRF, and related marks belong to their respective owners.
 
-The project is in early bring-up. P0 through M3 and M6 now provide locked official reference builds, a guarded hardware workflow, an experimental nRF54LM20A freestanding runtime, target-scoped nrfx drivers, and a pure-CMake SoftDevice Controller/MPSL integration validated with all three controller archives. M4 USBHS device support is partially validated. M5 established a direct-RADIO diagnostic baseline and reusable two-board tooling; it did not claim completed over-the-air interoperability. The current M7 task adds MPSL Timeslot proprietary radio with 4 Mbit/s as the primary PHY target. This is not yet a consumer SDK release; see [`PLAN.md`](PLAN.md) for the normative scope and completion gates.
+The project is in early bring-up. P0 through M3 and M6 now provide locked official reference builds, a guarded hardware workflow, an experimental nRF54LM20A freestanding runtime, target-scoped nrfx drivers, and a pure-CMake SoftDevice Controller/MPSL integration validated with all three controller archives. M4 USBHS device support is partially validated. M7 now has bidirectional 4 Mbit/s direct and Timeslot air evidence, bounded retry/soak measurements, and three-round active-BLE coexistence evidence; external electrical power measurement remains open. This is not yet a consumer SDK release; see [`PLAN.md`](PLAN.md) for the normative scope and completion gates.
 
 Clone with submodules initialized (`git clone --recurse-submodules`) before building. The complete nrfx, CherryUSB, and Nordic sdk-nrfxlib trees remain immutable, version-locked upstream submodules instead of ordinary project-owned source. NrfKit compiles or links only requested components and prepares nrfx project patches in an ignored consumer cache; configure never downloads or edits an upstream tree. An explicit `NRFKIT_NRFXLIB_ROOT` override may point at the exact same locked checkout after full identity/hash validation; normal builds never discover an installed NCS workspace.
 
@@ -54,15 +54,14 @@ The experimental proprietary RADIO adapter is enabled independently:
 nrfkit_enable_radio(firmware)
 ```
 
-It provides cooperative RADIO ownership and explicit Nordic 1 and 2 Mbit packet
-configurations. The single-board TIMER10/DPPIC10 transmission gate has passed, and
-the two-board runner and LM20/L15 validation images build and pass host tests. They
-remain an exclusive-RADIO diagnostic baseline, not a coexistence mechanism or a
-completed airborne-link claim. M7 will reuse this packet and evidence machinery in
-MPSL Timeslots, adding 4 Mbit/s first-class LM20/L15 profiles and measuring
-error-free goodput, latency, loss, retries, queue bounds, stability, and power;
-2 and 1 Mbit/s remain compatibility and diagnostic baselines. See
-[`docs/provenance/radio.md`](docs/provenance/radio.md).
+It provides cooperative RADIO ownership and explicit Nordic 1, 2, and 4 Mbit packet
+configurations. Direct RADIO remains an exclusive diagnostic baseline. Multiprotocol
+applications must enable SDC first and use `nrfkit_enable_mpsl_timeslot()`; RADIO is
+then accessible only inside a granted Timeslot. The public dual-board gates cover both
+4 Mbit modes, CRC/whitening rejection, bounded retry, 20-round soak, 4/2/1 rate
+comparison, and active-BLE coexistence. See
+[`docs/provenance/radio.md`](docs/provenance/radio.md) and
+[`docs/provenance/m7-radio-evidence.md`](docs/provenance/m7-radio-evidence.md).
 
 The experimental SoftDevice Controller integration is also target-scoped and selects
 exactly one locked archive variant:
