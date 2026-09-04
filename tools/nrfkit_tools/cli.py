@@ -26,7 +26,15 @@ from typing import Any, Iterator
 
 from .device import (
     DeviceContractError, nrfutil_prefix, parse_json_lines, program_argv,
-    reset_argv, safe_backend_contract, select_device,
+    read_memory_argv, reset_argv, safe_backend_contract, select_device,
+)
+from .bond import (
+    M6_SETTINGS_RANGE, M6_SETTINGS_SIZE, M6_SETTINGS_START,
+    is_m6_bond_manifest, read_exact_m6_settings, require_exact_m6_settings_image,
+    write_erased_m6_settings,
+)
+from .ble_validation import (
+    BleValidationError, bluetooth_info_argv, run_ble_validation,
 )
 from .image import ImageContractError, parse_elf, parse_ihex, require_allowed
 from .process import atomic_json, run_logged
@@ -232,7 +240,10 @@ def command_prepare(args: argparse.Namespace) -> int:
 
 
 def command_build(args: argparse.Namespace) -> int:
-    output = build(project_root(), args.oracle, args.timeout, args.west)
+    output = build(
+        project_root(), args.oracle, args.timeout, args.west,
+        getattr(args, "profile", None),
+    )
     print(output)
     return 0
 
@@ -437,6 +448,138 @@ def command_flash(args: argparse.Namespace) -> int:
     return 0
 
 
+def _read_m6_settings(
+    manifest: dict[str, Any], device: dict[str, Any], args: argparse.Namespace,
+    output: Path, log: Path,
+) -> bytes:
+    result = run_logged(
+        read_memory_argv(
+            args.nrfutil, str(output), device["serialNumber"],
+            manifest["device_family"], manifest["core"],
+            M6_SETTINGS_START, M6_SETTINGS_SIZE,
+        ),
+        log,
+        args.timeout,
+    )
+    if result.returncode:
+        raise ToolError("M6 settings read failed")
+    output.chmod(0o400)
+    return read_exact_m6_settings(output)
+
+
+def command_m6_bond_clear(args: argparse.Namespace) -> int:
+    run_dir, report = _new_run("m6-bond-clear")
+    clear_verified = False
+    restore_attempted = False
+    restore_verified = False
+    backup: Path | None = None
+    device: dict[str, Any] | None = None
+    manifest: dict[str, Any] | None = None
+    original: bytes | None = None
+    try:
+        if not args.authorize_bond_clear:
+            raise ToolError("explicit --authorize-bond-clear is required")
+        manifest = load_manifest(args.manifest)
+        if (manifest["soc"] != "nrf54lm20a" or
+                not is_m6_bond_manifest(manifest["oracle"])):
+            raise ToolError("bond clear requires an LM20 M6 or locked BLE oracle manifest")
+        if any(
+            start < M6_SETTINGS_RANGE[1] and end > M6_SETTINGS_RANGE[0]
+            for image in manifest["images"]
+            for start, end in image["ranges"]
+        ):
+            raise ToolError("firmware image unexpectedly overlaps the M6 settings region")
+        _initialize_device_report(run_dir, report, args.manifest, manifest, args)
+        device = _select(manifest, args, run_dir)
+        _stage(run_dir, report, "device-selection", board_version=manifest["board_version"])
+        with _probe_lock(device["serialNumber"], "m6-bond-clear"):
+            _stage(run_dir, report, "probe-lock")
+            backup = run_dir / "settings-before.hex"
+            original = _read_m6_settings(
+                manifest, device, args, backup, run_dir / "settings-read-before.log"
+            )
+            _stage(run_dir, report, "settings-backup", sha256=sha256(backup))
+
+            erased = run_dir / "settings-erased.hex"
+            write_erased_m6_settings(erased)
+            erased.chmod(0o400)
+            require_exact_m6_settings_image(erased)
+            result = run_logged(
+                program_argv(
+                    args.nrfutil, str(erased), device["serialNumber"],
+                    manifest["device_family"], manifest["core"],
+                ),
+                run_dir / "settings-clear.log",
+                args.timeout,
+            )
+            if result.returncode:
+                raise ToolError("M6 bond clear program operation failed")
+            readback = run_dir / "settings-after.hex"
+            cleared = _read_m6_settings(
+                manifest, device, args, readback, run_dir / "settings-read-after.log"
+            )
+            if cleared != b"\xFF" * M6_SETTINGS_SIZE:
+                raise ToolError("M6 settings did not read back as erased")
+            clear_verified = True
+            _stage(
+                run_dir, report, "settings-clear",
+                range=[*M6_SETTINGS_RANGE], verified=True,
+            )
+            result = run_logged(
+                reset_argv(
+                    args.nrfutil, device["serialNumber"], manifest["device_family"],
+                    manifest["core"], args.reset_kind,
+                ),
+                run_dir / "reset.log",
+                args.timeout,
+            )
+            if result.returncode:
+                raise ToolError("reset after M6 bond clear failed")
+            _stage(run_dir, report, "reset")
+        report.update({"status": "ok", "clear_verified": True})
+    except BaseException as error:
+        if (
+            not clear_verified and original is not None and backup is not None
+            and device is not None and manifest is not None
+        ):
+            restore_attempted = True
+            try:
+                with _probe_lock(device["serialNumber"], "m6-bond-restore"):
+                    require_exact_m6_settings_image(backup)
+                    restored = run_logged(
+                        program_argv(
+                            args.nrfutil, str(backup), device["serialNumber"],
+                            manifest["device_family"], manifest["core"],
+                        ),
+                        run_dir / "settings-restore.log",
+                        args.timeout,
+                    )
+                    if restored.returncode:
+                        raise ToolError("M6 settings restoration program failed")
+                    restored_readback = run_dir / "settings-restored.hex"
+                    restored_bytes = _read_m6_settings(
+                        manifest, device, args, restored_readback,
+                        run_dir / "settings-read-restored.log",
+                    )
+                    restore_verified = restored_bytes == original
+                    if not restore_verified:
+                        raise ToolError("M6 settings restoration verification failed")
+            except BaseException as restore_error:
+                report["restore_error"] = f"{type(restore_error).__name__}: {restore_error}"
+        report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
+        raise
+    finally:
+        report["cleanup"] = {
+            "clear_verified": clear_verified,
+            "restore_attempted": restore_attempted,
+            "restore_verified": restore_verified,
+        }
+        atomic_json(run_dir / "run.json", report)
+    atomic_json(run_dir / "run.json", report)
+    print(run_dir / "run.json")
+    return 0
+
+
 def command_reset(args: argparse.Namespace) -> int:
     run_dir, report = _new_run("reset")
     try:
@@ -521,6 +664,76 @@ def command_m4_usb_gate(args: argparse.Namespace) -> int:
         atomic_json(run_dir / "run.json", report)
         raise
     atomic_json(run_dir / "run.json", report)
+    print(run_dir / "run.json")
+    return 0
+
+
+def command_m6_ble_gate(args: argparse.Namespace) -> int:
+    run_dir, report = _new_run("m6-ble-gate")
+    report["stages"] = []
+    report["hci_trace"] = {
+        "requested": args.hci_trace,
+        "log": "hci.log" if args.hci_trace else None,
+    }
+    try:
+        result = run_ble_validation(
+            device_name=args.device_name,
+            timeout=args.timeout,
+            fresh_pairing=args.fresh_pairing,
+            hci_trace_log=(run_dir / "hci.log") if args.hci_trace else None,
+            btmon=args.btmon,
+            phase=args.phase,
+        )
+        _stage(run_dir, report, "ble-pair-gatt-reconnect", **result)
+        report.update({"status": "ok", "ble": result})
+    except BaseException as error:
+        if isinstance(error, BleValidationError) and error.details:
+            details = dict(error.details)
+            failure_stage = details.pop("failure_stage", "ble-pairing")
+            report["stages"].append({
+                "name": failure_stage,
+                "status": "failed",
+                **details,
+            })
+        report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
+        atomic_json(run_dir / "run.json", report)
+        raise
+    atomic_json(run_dir / "run.json", report)
+    print(run_dir / "run.json")
+    return 0
+
+
+def command_m6_host_info(args: argparse.Namespace) -> int:
+    run_dir, report = _new_run("m6-host-info")
+    report["stages"] = []
+    try:
+        result = run_logged(
+            bluetooth_info_argv(
+                btmgmt=args.btmgmt, index=args.index, timeout=args.timeout,
+            ),
+            run_dir / "btmgmt-info.log",
+            args.timeout + 3,
+        )
+        if result.returncode:
+            raise ToolError("bounded Bluetooth controller info query failed")
+        output = (run_dir / "btmgmt-info.log").read_text(
+            encoding="utf-8", errors="replace"
+        )
+        current = next(
+            (
+                line.split(":", 1)[1].strip().split()
+                for line in output.splitlines()
+                if line.strip().startswith("current settings:")
+            ),
+            [],
+        )
+        _stage(run_dir, report, "controller-info", current_settings=current)
+        report.update({"status": "ok", "current_settings": current})
+    except BaseException as error:
+        report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
+        raise
+    finally:
+        atomic_json(run_dir / "run.json", report)
     print(run_dir / "run.json")
     return 0
 
@@ -872,7 +1085,9 @@ def command_gdb_smoke(args: argparse.Namespace) -> int:
                     "monitor halt", "printf \"P0_CPUID=0x%x\\n\", *(unsigned int*)0xE000ED00",
                     "info registers pc sp",
                 ]
-                if args.sdk_runtime_contract:
+                if args.attach:
+                    pass
+                elif args.sdk_runtime_contract:
                     commands.extend((
                         "break Reset_Handler", "monitor reset 0", "continue",
                         "printf \"M2_RESET_HANDLER_REACHED\\n\"",
@@ -907,12 +1122,18 @@ def command_gdb_smoke(args: argparse.Namespace) -> int:
                         f'printf "OBSERVE {symbol}=0x%x\\n", '
                         f'*(unsigned int*)&{symbol}'
                     )
+                    commands.append(f"info address {symbol}")
+                if args.attach:
+                    # Attach-only diagnostics must not leave a running target halted.
+                    commands.append("monitor go")
                 commands.extend(("detach", "quit"))
                 argv = [gdb, "--nx", "--batch"]
                 for command in commands:
                     argv.extend(("-ex", command))
                 result = run_logged(argv, run_dir / "gdb.log", args.timeout)
-                markers = ("P0_MAIN_REACHED", "P0_CPUID=")
+                markers = ("P0_CPUID=",) if args.attach else (
+                    "P0_MAIN_REACHED", "P0_CPUID=",
+                )
                 if args.sdk_runtime_contract:
                     markers += (
                         "M2_RESET_HANDLER_REACHED", "M2_SINGLE_STEP_COMPLETE",
@@ -1002,10 +1223,10 @@ def command_probe_msd(args: argparse.Namespace) -> int:
     })
     atomic_json(run_dir / "run.json", report)
     try:
+        board_version = getattr(args, "board_version", "PCA10184")
         nrfutil = executable(args.nrfutil, "nrfutil")
-        contract = oracle(project_root(), "ncs-hello-world")
         devices = _enumerate(nrfutil, run_dir / "device-list.log", args.timeout)
-        device = select_device(devices, contract["board_version"], args.probe_serial)
+        device = select_device(devices, board_version, args.probe_serial)
         original_msd = _probe_has_msd(device)
         backup = run_dir / "probe-state-before.json"
         atomic_json(backup, device)
@@ -1016,7 +1237,7 @@ def command_probe_msd(args: argparse.Namespace) -> int:
         })
         _stage(
             run_dir, report, "device-selection",
-            board_version=contract["board_version"], msd_enabled=original_msd,
+            board_version=board_version, msd_enabled=original_msd,
         )
         if original_msd != args.enabled:
             if not args.authorize_persistent_change:
@@ -1342,12 +1563,31 @@ def main(argv: list[str] | None = None) -> int:
     reference = subparsers.add_parser("reference")
     reference_commands = reference.add_subparsers(dest="reference_command", required=True)
     reference_prepare = reference_commands.add_parser("prepare")
-    reference_prepare.add_argument("oracle", choices=("ncs-hello-world", "nrf-bm-leds-s115"))
+    reference_prepare.add_argument(
+        "oracle",
+        choices=(
+            "ncs-hello-world", "nrf-bm-leds-s115",
+            "nrf-bm-ble-hids-mouse-s115", "nrf-bm-m6-s145-central",
+        ),
+    )
     reference_prepare.add_argument("--root", type=Path, required=True)
     reference_prepare.add_argument("--toolchain", type=Path, required=True)
     reference_prepare.set_defaults(handler=command_prepare)
     reference_build = reference_commands.add_parser("build")
-    reference_build.add_argument("oracle", choices=("ncs-hello-world", "nrf-bm-leds-s115"))
+    reference_build.add_argument(
+        "oracle",
+        choices=(
+            "ncs-hello-world", "nrf-bm-leds-s115",
+            "nrf-bm-ble-hids-mouse-s115", "nrf-bm-m6-s145-central",
+        ),
+    )
+    reference_build.add_argument(
+        "--profile",
+        choices=(
+            "p2", "p3", "bonding", "hid", "product", "reconnect",
+            "bluez-kdist",
+        ),
+    )
     reference_build.add_argument("--timeout", type=float, default=900)
     reference_build.add_argument("--west", default=shutil.which("west") or "west")
     reference_build.set_defaults(handler=command_build)
@@ -1370,7 +1610,13 @@ def main(argv: list[str] | None = None) -> int:
     run = subparsers.add_parser("run")
     run_input = run.add_mutually_exclusive_group(required=True)
     run_input.add_argument("--manifest", type=Path)
-    run_input.add_argument("--oracle", choices=("ncs-hello-world", "nrf-bm-leds-s115"))
+    run_input.add_argument(
+        "--oracle",
+        choices=(
+            "ncs-hello-world", "nrf-bm-leds-s115",
+            "nrf-bm-ble-hids-mouse-s115",
+        ),
+    )
     run.add_argument("--probe-serial", default=os.environ.get("NRF_PROBE_SERIAL"))
     run.add_argument("--nrfutil", default=shutil.which("nrfutil") or "nrfutil")
     run.add_argument("--timeout", type=float, default=90)
@@ -1398,6 +1644,10 @@ def main(argv: list[str] | None = None) -> int:
     gdb.add_argument("--post-main-break")
     gdb.add_argument("--observe", action="append", default=[])
     contract = gdb.add_mutually_exclusive_group()
+    contract.add_argument(
+        "--attach", action="store_true",
+        help="observe the running target without resetting or stopping in main",
+    )
     contract.add_argument("--sdk-runtime-contract", action="store_true")
     contract.add_argument("--fault-contract", action="store_true")
     gdb.add_argument("--token-timeout", type=float, default=10)
@@ -1425,6 +1675,32 @@ def main(argv: list[str] | None = None) -> int:
     m5_dual.add_argument("--token-timeout", type=float, default=30)
     m5_dual.add_argument("--gate-timeout", type=float, default=120)
     m5_dual.set_defaults(handler=command_m5_radio_dual)
+    m6_ble = subparsers.add_parser("m6-ble-gate")
+    m6_ble.add_argument("--device-name", default="nrfkit-m6")
+    m6_ble.add_argument("--timeout", type=float, default=60.0)
+    m6_ble.add_argument(
+        "--fresh-pairing", action="store_true",
+        help="remove only the matching test device from the host before pairing",
+    )
+    m6_ble.add_argument("--hci-trace", action="store_true")
+    m6_ble.add_argument("--btmon", default=shutil.which("btmon") or "btmon")
+    m6_ble.add_argument(
+        "--phase",
+        choices=(
+            "plaintext", "bonding", "hid", "persistence", "oracle",
+        ),
+        default="oracle",
+    )
+    m6_ble.set_defaults(handler=command_m6_ble_gate)
+    m6_host = subparsers.add_parser("m6-host-info")
+    m6_host.add_argument("--index", type=int, default=0)
+    m6_host.add_argument("--timeout", type=float, default=5.0)
+    m6_host.add_argument("--btmgmt", default=shutil.which("btmgmt") or "btmgmt")
+    m6_host.set_defaults(handler=command_m6_host_info)
+    m6_bond_clear = subparsers.add_parser("m6-bond-clear")
+    add_device_arguments(m6_bond_clear)
+    m6_bond_clear.add_argument("--authorize-bond-clear", action="store_true")
+    m6_bond_clear.set_defaults(handler=command_m6_bond_clear)
     probe_msd = subparsers.add_parser(
         "probe-msd",
         help="apply one fixed, explicitly authorized persistent J-Link MSD setting",
@@ -1435,6 +1711,10 @@ def main(argv: list[str] | None = None) -> int:
     for name, enabled in (("disable", False), ("enable", True)):
         command = probe_msd_commands.add_parser(name)
         command.add_argument("--probe-serial", default=os.environ.get("NRF_PROBE_SERIAL"))
+        command.add_argument(
+            "--board-version", choices=("PCA10184", "PCA10156"),
+            default="PCA10184",
+        )
         command.add_argument("--nrfutil", default=shutil.which("nrfutil") or "nrfutil")
         command.add_argument(
             "--jlink-commander", default=shutil.which("JLinkExe") or "JLinkExe"
@@ -1495,6 +1775,6 @@ def main(argv: list[str] | None = None) -> int:
         return args.handler(args)
     except (
         DeviceContractError, ImageContractError, ReferenceContractError,
-        SdkContractError, ToolError, UsbValidationError, OSError,
+        SdkContractError, ToolError, UsbValidationError, BleValidationError, OSError,
     ) as error:
         parser.exit(1, f"error: {error}\n")

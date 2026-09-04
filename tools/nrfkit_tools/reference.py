@@ -160,6 +160,17 @@ def prepare(project: Path, oracle_id: str, root: Path, toolchain: Path) -> Path:
                 f"oracle file hash mismatch for {relative}: {actual}"
             )
         file_receipts[relative] = actual
+    project_file_receipts: dict[str, str] = {}
+    for relative, expected in contract.get("project_files", {}).items():
+        path = project / relative
+        if not path.is_file():
+            raise ReferenceContractError(f"required project fixture file is missing: {relative}")
+        actual = sha256(path)
+        if actual != expected:
+            raise ReferenceContractError(
+                f"project fixture file hash mismatch for {relative}: {actual}"
+            )
+        project_file_receipts[relative] = actual
     lock_path = project / "docs/provenance/sources.lock"
     receipt = {
         "schema": "nrfkit-source-receipt/v1",
@@ -170,6 +181,7 @@ def prepare(project: Path, oracle_id: str, root: Path, toolchain: Path) -> Path:
         "source_lock_sha256": sha256(lock_path),
         "modules": contract["modules"],
         "files": file_receipts,
+        "project_files": project_file_receipts,
         "prepared_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     output = project / ".work/reference/sources" / f"{oracle_id}.json"
@@ -200,7 +212,26 @@ def load_receipt(project: Path, oracle_id: str) -> tuple[Path, Path, dict[str, A
         raise ReferenceContractError("source receipt official toolchain is unavailable")
     if receipt.get("toolchain_variant") != _toolchain_variant(toolchain):
         raise ReferenceContractError("source receipt official toolchain variant changed")
+    for relative, expected in contract.get("project_files", {}).items():
+        path = project / relative
+        if not path.is_file() or sha256(path) != expected:
+            raise ReferenceContractError(f"project fixture changed: {relative}")
     return root, toolchain, receipt
+
+
+def _profile_contract(contract: dict[str, Any], profile: str | None) -> dict[str, Any]:
+    profiles = contract.get("profiles")
+    if profiles is None:
+        if profile is not None:
+            raise ReferenceContractError("this oracle does not define build profiles")
+        return contract
+    if profile is None:
+        raise ReferenceContractError("this oracle requires an explicit build profile")
+    try:
+        selected = profiles[profile]
+    except KeyError as error:
+        raise ReferenceContractError(f"unknown oracle build profile: {profile}") from error
+    return {**contract, **selected, "profile": profile}
 
 
 def _build_manifest(
@@ -255,7 +286,10 @@ def _build_manifest(
     return manifest_path
 
 
-def build(project: Path, oracle_id: str, timeout: float, west: str = "west") -> Path:
+def build(
+    project: Path, oracle_id: str, timeout: float, west: str = "west",
+    profile: str | None = None,
+) -> Path:
     run_dir = project / ".work/runs" / f"{time.strftime('%Y%m%d-%H%M%S')}-reference-build-{oracle_id}-{os.getpid()}"
     run_dir.mkdir(parents=True, exist_ok=False)
     report: dict[str, Any] = {
@@ -265,13 +299,21 @@ def build(project: Path, oracle_id: str, timeout: float, west: str = "west") -> 
     atomic_json(run_dir / "run.json", report)
     try:
         root, toolchain, receipt = load_receipt(project, oracle_id)
-        contract = oracle(project, oracle_id)
-        build_dir = project / ".work/reference/build" / oracle_id
+        contract = _profile_contract(oracle(project, oracle_id), profile)
+        build_name = f"{oracle_id}-{profile}" if profile else oracle_id
+        build_dir = project / ".work/reference/build" / build_name
+        sample = (
+            project / contract["sample"]
+            if contract.get("sample_origin") == "project"
+            else root / contract["sample"]
+        )
         argv = [
             west, "-z", str(root / "zephyr"), "build",
-            "--build-dir", str(build_dir), str(root / contract["sample"]),
+            "--build-dir", str(build_dir), str(sample),
             "--board", contract["board"], "--pristine=always",
         ]
+        if extra_conf := contract.get("extra_conf"):
+            argv.extend(["--", f"-DEXTRA_CONF_FILE={project / extra_conf}"])
         report.update({
             "argv": argv,
             "source_receipt_sha256": sha256(
@@ -299,7 +341,7 @@ def build(project: Path, oracle_id: str, timeout: float, west: str = "west") -> 
                 f"official reference build failed; see {run_dir / 'build.log'}"
             )
         manifest_path = _build_manifest(
-            oracle_id, root, build_dir, contract, report["source_receipt_sha256"]
+            build_name, root, build_dir, contract, report["source_receipt_sha256"]
         )
     except BaseException as error:
         report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})

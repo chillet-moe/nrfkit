@@ -18,6 +18,9 @@ class SdkContractError(RuntimeError):
 
 
 STANDALONE_RRAM_ALLOWLIST = [[0x00000000, 0x001FCF00]]
+S115_APP_RRAM_ALLOWLIST = [[0x00000000, 0x001E1800]]
+S115_RRAM_ALLOWLIST = [[0x001E3800, 0x001FCC00]]
+S115_HEX_SHA256 = "c2b5bcf2b436e11daa9a85e9dca12060052244c2eec50032bf54d87a4a77c3a2"
 
 
 def _merged(ranges: tuple[tuple[int, int], ...]) -> tuple[tuple[int, int], ...]:
@@ -63,7 +66,7 @@ def create_device_manifest(
         layout: dict[str, Any] = json.loads(layout_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         raise SdkContractError(f"invalid SDK layout manifest: {error}") from error
-    expected_layout = {
+    standalone_layout = {
         "schema": "nrfkit-image-layout/v1",
         "target": target,
         "soc": "nrf54lm20a",
@@ -73,12 +76,26 @@ def create_device_manifest(
         "ram": {"origin": 0x20000000, "length": 0x00040000},
         "configuration_regions_allowed": False,
     }
-    if layout != expected_layout:
+    s115_layout = {
+        "schema": "nrfkit-image-layout/v1",
+        "target": target,
+        "soc": "nrf54lm20a",
+        "core": "cpuapp",
+        "rram": {"origin": 0, "length": 0x001E1800},
+        "settings": {"origin": 0x001E1800, "length": 0x2000},
+        "softdevice": {
+            "name": "s115", "version": "10.0.1",
+            "origin": 0x001E3800, "length": 0x19400,
+        },
+        "ram": {"origin": 0x20002128, "length": 0x0003DED8},
+        "configuration_regions_allowed": False,
+    }
+    if layout not in (standalone_layout, s115_layout):
         raise SdkContractError("SDK layout manifest does not match the guarded LM20 contract")
 
     elf_image = parse_elf(elf)
     hex_image = parse_ihex(ihex)
-    allowlist = STANDALONE_RRAM_ALLOWLIST
+    allowlist = S115_APP_RRAM_ALLOWLIST if layout == s115_layout else STANDALONE_RRAM_ALLOWLIST
     require_allowed(elf_image.ranges, tuple(tuple(item) for item in allowlist))
     require_allowed(hex_image.ranges, tuple(tuple(item) for item in allowlist))
     if _merged(elf_image.ranges) != _merged(hex_image.ranges):
@@ -88,6 +105,45 @@ def create_device_manifest(
     ):
         raise SdkContractError("SDK ELF entry is outside its load image")
     source_lock = project / "docs/provenance/sources.lock"
+    images = [{
+        "domain": target,
+        "order": 0,
+        "path": str(ihex),
+        "sha256": sha256(ihex),
+        "ranges": hex_image.ranges,
+        "allowlist": allowlist,
+    }]
+    if layout == s115_layout:
+        # The absolute official input is recorded only in the generated, ignored build tree.
+        input_path = build_dir / f"{target}.softdevice-input.json"
+        try:
+            softdevice_input = json.loads(input_path.read_text(encoding="utf-8"))
+            softdevice_hex = Path(softdevice_input["hex"])
+        except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
+            raise SdkContractError("S115 build does not record its target input") from error
+        if softdevice_input != {
+            "schema": "nrfkit-softdevice-input/v1",
+            "name": "s115",
+            "version": "10.0.1",
+            "hex": str(softdevice_hex),
+        }:
+            raise SdkContractError("S115 target input metadata is invalid")
+        if not softdevice_hex.is_file() or sha256(softdevice_hex) != S115_HEX_SHA256:
+            raise SdkContractError("S115 10.0.1 HEX is missing or stale")
+        softdevice_image = parse_ihex(softdevice_hex)
+        require_allowed(
+            softdevice_image.ranges,
+            tuple(tuple(item) for item in S115_RRAM_ALLOWLIST),
+        )
+        images.append({
+            "domain": "s115-10.0.1",
+            "order": 1,
+            "path": str(softdevice_hex.resolve()),
+            "sha256": S115_HEX_SHA256,
+            "ranges": softdevice_image.ranges,
+            "allowlist": S115_RRAM_ALLOWLIST,
+        })
+
     manifest = {
         "schema": "nrfkit-image/v1",
         "oracle": f"sdk-{target}",
@@ -107,14 +163,7 @@ def create_device_manifest(
             "entry": elf_image.entry,
             "ranges": elf_image.ranges,
         },
-        "images": [{
-            "domain": target,
-            "order": 0,
-            "path": str(ihex),
-            "sha256": sha256(ihex),
-            "ranges": hex_image.ranges,
-            "allowlist": allowlist,
-        }],
+        "images": images,
     }
     output = build_dir / f"{target}.device-manifest.json"
     atomic_json(output, manifest)

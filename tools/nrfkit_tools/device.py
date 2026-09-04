@@ -85,3 +85,15 @@ def reset_argv(
         "--family", family.lower(), "--core", core.lower(),
         "--reset-kind", reset_kind,
     ]
+
+
+def read_memory_argv(
+    executable: str, output: str, serial: str, family: str, core: str,
+    address: int, size: int,
+) -> list[str]:
+    return nrfutil_prefix(executable) + [
+        "device", "read", "--address", f"0x{address:08x}",
+        "--bytes", str(size), "--width", "8", "--to-file", output,
+        "--serial-number", serial, "--traits", "jlink",
+        "--core", core.lower(), "--family", family.lower(),
+    ]

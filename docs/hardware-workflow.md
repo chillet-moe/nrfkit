@@ -27,11 +27,46 @@ The M4 USB device gate is `tools/nrfkit m4-usb-gate`. Its default contract perfo
 100 controlled reconnects, transfer/HID stress, and Linux runtime-PM suspend plus
 remote wake. USB access always requires Codex tool escalation. The runtime-PM portion
 also needs operating-system root permission to modify the selected device's sysfs
-power attributes; Codex escalation does not grant that permission. A maintainer must
-run that portion through an approved root-capable environment without sharing a
-password with Codex. `--skip-power` is development-only and its structured report
-explicitly records the skipped gate; it cannot be used as M4 completion evidence.
-After the transfer gate has programmed and verified the current image,
-`tools/nrfkit m4-usb-power` runs only the root-required suspend/remote-wakeup portion
-and writes its own structured report. The root environment must provide PyUSB; do not
-copy credentials or machine-specific Python paths into repository documentation.
+power attributes; Codex escalation does not grant that permission. Run that portion
+only in an explicitly approved root-capable environment. `--skip-power` is
+development-only and its structured report explicitly records the skipped gate; it
+cannot be used as M4 completion evidence. After the transfer gate has programmed and
+verified the current image, `tools/nrfkit m4-usb-power` runs the root-required power
+contract and writes its own structured report. It first proves an ordinary
+host-initiated suspend/resume cycle without reset, then separately arms and checks
+device-initiated remote wake. This ordering distinguishes a broken DWC2 resume path
+from a remote-wake signal or USB-topology failure. The root environment must provide
+PyUSB; do not copy credentials or machine-specific Python paths into repository
+documentation.
+
+The M6 host gate is `tools/nrfkit m6-ble-gate`. It uses the BlueZ D-Bus API
+directly and never starts an interactive `bluetoothctl` session. Every D-Bus
+operation has a finite timeout, failed pairing is cancelled, the exact test
+device is disconnected and removed, and an optional `btmon` process is wrapped
+in an outer hard timeout and process-group cleanup. `--hci-trace` is diagnostic
+only: lack of permission is recorded and never blocks a phase that firmware
+events and functional results can prove. The gate has no sudo mode and never
+runs `timeout`, `btmon`, or `btmgmt` as root.
+
+BlueZ `Pairable=false` and privileged controller-bondable helpers are retired
+from the M6 route. They remain historical infrastructure evidence only and must
+not be retried or treated as a completion gate.
+
+P2 and P3 instead use the L15 laboratory central in
+`tests/hardware/m6-s145-central`. It is built only by the explicit official
+reference workflow against the locked nRF-BM release and L15-specific S145; it
+does not enter the consumer build. Its profiles explicitly select legacy/LESC,
+bonding, I/O capability, and both key-distribution directions. A profile passes
+only when the actual SoftDevice `AUTH_STATUS` line matches the expected bond,
+LESC, encryption, and negotiated-key fields. The reconnect profile additionally
+uses Peer Manager's live connection-security status to distinguish a stored-key
+procedure from fresh pairing.
+
+In a multi-probe setup, resolve the local LM20/L15 aliases from the ignored
+inventory, then pass both probe identities explicitly. Never rely on enumeration
+order. Each child operation must still validate PCA10184 versus PCA10156, audit
+the SoC-specific image ranges, and acquire its own probe lock. The fixed order is
+plaintext, L15-driven legacy/no-bond, L15-driven LESC/no-bond, bonding, BlueZ HID,
+then persistent encrypted reconnect. Normal bonding, HID and persistence remain
+subject to the BlueZ interoperability gate even when the L15 security oracle
+passes.

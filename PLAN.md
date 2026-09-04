@@ -1,6 +1,6 @@
 # nrfkit：目标与执行计划
 
-> 状态：P0、M0、M1、M2、M3 已完成；M4 USBHS device 进行中<br>
+> 状态：P0、M0、M1、M2、M3 已完成；M4、M5 部分完成；M6 进行中<br>
 > 计划基线：2026-09-04<br>
 > 首要目标：nRF54LM20A / nRF54LM20 DK<br>
 > 次要目标：nRF54L15 / nRF54L15 DK<br>
@@ -692,15 +692,15 @@ resume 路径；仍需在不会重置设备的直连拓扑上得到完整成功�
 - 有第二个兼容设备时，双板 soak、丢包和唤醒测试通过；
 - 在没有双板证据前，README 不宣称完整 proprietary link 已验证。
 
-M5 的单板退出门禁已在现有 LM20 DK 上通过：TIMER10 经 DPPIC10 定时触发
+M5 的单板退出门禁已在 LM20 DK 上通过：TIMER10 经 DPPIC10 定时触发
 RADIO TXEN，1 Mbit、地址、白化和三字节 CRC 配置完成寄存器回读，固件在
 READY/END/PHYEND/DISABLED 状态链结束后由中断唤醒并输出精确 PASS token。
 公开的 cooperative ownership API 已验证 proprietary 与 BLE owner 互斥，并且
-只有同一 owner 在 RADIO 为 DISABLED 时才能释放。双板 TX/RX 镜像和并行受保护
-harness 已提供，但本机输入清单只有一块兼容板，因此未运行空口接收、CRC/白化
-互操作、丢包、soak 或接收唤醒测试，README 也不作这些宣称。可选 CCM 因当前
-里程碑不依赖加密且需要先按实际芯片 revision 选择 errata，留到具备双板证据或
-M6 组合验证时启用。
+只有同一 owner 在 RADIO 为 DISABLED 时才能释放。现在已有一块 L15 DK 可作为
+第二端点，但它首先只作为 M6 的实验室 central 使用，不据此扩大完整 M8 范围。
+完成 LM20 的 M6 产品路径后，必须使用 LM20+L15 运行双向空口、CRC/白化、丢包、
+soak 和接收唤醒门禁；在这些报告通过前 README 仍不得宣称完整 proprietary link
+已验证。可选 CCM 仍须按实际 silicon revision 和 errata 单独审计。
 
 ### M6：S115 BLE peripheral
 
@@ -720,6 +720,32 @@ M6 组合验证时启用。
 - 实际 RAM 要求由 `sd_ble_enable()` 检查并反馈，linker reserve 与运行值一致；
 - SoftDevice HEX/API/header/release notes 版本严格一致；
 - 不依赖 NCS/Zephyr runtime。
+
+M6 尚未完成。锁定的 NCS Bare Metal `ble_hids_mouse` + S115 oracle 已通过正常
+BlueZ 配对、受保护 HID Report Map 读取、断开和 bonded reconnect；项目 P1 明文
+连接、Battery GATT 读取和断开也已通过。BlueZ `Pairable=false`、sudo/btmgmt
+helper 与无特权抓包路线现仅保留为历史基础设施诊断，不再运行，也不再作为 M6
+门槛。
+
+新增的 L15 DK 只作为实验室夹具使用。仓库的显式 reference workflow 已锁定
+nRF-BM v2.0.1、L15 专用 S145 10.0.1、官方板级 DTS 和夹具源码哈希，并用官方
+`nrf_sdh`、IRQ forwarding、LESC、Peer Manager、ZMS 与 scanner 构建可编程
+central。P2 实际通过 legacy、无 bonding、无 key distribution 的加密；P3 只打开
+LESC 后同样通过；bonding 阶段确认 LESC、加密、双方实际 key distribution 和
+`data_stored=1`；phase-6 随后以保存的 bond 在 central 重启后完成
+`procedure=0` 的自动重新加密。所有烧写均重新枚举并显式选择 PCA10184/PCA10156，
+校验镜像地址并持有逐探针锁。L15 的 J-Link OB MSD 已按用户限定授权由仓库工作流
+关闭，完整配置已备份，重启后验证 MSD 消失且 J-Link 与双 VCOM 保持正常。
+
+正常 BlueZ 对项目 phase-5 的 HID 配对仍失败：固件已收到 bond+LESC 请求和一次
+DHKey 请求，随后本地 `BLE_GAP_SEC_STATUS_TIMEOUT`，没有进入连接加密更新；失败
+设备与 agent 均已清理。L15 central 使用与 BlueZ 相同的 IO capability 和实际
+key-distribution 组合仍可成功，因此问题不是 P2/P3、ECDH 本身、bond 持久化或
+该 key-distribution 组合，而是项目自有 bonding 路径与 BlueZ 的互操作差异。
+下一步必须以官方 `nrf_sdh`、IRQ forwarding、LESC、Peer Manager/HIDS 源码作为
+可工作的纯 CMake 基线，每次只替换一层；不得继续猜测或扩展自研 BLE 协议栈。
+只有项目固件再通过正常 BlueZ bonding、HID、持久化重连和连接 soak 后才可标记
+M6 完成。随后再运行 LM20+L15 的 M5 双板门禁。
 
 ### M7：首个私有下游集成与 LM20 release candidate
 

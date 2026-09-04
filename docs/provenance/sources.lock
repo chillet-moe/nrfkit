@@ -261,7 +261,125 @@
       "imported": false,
       "patches": "none"
     },
-    "nrf-bm-leds-s115": {
+        "nrf-bm-ble-hids-mouse-s115": {
+            "release": "nRF Connect SDK Bare Metal v2.0.1",
+            "repository": "https://github.com/nrfconnect/sdk-nrf-bm",
+            "sample": "nrf-bm/samples/bluetooth/ble_hids_mouse",
+            "board": "bm_nrf54lm20dk/nrf54lm20a/cpuapp/s115_softdevice",
+            "soc": "nrf54lm20a",
+            "core": "Application",
+            "device_family": "NRF54L",
+            "board_version": "PCA10184",
+            "expected_token": "BLE HIDS Mouse sample initialized",
+            "vcom": 1,
+            "image_allowlists": {
+                "softdevice": [
+                    [
+                        1980416,
+                        2083840
+                    ]
+                ],
+                "ble_hids_mouse": [
+                    [
+                        0,
+                        1980416
+                    ]
+                ]
+            },
+            "modules": {
+                "nrf-bm": "51484143c09199e19bccc16fa3b437f7a502a72b",
+                "nrf": "ba167d9f3db4abbdc9b67887ca3ea66c64f2d956",
+                "zephyr": "fd9204a02d52630660ce8d729945a4dd743feabf",
+                "modules/hal/nordic": "1acb428a205bad58f3dfd4e38f2d1663bb784ba1"
+            },
+            "files": {
+                "nrf-bm/samples/bluetooth/ble_hids_mouse/CMakeLists.txt": "9a533be8f1d9a95e6cf741e609a1be1b55e59234ca9f60ef060a524669e59f1d",
+                "nrf-bm/samples/bluetooth/ble_hids_mouse/Kconfig": "367686b1288c35817124107267af3a051028855a4b57cb0c30186136d4018d6c",
+                "nrf-bm/samples/bluetooth/ble_hids_mouse/prj.conf": "1707806fbd06f0c355aac4aae77277e9aa1f411b2ce5d67da7b238391ffd6738",
+                "nrf-bm/samples/bluetooth/ble_hids_mouse/sample.yaml": "ad22b4d59b60513c47403519e234a39e3da8b6c08280b3a0081efbe09213bd5d",
+                "nrf-bm/samples/bluetooth/ble_hids_mouse/src/main.c": "8b44872199b3118fd940371ed9ea12d6ec7df9c11f0b38ad2f517b6ebe3bafef",
+                "nrf-bm/components/softdevice/nrf54lm/s115/s115_nrf54lm20_10.0.1_softdevice.hex": "c2b5bcf2b436e11daa9a85e9dca12060052244c2eec50032bf54d87a4a77c3a2"
+            },
+            "license": "LicenseRef-Nordic-5-Clause",
+            "wireless_component": "S115 for nRF54LM20 10.0.1",
+            "imported": false,
+            "patches": "none"
+        },
+        "nrf-bm-m6-s145-central": {
+            "release": "nRF Connect SDK Bare Metal v2.0.1",
+            "repository": "https://github.com/nrfconnect/sdk-nrf-bm",
+            "sample": "tests/hardware/m6-s145-central",
+            "sample_origin": "project",
+            "board": "bm_nrf54l15dk/nrf54l15/cpuapp/s145_softdevice",
+            "soc": "nrf54l15",
+            "core": "Application",
+            "device_family": "NRF54L",
+            "board_version": "PCA10156",
+            "vcom": 1,
+            "image_allowlists": {
+                "softdevice": [[1419264, 1559552]],
+                "m6-s145-central": [[0, 1419264]]
+            },
+            "profiles": {
+                "p2": {
+                    "extra_conf": "tests/hardware/m6-s145-central/configs/p2.conf",
+                    "expected_token": "NRFKIT_M6_CENTRAL RESULT phase=legacy status=ok error=0 source=0 bonded=0 lesc=0 encrypted=1 own_enc=0 own_id=0 peer_enc=0 peer_id=0"
+                },
+                "p3": {
+                    "extra_conf": "tests/hardware/m6-s145-central/configs/p3.conf",
+                    "expected_token": "NRFKIT_M6_CENTRAL RESULT phase=lesc-no-bond status=ok error=0 source=0 bonded=0 lesc=1 encrypted=1 own_enc=0 own_id=0 peer_enc=0 peer_id=0"
+                },
+                "bonding": {
+                    "extra_conf": "tests/hardware/m6-s145-central/configs/bonding.conf",
+                    "expected_token": "NRFKIT_M6_CENTRAL RESULT phase=lesc-bond status=ok error=0 source=0 bonded=1 lesc=1 encrypted=1 own_enc=1 own_id=1 peer_enc=0 peer_id=1"
+                },
+                "hid": {
+                    "extra_conf": "tests/hardware/m6-s145-central/configs/hid.conf",
+                    "expected_token": "NRFKIT_M6_CENTRAL RESULT phase=lesc-bond status=ok error=0 source=0 bonded=1 lesc=1 encrypted=1 own_enc=1 own_id=1 peer_enc=0 peer_id=1"
+                },
+                "product": {
+                    "extra_conf": "tests/hardware/m6-s145-central/configs/product.conf",
+                    "expected_token": "NRFKIT_M6_CENTRAL RESULT phase=lesc-bond status=ok error=0 source=0 bonded=1 lesc=1 encrypted=1 own_enc=1 own_id=1 peer_enc=0 peer_id=1"
+                },
+                "reconnect": {
+                    "extra_conf": "tests/hardware/m6-s145-central/configs/reconnect.conf",
+                    "expected_token": "NRFKIT_M6_CENTRAL SECURED phase=lesc-bond error=0"
+                },
+                "bluez-kdist": {
+                    "extra_conf": "tests/hardware/m6-s145-central/configs/bluez-kdist.conf",
+                    "expected_token": "NRFKIT_M6_CENTRAL RESULT phase=lesc-bond status=ok error=0 source=0 bonded=1 lesc=1 encrypted=1 own_enc=1 own_id=0 peer_enc=0 peer_id=1"
+                }
+            },
+            "modules": {
+                "nrf-bm": "51484143c09199e19bccc16fa3b437f7a502a72b",
+                "nrf": "ba167d9f3db4abbdc9b67887ca3ea66c64f2d956",
+                "zephyr": "fd9204a02d52630660ce8d729945a4dd743feabf",
+                "modules/hal/nordic": "1acb428a205bad58f3dfd4e38f2d1663bb784ba1"
+            },
+            "files": {
+                "nrf-bm/components/softdevice/nrf54l/s145/s145_nrf54l15_10.0.1_softdevice.hex": "fe6fef44a7cf99dd10e3b0dc8ac65389f45f77b6762b2deb893d4691cdbba69d",
+                "nrf-bm/boards/nordic/bm_nrf54l15dk/bm_nrf54l15dk_nrf54l15_cpuapp_s145_softdevice.dts": "7a9e17a35b3e2aa24969252597b57367a6aafa560eae27b4fad2c12bc72fa90c",
+                "nrf-bm/boards/nordic/bm_nrf54l15dk/bm_nrf54l15dk_nrf54l15_cpuapp_common.dtsi": "9d41cbb62702cbc0162bc7c77a49a638231ae7fd752d803c9864d98239741075"
+            },
+            "project_files": {
+                "tests/hardware/m6-s145-central/CMakeLists.txt": "519a4a2601c0e3c57bfab149d72e211223c9e964f3fd406f5ea711ed819b6115",
+                "tests/hardware/m6-s145-central/Kconfig": "714786da20a2d95f0ed04b82f8b0824f5375da3843269665e601a0ce93f2192e",
+                "tests/hardware/m6-s145-central/prj.conf": "c8a2de46481c5da5532436bdcdd4ad0539ea06550c434ccb558ad2c9dd03818a",
+                "tests/hardware/m6-s145-central/configs/p2.conf": "cd53aff27167826cddd3a016527113ff2d99bc548eb81ef5365a4d390288ce66",
+                "tests/hardware/m6-s145-central/configs/p3.conf": "3c5ff883ac1e5bd59ad28a7ad02930e8f5446ed9c4e11557d839c8d5bbd1dc08",
+                "tests/hardware/m6-s145-central/configs/bonding.conf": "ba12f3de148ffa2122084d83fd7c6e409247b39004dbacd108992eda160c7617",
+                "tests/hardware/m6-s145-central/configs/bluez-kdist.conf": "2da230060a3a4f2d090f777f56e14684211c0858258065827b992617c14e7d4c",
+                "tests/hardware/m6-s145-central/configs/hid.conf": "b0a63384eee511bc3642bd05e96d427485973502ec7deb7b0945ea1040a9dfcf",
+                "tests/hardware/m6-s145-central/configs/product.conf": "065af0a422041e5ec526e0d9234c41616f8ee8345065cc1fc4c0a5f0f4d1bfc5",
+                "tests/hardware/m6-s145-central/configs/reconnect.conf": "d47ccccaa2a098166323d887941a8e8913ac3e4fe8d4000b1b8c7284fd069831",
+                "tests/hardware/m6-s145-central/src/main.c": "2269279f57e44cba25610ec959946344e5da8f683db4f420d36f260b37ac4155"
+            },
+            "license": "LicenseRef-Nordic-5-Clause",
+            "wireless_component": "S145 for nRF54L15 10.0.1",
+            "imported": false,
+            "patches": "none"
+        },
+        "nrf-bm-leds-s115": {
       "release": "nRF Connect SDK Bare Metal v2.0.1",
       "repository": "https://github.com/nrfconnect/sdk-nrf-bm",
       "sample": "nrf-bm/samples/peripherals/leds",
