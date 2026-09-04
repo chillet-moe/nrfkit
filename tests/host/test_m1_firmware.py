@@ -12,6 +12,8 @@ import unittest
 import xml.etree.ElementTree as ET
 
 from nrf_cmake_tools.image import parse_elf, parse_ihex, require_allowed
+from nrf_cmake_tools.cli import load_manifest
+from nrf_cmake_tools.sdk import SdkContractError, create_device_manifest
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -77,7 +79,7 @@ class M1FirmwareTests(unittest.TestCase):
             cls.temporary.cleanup()
 
     def test_load_images_are_reproducible_across_absolute_build_paths(self) -> None:
-        for name in ("empty", "blinky", "fault", "constructors"):
+        for name in ("empty", "blinky", "fault", "constructors", "hardware_validation"):
             with self.subTest(name=name):
                 self.assertEqual(
                     (self.build_a / f"{name}.hex").read_bytes(),
@@ -160,7 +162,7 @@ class M1FirmwareTests(unittest.TestCase):
         self.assertIn("constructor_observation", constructors_symbols)
 
     def test_artifacts_and_load_ranges_exclude_configuration_regions(self) -> None:
-        for name in ("empty", "blinky", "fault", "constructors"):
+        for name in ("empty", "blinky", "fault", "constructors", "hardware_validation"):
             with self.subTest(name=name):
                 elf = parse_elf(self.build_a / f"{name}.elf")
                 ihex = parse_ihex(self.build_a / f"{name}.hex")
@@ -168,6 +170,21 @@ class M1FirmwareTests(unittest.TestCase):
                 require_allowed(ihex.ranges, ((0, 0x001FD000),))
                 self.assertTrue((self.build_a / f"{name}.map").is_file())
                 self.assertTrue((self.build_a / f"{name}.image-layout.json").is_file())
+
+    def test_sdk_artifacts_form_a_guarded_device_manifest(self) -> None:
+        path = create_device_manifest(
+            ROOT, self.build_a, "hardware_validation", "NRF_SDK_TEST build-id"
+        )
+        manifest = load_manifest(path)
+        self.assertEqual(manifest["oracle"], "sdk-hardware_validation")
+        self.assertEqual(manifest["expected_token"], "NRF_SDK_TEST build-id")
+        self.assertEqual(manifest["images"][0]["domain"], "hardware_validation")
+
+    def test_sdk_manifest_rejects_unsafe_names_and_tokens_before_artifact_access(self) -> None:
+        with self.assertRaisesRegex(SdkContractError, "basename"):
+            create_device_manifest(ROOT, self.build_a, "../outside", "safe")
+        with self.assertRaisesRegex(SdkContractError, "printable ASCII"):
+            create_device_manifest(ROOT, self.build_a, "empty", "bad\ntoken")
 
     def test_linker_assertion_rejects_stack_overlap(self) -> None:
         result = subprocess.run(

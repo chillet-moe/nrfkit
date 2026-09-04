@@ -86,6 +86,21 @@ When MSD is already disabled, `p0-gate` treats that as the normal preferred stat
 
 Hardware commands use the generated manifest and the same public entry point. USB, serial, probes, programming, and GDB require Codex tool escalation; see [`docs/hardware-workflow.md`](docs/hardware-workflow.md). Programming remains fail-closed and uses `ERASE_NONE`, read-back verification, immutable snapshots, and address allowlists.
 
+The opt-in M2 SDK gate is registered as a CTest `hardware` test. It builds an exact build-ID token into the validation image, generates guarded SDK manifests, runs 20 program/reset/token cycles, checks the standalone runtime through GDB, injects a deliberate fault, and restores and verifies the normal image in cleanup:
+
+```sh
+cmake -S examples -B .work/m2 -G Ninja \
+  -DNrfCMakeSdk_DIR="$PWD/cmake" \
+  -DCMAKE_TOOLCHAIN_FILE="$PWD/cmake/toolchains/arm-clang.cmake" \
+  -DNRF_CMAKE_SDK_BUILD_ID=m2-local \
+  -DNRF_CMAKE_SDK_ENABLE_HARDWARE_TESTS=ON \
+  -DNRF_CMAKE_SDK_GDB=/path/to/locked/arm-none-eabi-gdb
+cmake --build .work/m2 --target hardware_validation fault
+ctest --test-dir .work/m2 -L hardware --output-on-failure
+```
+
+Run the final `ctest` command with Codex tool escalation. Enabling the CTest only registers the operation; it does not access hardware during configure.
+
 Maintainers can check required host tools without selecting or recording a probe:
 
 ```sh

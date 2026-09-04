@@ -108,7 +108,9 @@
         "zephyr/samples/hello_world/CMakeLists.txt": "4fb1ac53d25ad1943827352dbc773825f9a89668286db956bb4b98f949a2f93d",
         "zephyr/samples/hello_world/prj.conf": "81661c2d549ab252e266fcaad53350640c58a6d4d17dad54268e3cfc1166b6b3",
         "zephyr/samples/hello_world/src/main.c": "441f01eaf3bb6fb71614fad7264c5aaab135078ce3a73ae8c9d6889de5271d6b",
-        "zephyr/boards/nordic/nrf54lm20dk/nrf54lm20dk_common.dtsi": "bf595f14715583311e3f89c3fba245bea171454f317469ee0d1ff7dff2b7a210"
+        "zephyr/boards/nordic/nrf54lm20dk/nrf54lm20dk_common.dtsi": "bf595f14715583311e3f89c3fba245bea171454f317469ee0d1ff7dff2b7a210",
+        "zephyr/boards/nordic/nrf54lm20dk/nrf54lm20_a_b_cpuapp_common.dtsi": "e755faa447da8d4e9d0655e31b122a5ac300e43d962098b63c94bb202213f1f8",
+        "zephyr/boards/nordic/nrf54lm20dk/nrf54lm20dk_nrf54lm20_a_b-pinctrl.dtsi": "425a2afab5a72e6bfb4d544b43a5a23db275d936cab7b00848e26c42b593a45f"
       },
       "license": "Apache-2.0",
       "imported": false,

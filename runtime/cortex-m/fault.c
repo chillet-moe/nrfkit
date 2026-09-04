@@ -7,6 +7,11 @@
 volatile struct nrf_cmake_sdk_fault_record nrf_cmake_sdk_last_fault
     __attribute__((section(".noinit.fault")));
 
+__attribute__((noinline)) void nrf_cmake_sdk_fault_observed(void)
+{
+    __asm volatile ("" ::: "memory");
+}
+
 void nrf_cmake_sdk_capture_fault(const uint32_t *frame, uint32_t exc_return)
 {
     nrf_cmake_sdk_last_fault.magic = NRF_CMAKE_SDK_FAULT_MAGIC;
@@ -19,6 +24,7 @@ void nrf_cmake_sdk_capture_fault(const uint32_t *frame, uint32_t exc_return)
     nrf_cmake_sdk_last_fault.lr = frame[5];
     nrf_cmake_sdk_last_fault.pc = frame[6];
     nrf_cmake_sdk_last_fault.xpsr = frame[7];
+    nrf_cmake_sdk_fault_observed();
 
     for (;;) {
         __asm volatile ("dsb\n\twfe");

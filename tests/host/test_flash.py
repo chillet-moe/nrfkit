@@ -14,7 +14,7 @@ from unittest import mock
 from nrf_cmake_tools.cli import (
     ToolError, _probe_has_msd, _probe_lock, _serial_cleanup, _serial_open,
     _serial_reader, _serial_reader_stop, _set_probe_msd, command_flash,
-    command_p0_gate, command_probe_msd, command_run, load_manifest,
+    command_m2_gate, command_p0_gate, command_probe_msd, command_run, load_manifest,
 )
 from nrf_cmake_tools.device import program_argv, safe_backend_contract
 from nrf_cmake_tools.image import ImageContractError
@@ -372,6 +372,81 @@ class FlashCommandTests(unittest.TestCase):
             )
             self.assertEqual(child_argvs[4][1], "gdb-smoke")
             self.assertIn("--verify-token", child_argvs[4])
+
+    def test_m2_gate_runs_cycles_gdb_fault_and_restoration(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory)
+            report = {"schema": "nrf-cmake-sdk-run/v1", "status": "running"}
+            args = argparse.Namespace(
+                normal_manifest=Path("normal.json"), fault_manifest=Path("fault.json"),
+                nrfutil="nrfutil", gdb="gdb", jlink="server", probe_serial=None,
+                timeout=10, token_timeout=3, serial_ready_delay=0.1, gate_timeout=30,
+            )
+            manifests = (
+                {
+                    "oracle": "sdk-hardware_validation",
+                    "source_receipt_sha256": "a",
+                    "expected_token": "NRF_CMAKE_SDK_BOOT test",
+                },
+                {"oracle": "sdk-fault", "source_receipt_sha256": "a"},
+            )
+            child_reports = [f"/tmp/m2-child-{index}.json" for index in range(24)]
+            with (
+                mock.patch("nrf_cmake_tools.cli._new_run", return_value=(run_dir, report)),
+                mock.patch("nrf_cmake_tools.cli.load_manifest", side_effect=manifests),
+                mock.patch(
+                    "nrf_cmake_tools.cli.executable", side_effect=lambda value, _: value
+                ),
+                mock.patch("nrf_cmake_tools.cli.sha256", return_value="a"),
+                mock.patch(
+                    "nrf_cmake_tools.cli._run_p0_child", side_effect=child_reports
+                ) as run_child,
+                mock.patch("builtins.print"),
+            ):
+                self.assertEqual(command_m2_gate(args), 0)
+            self.assertEqual(run_child.call_count, 24)
+            argvs = [call.args[0] for call in run_child.call_args_list]
+            self.assertTrue(all(argv[1] == "run" for argv in argvs[:20]))
+            self.assertIn("--sdk-runtime-contract", argvs[20])
+            self.assertEqual(argvs[21][1], "flash")
+            self.assertIn("--fault-contract", argvs[22])
+            self.assertEqual(argvs[23][1], "run")
+            self.assertTrue(report["cleanup"]["normal_image_restored"])
+
+    def test_m2_gate_restores_normal_image_after_fault_contract_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = Path(directory)
+            report = {"schema": "nrf-cmake-sdk-run/v1", "status": "running"}
+            args = argparse.Namespace(
+                normal_manifest=Path("normal.json"), fault_manifest=Path("fault.json"),
+                nrfutil="nrfutil", gdb="gdb", jlink="server", probe_serial=None,
+                timeout=10, token_timeout=3, serial_ready_delay=0.1, gate_timeout=30,
+            )
+            manifests = (
+                {
+                    "oracle": "sdk-hardware_validation",
+                    "source_receipt_sha256": "a",
+                    "expected_token": "NRF_CMAKE_SDK_BOOT test",
+                },
+                {"oracle": "sdk-fault", "source_receipt_sha256": "a"},
+            )
+            effects = [f"/tmp/m2-child-{index}.json" for index in range(22)]
+            effects.extend((ToolError("fault contract failed"), "/tmp/restored.json"))
+            with (
+                mock.patch("nrf_cmake_tools.cli._new_run", return_value=(run_dir, report)),
+                mock.patch("nrf_cmake_tools.cli.load_manifest", side_effect=manifests),
+                mock.patch(
+                    "nrf_cmake_tools.cli.executable", side_effect=lambda value, _: value
+                ),
+                mock.patch("nrf_cmake_tools.cli.sha256", return_value="a"),
+                mock.patch(
+                    "nrf_cmake_tools.cli._run_p0_child", side_effect=effects
+                ) as run_child,
+            ):
+                with self.assertRaisesRegex(ToolError, "fault contract failed"):
+                    command_m2_gate(args)
+            self.assertEqual(run_child.call_args.args[0][1], "run")
+            self.assertTrue(report["cleanup"]["normal_image_restored"])
 
     def test_probe_lock_rejects_contention_and_can_be_reacquired(self) -> None:
         identity = f"host-test-{os.getpid()}"

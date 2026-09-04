@@ -33,6 +33,7 @@ from .reference import (
     ReferenceContractError, build, load_receipt, official_toolchain_compiler,
     oracle, prepare, sha256,
 )
+from .sdk import SdkContractError, create_device_manifest
 
 
 class ToolError(RuntimeError):
@@ -157,7 +158,9 @@ def _doctor(args: argparse.Namespace) -> tuple[dict[str, Any], bool]:
         try:
             toolchain_lock = json.loads(lock_path.read_text(encoding="utf-8"))
             locked_hashes = {
-                item["executable_sha256"] for item in toolchain_lock["tools"].values()
+                item["executable_sha256"]
+                for item in toolchain_lock["tools"].values()
+                if "executable_sha256" in item
             }
             gdb_hash = sha256(Path(gdb))
             tools["gdb"].update({"sha256": gdb_hash, "locked": gdb_hash in locked_hashes})
@@ -240,6 +243,14 @@ def command_inspect(args: argparse.Namespace) -> int:
         raise
     atomic_json(run_dir / "run.json", report)
     print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0
+
+
+def command_sdk_manifest(args: argparse.Namespace) -> int:
+    output = create_device_manifest(
+        project_root(), args.build_dir, args.target, args.expected_token
+    )
+    print(output)
     return 0
 
 
@@ -692,21 +703,52 @@ def command_gdb_smoke(args: argparse.Namespace) -> int:
                     "set pagination off", "set confirm off",
                     f"file {manifest['debug_elf']['path']}", f"target remote 127.0.0.1:{port}",
                     "monitor halt", "printf \"P0_CPUID=0x%x\\n\", *(unsigned int*)0xE000ED00",
-                    "info registers pc sp", "break main", "monitor reset 0", "continue",
-                    "printf \"P0_MAIN_REACHED\\n\"",
-                    "stepi",
+                    "info registers pc sp",
                 ]
+                if args.sdk_runtime_contract:
+                    commands.extend((
+                        "break Reset_Handler", "monitor reset 0", "continue",
+                        "printf \"M2_RESET_HANDLER_REACHED\\n\"",
+                        "break main", "continue", "printf \"P0_MAIN_REACHED\\n\"",
+                        "stepi", "printf \"M2_SINGLE_STEP_COMPLETE\\n\"",
+                        "set *(unsigned int*)&nrf_cmake_sdk_gdb_scratch = 0xa55a5aa5",
+                        "printf \"M2_RAM=0x%x\\n\", *(unsigned int*)&nrf_cmake_sdk_gdb_scratch",
+                    ))
+                else:
+                    commands.extend((
+                        "break main", "monitor reset 0", "continue",
+                        "printf \"P0_MAIN_REACHED\\n\"", "stepi",
+                    ))
+                if args.fault_contract:
+                    commands.extend((
+                        "break nrf_cmake_sdk_fault_observed", "continue",
+                        "printf \"M2_FAULT_MAGIC=0x%x\\n\", *(unsigned int*)&nrf_cmake_sdk_last_fault",
+                        "printf \"M2_FAULT_PC=0x%x\\n\", *((unsigned int*)&nrf_cmake_sdk_last_fault + 8)",
+                    ))
                 if args.post_main_break:
                     commands.extend((
                         f"break {args.post_main_break}", "continue",
                         "printf \"P0_POST_MAIN_BREAK_REACHED\\n\"",
                     ))
+                    if args.sdk_runtime_contract:
+                        commands.extend((
+                            "printf \"M2_MAIN_OBSERVED=0x%x\\n\", *(unsigned int*)&nrf_cmake_sdk_main_observed",
+                            "printf \"M2_RESET_REASON=0x%x\\n\", *(unsigned int*)&nrf_cmake_sdk_reset_reason",
+                        ))
                 commands.extend(("detach", "quit"))
                 argv = [gdb, "--nx", "--batch"]
                 for command in commands:
                     argv.extend(("-ex", command))
                 result = run_logged(argv, run_dir / "gdb.log", args.timeout)
                 markers = ("P0_MAIN_REACHED", "P0_CPUID=")
+                if args.sdk_runtime_contract:
+                    markers += (
+                        "M2_RESET_HANDLER_REACHED", "M2_SINGLE_STEP_COMPLETE",
+                        "M2_RAM=0xa55a5aa5", "M2_MAIN_OBSERVED=0x4d324d41",
+                        "M2_RESET_REASON=0x",
+                    )
+                if args.fault_contract:
+                    markers += ("M2_FAULT_MAGIC=0x4e524646", "M2_FAULT_PC=0x")
                 if args.post_main_break:
                     markers += ("P0_POST_MAIN_BREAK_REACHED",)
                 if result.returncode or any(marker not in result.stdout for marker in markers):
@@ -768,13 +810,13 @@ def command_gdb_smoke(args: argparse.Namespace) -> int:
 def _run_p0_child(argv: list[str], log: Path, timeout: float) -> str:
     result = run_logged(argv, log, timeout)
     if result.returncode:
-        raise ToolError(f"P0 child command failed; see {log}")
+        raise ToolError(f"child command failed; see {log}")
     lines = [line for line in result.stdout.splitlines() if line.strip()]
     if len(lines) != 1:
-        raise ToolError("P0 child command did not return exactly one run report")
+        raise ToolError("child command did not return exactly one run report")
     report = Path(lines[0])
     if not report.is_absolute() or not report.is_file():
-        raise ToolError("P0 child command returned an invalid run report")
+        raise ToolError("child command returned an invalid run report")
     return str(report)
 
 
@@ -980,6 +1022,127 @@ def command_p0_gate(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_m2_gate(args: argparse.Namespace) -> int:
+    run_dir, report = _new_run("m2-gate")
+    operation_error: BaseException | None = None
+    restoration_error: BaseException | None = None
+    normal_audited = False
+    hardware_started = False
+    nrfutil: str | None = None
+    report.update({
+        "status": "running",
+        "required_program_reset_cycles": 20,
+        "child_reports": [],
+        "stages": [],
+    })
+    atomic_json(run_dir / "run.json", report)
+    public_cli = str(project_root() / "tools/nrf-cmake-sdk")
+    try:
+        normal = load_manifest(args.normal_manifest)
+        fault = load_manifest(args.fault_manifest)
+        if normal["oracle"] != "sdk-hardware_validation":
+            raise ToolError("M2 normal manifest must target hardware_validation")
+        if fault["oracle"] != "sdk-fault":
+            raise ToolError("M2 fault manifest must target fault")
+        if normal["source_receipt_sha256"] != fault["source_receipt_sha256"]:
+            raise ToolError("M2 manifests were not generated from the same source lock")
+        source_lock_hash = sha256(project_root() / "docs/provenance/sources.lock")
+        if normal["source_receipt_sha256"] != source_lock_hash:
+            raise ToolError("M2 manifests are stale relative to the current source lock")
+        if not normal["expected_token"].startswith("NRF_CMAKE_SDK_BOOT "):
+            raise ToolError("M2 normal manifest does not contain a build-ID boot token")
+        normal_audited = True
+        nrfutil = executable(args.nrfutil, "nrfutil")
+        gdb = executable(args.gdb, "arm-none-eabi-gdb")
+        jlink = executable(args.jlink, "JLinkGDBServerCLExe")
+        common = [
+            "--nrfutil", nrfutil, "--timeout", str(args.timeout),
+        ]
+        if args.probe_serial:
+            common.extend(("--probe-serial", args.probe_serial))
+        run_options = [
+            "--token-timeout", str(args.token_timeout),
+            "--serial-ready-delay", str(args.serial_ready_delay),
+        ]
+        _stage(run_dir, report, "manifest-audit")
+        for iteration in range(1, 21):
+            hardware_started = True
+            child_report = _run_p0_child(
+                [public_cli, "run", "--manifest", str(args.normal_manifest),
+                 *common, *run_options],
+                run_dir / f"child-{iteration:02d}-run.log", args.gate_timeout,
+            )
+            report["child_reports"].append(child_report)
+            _stage(
+                run_dir, report, "program-reset-token",
+                iteration=iteration, child_report=child_report,
+            )
+
+        child_number = 21
+        normal_gdb = _run_p0_child([
+            public_cli, "gdb-smoke", "--manifest", str(args.normal_manifest),
+            *common, "--gdb", gdb, "--jlink", jlink,
+            "--sdk-runtime-contract", "--verify-token", *run_options,
+            "--post-main-break", "nrf_cmake_sdk_post_main",
+        ], run_dir / f"child-{child_number:02d}-gdb-runtime.log", args.gate_timeout)
+        report["child_reports"].append(normal_gdb)
+        _stage(run_dir, report, "gdb-runtime-contract", child_report=normal_gdb)
+
+        child_number += 1
+        fault_flash = _run_p0_child([
+            public_cli, "flash", "--manifest", str(args.fault_manifest), *common,
+        ], run_dir / f"child-{child_number:02d}-fault-flash.log", args.gate_timeout)
+        report["child_reports"].append(fault_flash)
+        _stage(run_dir, report, "fault-image-program", child_report=fault_flash)
+
+        child_number += 1
+        fault_gdb = _run_p0_child([
+            public_cli, "gdb-smoke", "--manifest", str(args.fault_manifest),
+            *common, "--gdb", gdb, "--jlink", jlink, "--fault-contract",
+        ], run_dir / f"child-{child_number:02d}-gdb-fault.log", args.gate_timeout)
+        report["child_reports"].append(fault_gdb)
+        _stage(run_dir, report, "gdb-fault-contract", child_report=fault_gdb)
+    except BaseException as error:
+        operation_error = error
+        report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
+    finally:
+        if normal_audited and hardware_started:
+            try:
+                child_number = len(report["child_reports"]) + 1
+                restore = _run_p0_child([
+                    public_cli, "run", "--manifest", str(args.normal_manifest),
+                    "--nrfutil", nrfutil or args.nrfutil,
+                    "--timeout", str(args.timeout),
+                    "--token-timeout", str(args.token_timeout),
+                    "--serial-ready-delay", str(args.serial_ready_delay),
+                    *(["--probe-serial", args.probe_serial] if args.probe_serial else []),
+                ], run_dir / f"child-{child_number:02d}-restore-normal.log", args.gate_timeout)
+                report["child_reports"].append(restore)
+                _stage(run_dir, report, "normal-image-restored", child_report=restore)
+            except BaseException as error:
+                restoration_error = error
+                report["status"] = "failed"
+                report["restoration_error"] = f"{type(error).__name__}: {error}"
+        if operation_error is None and restoration_error is None:
+            report["status"] = "ok"
+        report["cleanup"] = {
+            "normal_image_restored": hardware_started and restoration_error is None,
+            "restoration_required": hardware_started,
+        }
+        atomic_json(run_dir / "run.json", report)
+    if restoration_error is not None:
+        if operation_error is not None:
+            raise ToolError(
+                f"M2 gate failed ({operation_error}); normal-image restoration also failed: "
+                f"{restoration_error}"
+            ) from restoration_error
+        raise restoration_error
+    if operation_error is not None:
+        raise operation_error
+    print(run_dir / "run.json")
+    return 0
+
+
 def add_device_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--probe-serial", default=os.environ.get("NRF_PROBE_SERIAL"))
@@ -1013,6 +1176,14 @@ def main(argv: list[str] | None = None) -> int:
     reference_build.add_argument("--west", default=shutil.which("west") or "west")
     reference_build.set_defaults(handler=command_build)
 
+    sdk = subparsers.add_parser("sdk")
+    sdk_commands = sdk.add_subparsers(dest="sdk_command", required=True)
+    sdk_manifest = sdk_commands.add_parser("manifest")
+    sdk_manifest.add_argument("--build-dir", type=Path, required=True)
+    sdk_manifest.add_argument("--target", required=True)
+    sdk_manifest.add_argument("--expected-token", required=True)
+    sdk_manifest.set_defaults(handler=command_sdk_manifest)
+
     inspect = subparsers.add_parser("inspect")
     inspect.add_argument("--manifest", type=Path, required=True)
     inspect.set_defaults(handler=command_inspect)
@@ -1045,6 +1216,9 @@ def main(argv: list[str] | None = None) -> int:
     gdb.add_argument("--jlink", default=shutil.which("JLinkGDBServerCLExe") or "JLinkGDBServerCLExe")
     gdb.add_argument("--verify-token", action="store_true")
     gdb.add_argument("--post-main-break")
+    contract = gdb.add_mutually_exclusive_group()
+    contract.add_argument("--sdk-runtime-contract", action="store_true")
+    contract.add_argument("--fault-contract", action="store_true")
     gdb.add_argument("--token-timeout", type=float, default=10)
     gdb.add_argument("--serial-ready-delay", type=float, default=0.5)
     gdb.set_defaults(handler=command_gdb_smoke)
@@ -1083,6 +1257,20 @@ def main(argv: list[str] | None = None) -> int:
     p0_gate.add_argument("--serial-ready-delay", type=float, default=0.5)
     p0_gate.add_argument("--authorize-temporary-msd-disable", action="store_true")
     p0_gate.set_defaults(handler=command_p0_gate)
+    m2_gate = subparsers.add_parser("m2-gate")
+    m2_gate.add_argument("--normal-manifest", type=Path, required=True)
+    m2_gate.add_argument("--fault-manifest", type=Path, required=True)
+    m2_gate.add_argument("--probe-serial", default=os.environ.get("NRF_PROBE_SERIAL"))
+    m2_gate.add_argument("--nrfutil", default=shutil.which("nrfutil") or "nrfutil")
+    m2_gate.add_argument(
+        "--jlink", default=shutil.which("JLinkGDBServerCLExe") or "JLinkGDBServerCLExe"
+    )
+    m2_gate.add_argument("--gdb", required=True)
+    m2_gate.add_argument("--timeout", type=float, default=90)
+    m2_gate.add_argument("--gate-timeout", type=float, default=180)
+    m2_gate.add_argument("--token-timeout", type=float, default=10)
+    m2_gate.add_argument("--serial-ready-delay", type=float, default=0.5)
+    m2_gate.set_defaults(handler=command_m2_gate)
     args = parser.parse_args(argv)
     if getattr(args, "timeout", 1) <= 0:
         parser.error("--timeout must be positive")
@@ -1091,7 +1279,12 @@ def main(argv: list[str] | None = None) -> int:
             parser.error(f"--{name.replace('_', '-')} must be positive")
     if getattr(args, "serial_ready_delay", 0) < 0:
         parser.error("--serial-ready-delay must not be negative")
+    if getattr(args, "sdk_runtime_contract", False) and not args.post_main_break:
+        parser.error("--sdk-runtime-contract requires --post-main-break")
     try:
         return args.handler(args)
-    except (DeviceContractError, ImageContractError, ReferenceContractError, ToolError, OSError) as error:
+    except (
+        DeviceContractError, ImageContractError, ReferenceContractError,
+        SdkContractError, ToolError, OSError,
+    ) as error:
         parser.exit(1, f"error: {error}\n")

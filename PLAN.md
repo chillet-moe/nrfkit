@@ -1,6 +1,6 @@
 # nrf-cmake-sdk：目标与执行计划
 
-> 状态：P0、M0、M1 已完成；M2 LM20 自研镜像实板启动与 GDB 进行中<br>
+> 状态：P0、M0、M1、M2 已完成；M3 nrfx 与低功耗基础进行中<br>
 > 计划基线：2026-09-04<br>
 > 首要目标：nRF54LM20A / nRF54LM20 DK<br>
 > 次要目标：nRF54L15 / nRF54L15 DK<br>
@@ -617,6 +617,8 @@ M1 于 2026-09-04 完成退出审计。CMSIS 6.3.0 与 nrfx 4.5.0 的 LM20A MDK�
 - GDB 能在 Reset Handler/main 停止、单步、读写 RAM 和观察变量；
 - 故障后脚本能恢复正常 test image；
 - 日志无探针序列号进入 tracked 文件。
+
+M2 于 2026-09-04 完成退出审计。自研 SDK 的 ELF/HEX/layout artifacts 通过 `sdk manifest` 接入 P0 的同一套地址 guard、不可变 snapshot、唯一探针选择、锁和 nrfutil `ERASE_NONE` backend；没有引入第二套烧写脚本。硬件验证固件使用已锁定的官方 DK pinctrl 事实驱动 LED0 和 VCOM1/UARTE20，输出包含当前 build ID 的精确 boot token，并保留 reset reason、main 状态和可写 RAM 观察量。正式 `m2-gate` 在连接的 PCA10184 上连续完成 20 次安全烧写、读回验证、独立复位和 token 检查；batch GDB 在 Reset Handler 与 main 停止、完成单步和 RAM 读写，并观察到 reset/main 状态。故障镜像触发 HardFault 后记录了预期 magic 与 fault PC，门禁 cleanup 随后恢复正常镜像并再次通过 token。CTest 的 `hardware` label、板级资源锁、2400 秒外层 timeout 和逐子进程结构化日志已验证；47 个 host tests、两个锁定官方 reference rebuild、public hygiene 和 diff check 全部通过。所有探针身份和原始日志仅位于 `.work/`。
 
 ### M3：nrfx 与低功耗基础
 
