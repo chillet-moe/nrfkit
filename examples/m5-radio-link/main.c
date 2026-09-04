@@ -62,6 +62,14 @@ static size_t append_u32(size_t position, uint32_t value)
     return position;
 }
 
+static uint32_t cycle_counter_start(void)
+{
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->CYCCNT = 0U;
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+    return DWT->CYCCNT;
+}
+
 static void radio_prepare(void)
 {
     if (nrfx_clock_init(NULL) != 0) {
@@ -132,6 +140,7 @@ int main(void)
         __NOP();
     }
     packet[0] = PACKET_LENGTH;
+    uint32_t const cycle_start = cycle_counter_start();
     for (uint32_t sequence = 0U; sequence < PACKET_COUNT; ++sequence) {
         packet[1] = (uint8_t)sequence;
         packet[2] = (uint8_t)(sequence >> 8U);
@@ -142,18 +151,33 @@ int main(void)
             fail();
         }
     }
+    uint32_t const cycles = DWT->CYCCNT - cycle_start;
 #if defined(NRFKIT_M7_PHY_4MBIT)
-    static uint8_t const pass[] = "NRFKIT_M7_TX PASS\r\n";
+    static char const pass[] = "NRFKIT_M7_TX PASS sent=";
 #else
-    static uint8_t const pass[] = "NRFKIT_M5_TX PASS\r\n";
+    static char const pass[] = "NRFKIT_M5_TX PASS sent=";
 #endif
-    uart_write(pass, sizeof(pass) - 1U);
+    size_t position = 0U;
+    for (size_t index = 0U; index < sizeof(pass) - 1U; ++index) {
+        output[position++] = (uint8_t)pass[index];
+    }
+    position = append_u32(position, PACKET_COUNT);
+    static char const cycles_label[] = " cycles=";
+    for (size_t index = 0U; index < sizeof(cycles_label) - 1U; ++index) {
+        output[position++] = (uint8_t)cycles_label[index];
+    }
+    position = append_u32(position, cycles);
+    output[position++] = '\r';
+    output[position++] = '\n';
+    uart_write(output, position);
 #elif defined(NRFKIT_M5_LINK_RX)
     uint32_t received = 0U;
     uint32_t crc_errors = 0U;
     uint32_t lost = 0U;
     uint32_t invalid = 0U;
     uint32_t expected = 0U;
+    uint32_t cycle_start = 0U;
+    uint32_t cycle_span = 0U;
     uint32_t attempts = 0U;
     uint32_t idle_attempts = 0U;
     while (received < PACKET_COUNT && attempts++ < PACKET_COUNT * 4U) {
@@ -187,8 +211,12 @@ int main(void)
         if (received != 0U && sequence > expected) {
             lost += sequence - expected;
         }
+        if (received == 0U) {
+            cycle_start = cycle_counter_start();
+        }
         expected = sequence + 1U;
         ++received;
+        cycle_span = DWT->CYCCNT - cycle_start;
     }
     /* CRC failures are rejected before payload accounting and remain observable. */
     int const passed = received >= 10U && invalid == 0U;
@@ -222,6 +250,11 @@ int main(void)
         output[position++] = (uint8_t)invalid_label[index];
     }
     position = append_u32(position, invalid);
+    static char const cycles_label[] = " cycles=";
+    for (size_t index = 0U; index < sizeof(cycles_label) - 1U; ++index) {
+        output[position++] = (uint8_t)cycles_label[index];
+    }
+    position = append_u32(position, cycle_span);
     static char const suffix[] = "\r\n";
     for (size_t index = 0U; index < sizeof(suffix) - 1U; ++index) {
         output[position++] = (uint8_t)suffix[index];

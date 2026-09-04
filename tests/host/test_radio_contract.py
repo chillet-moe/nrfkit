@@ -142,6 +142,8 @@ class RadioContractTests(unittest.TestCase):
         self.assertIn('"crc-rejection", round=round_number', cli)
         self.assertIn('"--retry-contract"', cli)
         self.assertIn('"retry-queue-channel", round=round_number', cli)
+        self.assertIn('"--performance-rate"', cli)
+        self.assertIn('"radio-performance", round=round_number', cli)
 
     def test_xo_running_check_preserves_optional_output_contract(self) -> None:
         patch = (ROOT / "patches/nrfx/0002-clock-xo-allow-null-source-output.patch").read_text(

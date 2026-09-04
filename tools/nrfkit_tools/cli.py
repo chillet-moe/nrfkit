@@ -983,7 +983,15 @@ def command_m5_radio_dual(args: argparse.Namespace) -> int:
                 )
                 if any(value not in transcript for value in required):
                     raise ToolError("M7 retry/queue/channel counters are not conserved")
-                _stage(run_dir, report, "retry-queue-channel", round=round_number)
+                ticks_match = re.search(r"\bticks=(\d+)\b", transcript)
+                if ticks_match is None:
+                    raise ToolError("M7 retry contract has no GRTC measurement")
+                ticks = int(ticks_match.group(1))
+                _stage(
+                    run_dir, report, "retry-queue-channel", round=round_number,
+                    grtc_ticks=ticks,
+                    mean_round_trip_us=ticks / 64.0,
+                )
             if getattr(args, "require_rx_crc_rejection", False):
                 transcript = Path(rx_report).with_name("serial.log").read_text(
                     encoding="utf-8", errors="replace"
@@ -996,6 +1004,39 @@ def command_m5_radio_dual(args: argparse.Namespace) -> int:
                 _stage(
                     run_dir, report, "crc-rejection", round=round_number,
                     rejected=int(match.group(1)),
+                )
+            performance_rate = getattr(args, "performance_rate", None)
+            if performance_rate is not None:
+                measurements = []
+                for child in (rx_report, tx_report):
+                    transcript = Path(child).with_name("serial.log").read_text(
+                        encoding="utf-8", errors="replace"
+                    )
+                    cycles_match = re.search(r"\bcycles=(\d+)\b", transcript)
+                    packet_match = re.search(r"\b(sent|received)=(\d+)\b", transcript)
+                    if cycles_match is None or packet_match is None:
+                        continue
+                    cycles = int(cycles_match.group(1))
+                    packets = int(packet_match.group(2))
+                    duration_us = cycles / 128.0
+                    measurements.append({
+                        "role": packet_match.group(1),
+                        "cycles": cycles,
+                        "packets": packets,
+                        "duration_us": duration_us,
+                        "payload_goodput_bps": (
+                            packets * 16 * 8 * 1000000.0 / duration_us
+                            if duration_us != 0.0 else 0.0
+                        ),
+                        "mean_packet_interval_us": (
+                            duration_us / max(packets - 1, 1)
+                        ),
+                    })
+                if not measurements:
+                    raise ToolError("M7 performance contract has no cycle measurement")
+                _stage(
+                    run_dir, report, "radio-performance", round=round_number,
+                    phy_mbps=performance_rate, measurements=measurements,
                 )
             _stage(run_dir, report, "airborne-link", round=round_number,
                    receiver=rx_report, transmitter=tx_report)
@@ -2272,6 +2313,7 @@ def main(argv: list[str] | None = None) -> int:
     m5_dual.add_argument("--token-timeout", type=float, default=30)
     m5_dual.add_argument("--gate-timeout", type=float, default=120)
     m5_dual.add_argument("--rounds", type=int, default=3)
+    m5_dual.add_argument("--performance-rate", type=int, choices=(1, 2))
     m5_dual.set_defaults(handler=command_m5_radio_dual, milestone="M5")
     m7_dual = subparsers.add_parser("m7-radio-dual")
     m7_dual.add_argument("--tx-manifest", type=Path, required=True)
@@ -2285,6 +2327,7 @@ def main(argv: list[str] | None = None) -> int:
     m7_dual.add_argument("--rounds", type=int, default=3)
     m7_dual.add_argument("--require-rx-crc-rejection", action="store_true")
     m7_dual.add_argument("--retry-contract", action="store_true")
+    m7_dual.add_argument("--performance-rate", type=int, choices=(1, 2, 4))
     m7_dual.set_defaults(handler=command_m5_radio_dual, milestone="M7")
     m6_ble = subparsers.add_parser("m6-ble-gate")
     m6_ble.add_argument("--device-name", default="nrfkit-m6")

@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include <hal/nrf_radio.h>
+#include <hal/nrf_grtc.h>
 #include <nrf.h>
 #include <nrfkit/board.h>
 #include <nrfkit/radio.h>
@@ -15,8 +16,8 @@
 #define QUEUE_CAPACITY 8U
 #define MAX_RETRIES 3U
 #define PACKET_LENGTH 16U
-#define GRANT_LENGTH_US 700U
-#define CLEANUP_MARGIN_US 120U
+#define GRANT_LENGTH_US 3000U
+#define CLEANUP_MARGIN_US 200U
 
 static uint8_t controller_memory[8U * 1024U] __attribute__((aligned(8)));
 static uint8_t packet[PACKET_LENGTH + 1U] __attribute__((aligned(4)));
@@ -43,7 +44,7 @@ static struct nrfkit_timeslot_action action(enum nrfkit_timeslot_action_kind kin
     return (struct nrfkit_timeslot_action){
         .kind = kind,
         .length_us = GRANT_LENGTH_US,
-        .distance_us = 2000U,
+        .distance_us = 5000U,
     };
 }
 
@@ -198,11 +199,14 @@ int main(void)
             GRANT_LENGTH_US, 100000U, CLEANUP_MARGIN_US) != 0) {
         nrfkit_assert_fail();
     }
+    uint64_t const transfer_start_ticks = nrf_grtc_sys_counter_get(NRF_GRTC);
     while (transfer_complete == 0U || session_idle == 0U) {
         nrfkit_sdc_process();
         ++sleeps;
         __WFE();
     }
+    uint64_t const transfer_ticks =
+        nrf_grtc_sys_counter_get(NRF_GRTC) - transfer_start_ticks;
     if (nrfkit_timeslot_close() != 0) {
         nrfkit_assert_fail();
     }
@@ -234,6 +238,7 @@ int main(void)
     APPEND_COUNTER(" channels=", channel_switches);
     APPEND_COUNTER(" grants=", grants);
     APPEND_COUNTER(" sleeps=", sleeps);
+    APPEND_COUNTER(" ticks=", (uint32_t)transfer_ticks);
     append_text(output, &position, "\r\n");
 #undef APPEND_COUNTER
     NRFKIT_VCOM_TX_GPIO->OUTSET = 1U << NRFKIT_VCOM_TX_PIN;
