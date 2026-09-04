@@ -22,6 +22,7 @@ static volatile uint16_t rx_write;
 static uint8_t rx_ring[RX_RING_SIZE];
 static volatile uint8_t tx_done;
 static volatile uint8_t uart_fault;
+volatile uint32_t nrfkit_m6_required_memory;
 
 static void uart_handler(const nrfx_uarte_event_t *event, void *context)
 {
@@ -97,9 +98,13 @@ int main(void)
     if (nrfkit_sdc_required_memory(&controller, &required_memory) != 0 ||
         required_memory > sizeof(controller_memory) ||
         nrfkit_sdc_enable(&controller, controller_memory,
+                          sizeof(controller_memory)) != 0 ||
+        nrfkit_sdc_disable() != 0 ||
+        nrfkit_sdc_enable(&controller, controller_memory,
                           sizeof(controller_memory)) != 0) {
         nrfkit_assert_fail();
     }
+    nrfkit_m6_required_memory = (uint32_t)required_memory;
 
     uint8_t command[258];
     uint8_t output[260];
