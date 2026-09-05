@@ -3,7 +3,7 @@
   "spdxVersion": "SPDX-2.3",
   "dataLicense": "CC0-1.0",
   "name": "nrfkit SBOM",
-  "documentNamespace": "https://spdx.org/spdxdocs/nrfkit-0.1.0-rc.1-20260905",
+  "documentNamespace": "https://spdx.org/spdxdocs/nrfkit-0.1.0-rc.2-20260905",
   "creationInfo": {
     "created": "2026-09-05T00:00:00Z",
     "creators": ["Tool: nrfkit provenance audit"]
@@ -13,7 +13,7 @@
     {
       "SPDXID": "SPDXRef-Package-nrfkit",
       "name": "nrfkit",
-      "versionInfo": "0.1.0-rc.1",
+      "versionInfo": "0.1.0-rc.2",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "BSD-3-Clause",

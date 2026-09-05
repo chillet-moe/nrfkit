@@ -4,7 +4,7 @@
 
 This project is not affiliated with or endorsed by Nordic Semiconductor. Nordic Semiconductor, nRF, and related marks belong to their respective owners.
 
-Version `0.1.0-rc.1` is the first experimental consumer release candidate. P0 through M3 and M6 provide locked official reference builds, a guarded hardware workflow, an nRF54LM20A freestanding runtime, target-scoped nrfx drivers, and a pure-CMake SoftDevice Controller/MPSL integration validated with all three controller archives. M4 USBHS device support is partially validated. M7 has bidirectional 4 Mbit/s direct and Timeslot air evidence, bounded retry/soak measurements, and three-round active-BLE coexistence evidence; USB remote wake and external electrical power measurement remain deferred. See [`PLAN.md`](PLAN.md) and [`CHANGELOG.md`](CHANGELOG.md) for the normative scope and release limitations.
+Version `0.1.0-rc.2` is the current experimental consumer release candidate. P0 through M3 and M6 provide locked official reference builds, a guarded hardware workflow, an nRF54LM20A freestanding runtime, target-scoped nrfx drivers, and a pure-CMake SoftDevice Controller/MPSL integration validated with all three controller archives. M4 USBHS device support is partially validated. M7 has bidirectional 4 Mbit/s direct and Timeslot air evidence, bounded retry/soak measurements, and three-round active-BLE coexistence evidence; USB remote wake and external electrical power measurement remain deferred. See [`PLAN.md`](PLAN.md) and [`CHANGELOG.md`](CHANGELOG.md) for the normative scope and release limitations.
 
 The first M8 public integration gate now links C++23, USB HID, Multirole SDC/MPSL,
 Timeslot, and ordinary lifecycle-separated RRAM support in one offline source-tree

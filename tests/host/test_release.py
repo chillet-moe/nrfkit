@@ -44,7 +44,7 @@ class ReleaseTests(unittest.TestCase):
     def test_release_metadata_matches_version_header(self) -> None:
         numeric, full = _version()
         self.assertEqual(numeric, "0.1.0")
-        self.assertEqual(full, "0.1.0-rc.1")
+        self.assertEqual(full, "0.1.0-rc.2")
         sbom = json.loads(
             (ROOT / "docs/provenance/sbom.spdx.json").read_text(encoding="utf-8")
         )

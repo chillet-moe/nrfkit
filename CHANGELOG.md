@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## Unreleased
+## 0.1.0-rc.2 - 2026-09-05
 
 - Fix cold-start SDC initialization by preparing GRTC before enabling
   SYSCOUNTER.
