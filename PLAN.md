@@ -1034,7 +1034,10 @@ service 抽象；bootloader/settings/scratch 和配置区均不可达。最终 4
 按 `+16..+4095`、最后 vector data unit 的次序发布，保证其余首个 commit unit 已落盘后才
 恢复 vector。官方 Datasheet 要求的 buffered commit、buffer-empty、READY、POF abort、有界等待与
 read-back 继续由既有 RRAM writer 提供；共享 host fault injection 覆盖 prepare、body 和最终
-发布调用边界，硬件 data-unit 掉电注入仍待验证。
+发布调用边界。受控实板门禁还分别在认证 manifest 已使 vector 无效后、以及 5 个认证 chunk
+跨过首个 4 KiB commit unit 后执行外部 reset；两次均回到 bootloader maintenance，重新认证并
+加载同一 updater 后完成更新。该证据只证明 reset 中断恢复，不替代 16-byte RRAM data unit
+发布过程中的真实供电切断；后者仍待验证。
 
 在线 `.appimg` 仍是所有板共用的签名加密传输容器；LM20 updater 验证 publisher signature、
 每块密文认证和完整 payload hash 后，把明文应用写入 RRAM。持久化应用不重复保存 publisher
