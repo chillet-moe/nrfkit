@@ -986,7 +986,9 @@ response 增加 500 ms 有界 drain，超时只重启 transport，不执行尚�
 8-byte MSP、RAM 边界、Thumb bit 与 reset target 范围。共享层 16 项 host tests 通过，既有
 另一目标 Release bootloader 仍能交叉链接。RAM maintenance program 继续使用既有 platform
 service C ABI；loader 现按 target 声明的入口地址 mask 在 load-begin 拒绝 ISA 不兼容的
-签名 manifest，LM20 要求 Thumb bit，既有 RISC-V target 要求 bit 0 清零。
+签名 manifest，LM20 要求 Thumb bit，既有 RISC-V target 要求 bit 0 清零。RAM upgrader
+也已复用 USB session epoch 和有界 terminal-response drain：断线或 bus reset 会 abort 当前
+update，reset response 不再可能无限等待。
 
 LM20 的非部署 compile probe 也已完成，不增加新的用户配置层：consumer 只需在既有 LM20
 CMake 配置中打开一个选项并构建一个显式 target。Release 链接结果占 18,028 bytes RRAM；
@@ -1002,6 +1004,11 @@ LM20 上实际读取 vector、USB/MPSL/NVIC 清理、VTOR/MSP/branch、release m
 与实板 handoff 尚未完成。rollback policy 会改变安全模型，必须在普通 RRAM authenticated
 floor、硬件 monotonic policy 或明确允许 rollback 三者中取得用户决定；在此之前继续推进
 与该选择无关且不增加 consumer 配置复杂度的工作。
+
+应用更新无需另造一套事务框架：现有 upgrader 已把首个 erase unit 缓存在 RAM，在完整
+image hash 成功后才最后写回。LM20 适配必须把 `flash_erase` 明确定义为“先使首单元失效并
+读回确认”，不能映射为 no-op；最终应用格式还必须持久保留可验证的 publisher signature
+或 signed manifest，因为现有 application-header hash 只证明完整性，不证明发布者身份。
 
 ## 9. 测试矩阵
 
