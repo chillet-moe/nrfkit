@@ -202,6 +202,9 @@ void VREGUSB_IRQHandler(void)
 
 int nrfkit_usbhs_connect(void)
 {
+    if (connected) {
+        return NRFKIT_USBHS_OK;
+    }
     if (!initialized) {
         nrfkit_usbhs_result = NRFKIT_USBHS_ERR_STATE;
         return nrfkit_usbhs_result;

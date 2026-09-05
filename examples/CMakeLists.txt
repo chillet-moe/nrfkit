@@ -122,6 +122,7 @@ nrfkit_configure_target(m7_timeslot_validation
 )
 nrfkit_enable_sdc(m7_timeslot_validation VARIANT multirole)
 nrfkit_enable_mpsl_timeslot(m7_timeslot_validation)
+nrfkit_enable_rram(m7_timeslot_validation)
 nrfkit_enable_nrfx(m7_timeslot_validation DRIVERS uarte)
 target_compile_definitions(m7_timeslot_validation PRIVATE NRFKIT_M7_TIMESLOT=1)
 nrfkit_finalize_target(m7_timeslot_validation)

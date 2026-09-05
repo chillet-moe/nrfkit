@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include <nrf.h>
+#include <nrfkit/runtime.h>
 #include <nrfkit/board.h>
 #include <nrfx_clock.h>
 #include <nrfx_grtc.h>
@@ -74,7 +75,7 @@ int main(void)
         retained.phase = 1U;
         nrfx_ram_ctrl_retention_enable_set((const void *)&retained, sizeof(retained), true);
         __DSB();
-        NVIC_SystemReset();
+        nrfkit_system_reset();
     }
     REQUIRE(nrfx_reset_reason_get() != 0U, 1U);
     retained.phase = 2U;

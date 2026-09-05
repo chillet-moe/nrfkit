@@ -17,8 +17,6 @@
 #define DEADLINE_CC NRF_TIMER_CC_CHANNEL0
 #define MINIMUM_CLEANUP_MARGIN_US UINT32_C(100)
 
-static uint8_t session_memory[MPSL_TIMESLOT_CONTEXT_SIZE]
-    __attribute__((aligned(4)));
 static mpsl_timeslot_signal_return_param_t signal_return;
 static mpsl_timeslot_request_t next_request;
 static mpsl_timeslot_session_id_t session_id;
@@ -222,10 +220,7 @@ int32_t nrfkit_timeslot_open(nrfkit_timeslot_handler_t handler, void *context)
     if (result != 0) {
         return result;
     }
-    result = mpsl_timeslot_session_count_set(session_memory, 1U);
-    if (result == 0) {
-        result = mpsl_timeslot_session_open(timeslot_callback, &session_id);
-    }
+    result = mpsl_timeslot_session_open(timeslot_callback, &session_id);
     if (result != 0) {
         nrfkit_mpsl_timeslot_release();
         return result;

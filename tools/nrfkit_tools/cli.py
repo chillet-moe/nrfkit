@@ -1466,6 +1466,8 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
     cleanup_error: ToolError | None = None
     try:
         manifest = load_manifest(args.manifest)
+        if getattr(args, "rram_check", False) and manifest.get("build_evidence", {}).get("timeslot") is not True:
+            raise ToolError("RRAM concurrency check requires the Timeslot fixture")
         transport = manifest.get("hci_transport")
         if transport != {
             "type": "H4", "baud": 1000000, "hardware_flow_control": True,
@@ -1549,6 +1551,8 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                 }
 
             def run_timeslot_burst(previous: dict[str, int]) -> dict[str, int]:
+                if getattr(args, "rram_check", False):
+                    session.command(0xFC04, timeout=args.hci_timeout)
                 session.command(0xFC02, timeout=args.hci_timeout)
                 deadline = time.monotonic() + args.hci_timeout
                 while True:
@@ -1558,6 +1562,18 @@ def command_m6_sdc_oracle(args: argparse.Namespace) -> int:
                         and current["private_packets"] >=
                             previous["private_packets"] + 8
                     ):
+                        if getattr(args, "rram_check", False):
+                            while True:
+                                payload = session.command(0xFC05, timeout=args.hci_timeout)
+                                if len(payload) != 4:
+                                    raise ToolError("Malformed RRAM completion status")
+                                status = int.from_bytes(payload, "little", signed=True)
+                                if status == 0:
+                                    current["rram_verified"] = 1
+                                    break
+                                if status != -115 or time.monotonic() >= deadline:
+                                    raise ToolError(f"Concurrent RRAM write failed: {status}")
+                                time.sleep(0.01)
                         return current
                     if time.monotonic() >= deadline:
                         raise ToolError(
@@ -2451,7 +2467,7 @@ def add_device_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--timeout", type=float, default=90)
     parser.add_argument(
         "--reset-kind", choices=("RESET_DEFAULT", "RESET_PIN"),
-        default="RESET_DEFAULT",
+        default="RESET_PIN",
     )
 
 
@@ -2561,7 +2577,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--ready-file", type=Path, help=argparse.SUPPRESS)
     run.add_argument(
         "--reset-kind", choices=("RESET_DEFAULT", "RESET_PIN"),
-        default="RESET_DEFAULT",
+        default="RESET_PIN",
     )
     run.add_argument("--cmake", default=shutil.which("cmake") or "cmake")
     run.add_argument("--ninja", default=shutil.which("ninja") or "ninja")
@@ -2697,6 +2713,8 @@ def main(argv: list[str] | None = None) -> int:
     add_device_arguments(m6_sdc_oracle)
     m6_sdc_oracle.add_argument("--device-name", default="nrfkit-sdc-oracle")
     m6_sdc_oracle.add_argument("--hci-timeout", type=float, default=10.0)
+    m6_sdc_oracle.add_argument("--rram-check", action="store_true",
+        help="verify a rotating scratch write during each Timeslot radio burst")
     m6_sdc_oracle.add_argument("--advertising-timeout", type=float, default=30.0)
     m6_sdc_oracle.add_argument("--scan-timeout", type=float, default=10.0)
     m6_sdc_oracle.add_argument("--scan-peer-name", default="nrfkit-host-peer")

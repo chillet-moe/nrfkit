@@ -8,8 +8,10 @@
 #include <haly/nrfy_grtc.h>
 #include <mpsl.h>
 #include <mpsl_clock.h>
+#include <mpsl_timeslot.h>
 #include <nrf.h>
 #include <nrfkit/sdc.h>
+#include <nrfkit/runtime.h>
 #include <nrfx_cracen.h>
 #include <sdc.h>
 #include <sdc_hci.h>
@@ -33,6 +35,11 @@ static uint8_t grtc_was_enabled;
 static uint32_t saved_rram_low_power;
 static size_t controller_memory_size;
 static struct nrfkit_sdc_config locked_config;
+/* One application RADIO session and one bounded storage session. Configure
+ * once per MPSL lifetime, never while another client has a session open.
+ */
+static uint8_t timeslot_memory[2U * MPSL_TIMESLOT_CONTEXT_SIZE]
+    __attribute__((aligned(4)));
 
 static void initialize_interrupts(void);
 static void fatal_reset(uint32_t source, uint32_t line)
@@ -44,7 +51,7 @@ static void fatal_reset(uint32_t source, uint32_t line)
     nrfkit_sdc_last_fault.source = source;
     nrfkit_sdc_last_fault.line = line;
     __DSB();
-    NVIC_SystemReset();
+    nrfkit_system_reset();
     __builtin_unreachable();
 }
 
@@ -179,6 +186,11 @@ static int32_t initialize_libraries(const struct nrfkit_sdc_config *config)
         return result;
     }
     mpsl_initialized = 1U;
+    result = mpsl_timeslot_session_count_set(timeslot_memory, 2U);
+    if (result != 0) {
+        release_mpsl();
+        return result;
+    }
     result = mpsl_clock_hfclk_latency_set(config->hfclk_startup_time_us);
     if (result != 0) {
         release_mpsl();
@@ -333,11 +345,11 @@ bool nrfkit_mpsl_is_initialized(void)
 
 int32_t nrfkit_mpsl_timeslot_retain(void)
 {
-    if (mpsl_initialized == 0U || timeslot_references != 0U ||
+    if (mpsl_initialized == 0U || timeslot_references >= 2U ||
         mpsl_client_references == UINT8_MAX) {
         return -NRF_EPERM;
     }
-    timeslot_references = 1U;
+    ++timeslot_references;
     ++mpsl_client_references;
     return 0;
 }
@@ -345,7 +357,7 @@ int32_t nrfkit_mpsl_timeslot_retain(void)
 void nrfkit_mpsl_timeslot_release(void)
 {
     if (timeslot_references != 0U) {
-        timeslot_references = 0U;
+        --timeslot_references;
         --mpsl_client_references;
     }
 }

@@ -2,6 +2,7 @@
 
 #include <nrfkit/sdc.h>
 #include <nrfkit/usbhs.h>
+#include <nrfkit/rram.h>
 #include <nrfx_rramc.h>
 
 extern "C" void usb_dc_low_level_deinit(unsigned char busid);
@@ -39,5 +40,7 @@ extern "C" int main()
         return 3;
     }
     usb_dc_low_level_deinit(0);
+    nrfkit_rram_process();
+    (void)nrfkit_rram_result();
     return nrfkit_sdc_disable();
 }

@@ -7,7 +7,7 @@ This project is not affiliated with or endorsed by Nordic Semiconductor. Nordic 
 Version `0.1.0-rc.2` is the current experimental consumer release candidate. P0 through M3 and M6 provide locked official reference builds, a guarded hardware workflow, an nRF54LM20A freestanding runtime, target-scoped nrfx drivers, and a pure-CMake SoftDevice Controller/MPSL integration validated with all three controller archives. M4 USBHS device support is partially validated. M7 has bidirectional 4 Mbit/s direct and Timeslot air evidence, bounded retry/soak measurements, and three-round active-BLE coexistence evidence; USB remote wake and external electrical power measurement remain deferred. See [`PLAN.md`](PLAN.md) and [`CHANGELOG.md`](CHANGELOG.md) for the normative scope and release limitations.
 
 The first M8 public integration gate now links C++23, USB HID, Multirole SDC/MPSL,
-Timeslot, and ordinary lifecycle-separated RRAM support in one offline source-tree
+Timeslot, and scheduled ordinary RRAM support in one offline source-tree
 or installed-package consumer. A combined real-board image also passes USB control,
 bulk, HID, and reconnect testing while MPSL remains initialized. An independently
 clean downstream checkout also completes its offline Release build, manifest audit,
@@ -76,7 +76,10 @@ nrfkit_configure_target(firmware
 The two files are inseparable: configuration rejects either one alone, a layout
 for another target/SoC/core, or any layout that permits configuration-region writes.
 The consumer linker script remains responsible for asserting that code, data,
-settings, stack, and other product reservations cannot overlap.
+settings, stack, and other product reservations cannot overlap. NrfKit adds a
+separate assertion-only linker input that checks vector size/alignment, startup
+copy/zero symbols, declared load/RAM bounds, and stack overlap; complete consumer
+linker scripts do not need to be split into SDK-specific fragments.
 `tools/nrfkit sdk manifest` validates that layout again and derives the guarded
 application-RRAM allowlist from it; settings and scratch reservations are never
 included in the programming allowlist.
@@ -98,6 +101,26 @@ recorded in [`docs/provenance/usbhs-port.md`](docs/provenance/usbhs-port.md).
 When the same target also enables SDC, enable the Controller at runtime before USB
 initialization and tear USB down before the final Controller disable; NrfKit then
 routes HFCLK24M through MPSL automatically.
+
+Applications that already own CherryUSB core and class selection can use
+`nrfkit_enable_usb_port()` with the same arguments instead. It supplies only the
+LM20 DCD, clock/power glue and configuration. Link exactly one compatible
+CherryUSB core. Standard `usbd_initialize()` performs the platform attachment;
+shared USB application code needs no LM20 connect call.
+
+For settings writes while SDC/MPSL is active, call `nrfkit_enable_rram(firmware)`
+and submit a snapshot with `nrfkit_rram_submit()` from `nrfkit/rram.h`. Pass the
+consumer's writable settings region, then pump `nrfkit_rram_process()` alongside
+`nrfkit_sdc_process()` in serialized main context. Keep dirty state until
+`nrfkit_rram_result()` reports success; changes made after submission must remain
+dirty. Writes are 16-byte aligned, at most 256 bytes, and scheduled one data unit
+per MPSL grant without restarting SDC. Completion includes readback and session
+closure. This is a transport for writes, not an atomic record format: interrupted
+multi-unit writes may be partial. The consumer owns journaling and recovery.
+
+Use `nrfkit_system_reset()` for application soft resets. It implements LM20
+anomaly 63; device tools default to pin reset. See the versioned
+[errata audit](docs/provenance/lm20-errata.md) for applicability and limitations.
 
 The experimental proprietary RADIO adapter is enabled independently:
 

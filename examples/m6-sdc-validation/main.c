@@ -13,6 +13,7 @@
 #include <nrfkit/sdc.h>
 #if defined(NRFKIT_M7_TIMESLOT)
 #include <nrfkit/timeslot.h>
+#include <nrfkit/rram.h>
 #endif
 #include <nrfx_uarte.h>
 
@@ -296,6 +297,7 @@ int main(void)
     for (;;) {
         nrfkit_sdc_process();
 #if defined(NRFKIT_M7_TIMESLOT)
+        nrfkit_rram_process();
         if (timeslot_idle != 0U && timeslot_burst_remaining != 0U) {
             if (timeslot_retry_budget == 0U) {
                 timeslot_burst_remaining = 0U;
@@ -385,6 +387,46 @@ int main(void)
                 }
                 event_size = 31U;
 #if defined(NRFKIT_M7_TIMESLOT)
+            } else if (command[0] == 0x04U && command[1] == 0xFCU &&
+                       command[2] == 0U) {
+                /* Rotate through the reserved scratch records; never touch
+                 * settings or undeclared storage. One data unit per command.
+                 */
+                struct nrfkit_rram_region const region = {0x001FCF00U, 256U};
+                volatile uint32_t const *records =
+                    (volatile uint32_t const *)(uintptr_t)region.origin;
+                uint32_t sequence = 0U;
+                for (size_t i = 0U; i < 16U; ++i) {
+                    if (records[i * 4U] == 0x5252414dU &&
+                        records[i * 4U + 2U] == ~records[i * 4U + 1U] &&
+                        records[i * 4U + 1U] > sequence) {
+                        sequence = records[i * 4U + 1U];
+                    }
+                }
+                ++sequence;
+                uint32_t const record[4] = {0x5252414dU, sequence, ~sequence, 0U};
+                int32_t const status = nrfkit_rram_submit(&region,
+                    region.origin + (sequence % 16U) * 16U, record, sizeof(record));
+                output[1] = 0x0eU;
+                output[2] = 4U;
+                output[3] = 1U;
+                output[4] = command[0];
+                output[5] = command[1];
+                output[6] = status == 0 ? 0U : 0x0cU;
+                event_size = 6U;
+            } else if (command[0] == 0x05U && command[1] == 0xFCU &&
+                       command[2] == 0U) {
+                output[1] = 0x0eU;
+                output[2] = 8U;
+                output[3] = 1U;
+                output[4] = command[0];
+                output[5] = command[1];
+                output[6] = 0U;
+                uint32_t const status = (uint32_t)nrfkit_rram_result();
+                for (size_t byte = 0U; byte < 4U; ++byte) {
+                    output[7U + byte] = (uint8_t)(status >> (byte * 8U));
+                }
+                event_size = 10U;
             } else if (command[0] == 0x01U && command[1] == 0xFCU &&
                        command[2] == 0U) {
                 output[1] = 0x0EU;

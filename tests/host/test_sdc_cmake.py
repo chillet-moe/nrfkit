@@ -219,6 +219,7 @@ class SdcCmakeTests(unittest.TestCase):
                     self.cmake, "-S", str(COMBINED_FIXTURE), "-B", str(build),
                     "-G", "Ninja", f"-DNRF_LLVM_ROOT={self.llvm_root}",
                     f"-DCOMBINED_USB_FIRST={'ON' if usb_first else 'OFF'}",
+                    f"-DCOMBINED_PORT_ONLY={'ON' if usb_first else 'OFF'}",
                     *package_options,
                 ], [self.cmake, "--build", str(build)]))
 

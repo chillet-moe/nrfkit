@@ -1253,6 +1253,16 @@ LM20 新代码直接使用当前最短、最贴近硬件职责的接口，不为
   ATT/GATT、HID profile、产品配对策略、S115、GZLL、nRF52、nRF53、L15 consumer
   target 或其他 nRF54 支持。
 
+### 消费者边界修正（2026-09-06）
+
+- 活跃 MPSL 下的普通 RRAM 持久化使用独立 storage Timeslot session；不再用停启
+  SDC 代替调度。公开门禁增加广播、活动 BLE 连接及 RADIO burst 期间的 scratch 写入验证。
+- CherryUSB 支持只接入硬件 port，由消费者保持 core/class 的唯一所有权；标准初始化
+  完成硬件 attach，不要求共享业务代码包含 SoC 专用调用。
+- 消费者继续拥有完整 linker script；SDK 额外验证启动 ABI、声明地址边界和栈重叠。
+- 以 Engineering B v1.1 / Revision 1 v1.0 勘误为输入统一 anomaly 63 复位处理；
+  [勘误覆盖表](docs/provenance/lm20-errata.md) 区分实现、产品约束和未验证条件。
+
 ## 13. 权威入口
 
 - [Nordic nrfx](https://github.com/NordicSemiconductor/nrfx)

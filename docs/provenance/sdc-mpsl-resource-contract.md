@@ -63,7 +63,7 @@ MPSL is non-reentrant. Initialization and all low-priority SDC/MPSL APIs must be
 serialized. MPSL starts before SDC; feature selection and SDC resource
 configuration precede enable; entropy is registered before enable. Disable is
 synchronous. MPSL is uninitialized only after SDC is disabled and every retained
-SDK client is released. Retained clients currently include a Timeslot session and
+SDK client is released. Retained clients currently include the radio and storage Timeslot sessions and
 the USBHS HFCLK24M request on a combined target. The latter uses MPSL's public clock
 arbiter; linking the nrfx CLOCK driver into the same target is forbidden because
 both would define and control the CLOCK interrupt.
@@ -75,6 +75,24 @@ application persistence, but direct application RRAMC operations must complete
 before MPSL initialization or after SDC is disabled, every retained client is
 released, and deferred processing has uninitialized MPSL. Configuration-region and
 one-time writes remain outside this contract.
+
+Active MPSL persistence instead uses `nrfkit_enable_rram()` and the SDK's private
+storage Timeslot session. The platform configures two session contexts before
+opening either client. A request copies at most 256 bytes and commits one 128-bit
+unit per 600 us grant (500 us per line plus 100 us slack, matching NCS v3.4.0
+`zephyr/drivers/flash/soc_flash_nrf_rram.c` and
+`nrf/drivers/mpsl/flash_sync/flash_sync_mpsl.c`). Blocked requests retry at high
+priority as in that reference. CONFIG, POWER.CONFIG and READYNEXTTIMEOUT are
+restored; LOWPOWERCONFIG remains owned by MPSL's callbacks. A stalled controller
+resets before the grant expires. A two-second scheduling deadline uses the running
+GRTC counter with BUSY/overflow synchronization, without taking a compare channel; DWT is not reserved for this client.
+Failure preserves the caller's dirty state; preceding units may already be written.
+
+The public `m7_timeslot_validation` fixture and `m6-sdc-oracle --rram-check`
+validate scratch writes during advertising and an active BLE connection alongside
+eight-grant RADIO bursts and bidirectional raw ACL. The September 6, 2026 local
+run `20260906-020419-m6-sdc-oracle-6jc6bhfz` passed both write/readback checks. This does not add power-loss atomicity or
+replace the separate paired-board air gate.
 
 The platform must implement both nRF54L low-latency callbacks. They coordinate
 CPU constant-latency operation and RRAM latency as one nested/coalesced
@@ -170,8 +188,8 @@ or S115 shim enters these images.
 
 ## M7 Timeslot closure
 
-The project-owned Timeslot backend retains MPSL independently of SDC, uses one static
-session context, requests guaranteed-XTAL normal-priority grants, and arms the MPSL
+The project-owned Timeslot backend retains MPSL independently of SDC, uses one of the platform-owned static
+session contexts, requests guaranteed-XTAL normal-priority grants, and arms the MPSL
 TIMER0 cleanup compare before calling application code. RADIO ownership exists only
 inside a grant. Deadline, END, extension failure, overstay, invalid return, blocked,
 cancelled, idle, and asynchronous close paths all converge on bounded cleanup before

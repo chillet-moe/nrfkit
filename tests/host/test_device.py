@@ -8,12 +8,16 @@ import unittest
 from unittest.mock import patch
 
 from nrfkit_tools.device import (
-    DeviceContractError, parse_json_lines, resolve_probe_alias, select_device,
+    DeviceContractError, parse_json_lines, resolve_probe_alias, select_device, reset_argv,
 )
 from nrfkit_tools.cli import command_device_list
 
 
 class DeviceTests(unittest.TestCase):
+    def test_debug_reset_defaults_to_pin_for_lm20_erratum_63(self) -> None:
+        argv = reset_argv("nrfutil", "test-probe", "NRF54L_FAMILY", "Application")
+        self.assertEqual(argv[argv.index("--reset-kind") + 1], "RESET_PIN")
+
     def test_json_lines_uses_info_payload(self) -> None:
         output = "\n".join((
             json.dumps({"type": "log", "data": {"message": "noise"}}),

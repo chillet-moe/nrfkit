@@ -274,6 +274,36 @@ class M1FirmwareTests(unittest.TestCase):
         run([self.cmake, "--build", str(build), "--target", "m3_power_validation"])
         self.assertTrue((build / "m3_power_validation.elf").is_file())
 
+    def test_custom_layout_checks_reject_startup_abi_and_declared_range_drift(self) -> None:
+        for case, expected in (("symbol", "nrfkit: data copy source"),
+                               ("range", "nrfkit: vector outside layout")):
+            with self.subTest(case=case):
+                source = Path(self.temporary.name) / f"bad-layout-{case}"
+                shutil.copytree(ROOT / "tests/consumer/custom-layout", source)
+                script = (ROOT / "linker/layouts/nrf54lm20a-cpuapp-standalone.ld").read_text()
+                if case == "symbol":
+                    script = script.replace("__data_load_start = LOADADDR(.data);",
+                                            "__data_load_start = LOADADDR(.data) + 4;")
+                else:
+                    layout = json.loads((source / "image-layout.json").read_text())
+                    layout["rram"]["origin"] = 0x800
+                    layout["rram"]["length"] -= 0x800
+                    (source / "image-layout.json").write_text(json.dumps(layout))
+                (source / "custom.ld").write_text(script)
+                cmake_file = source / "CMakeLists.txt"
+                cmake_file.write_text(cmake_file.read_text().replace(
+                    "${NrfKit_ROOT}/linker/layouts/nrf54lm20a-cpuapp-standalone.ld",
+                    "${CMAKE_CURRENT_SOURCE_DIR}/custom.ld"))
+                build = source / "build"
+                run([self.cmake, "-S", str(source), "-B", str(build), "-G", "Ninja",
+                     f"-DNrfKit_DIR={ROOT / 'cmake'}",
+                     f"-DCMAKE_TOOLCHAIN_FILE={ROOT / 'cmake/toolchains/arm-clang.cmake'}",
+                     f"-DNRF_LLVM_ROOT={self.llvm_root}"])
+                result = subprocess.run([self.cmake, "--build", str(build)],
+                                        text=True, capture_output=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(expected, result.stdout + result.stderr)
+
     def test_consumer_owned_linker_and_image_layout_are_used_together(self) -> None:
         fixture = ROOT / "tests/consumer/custom-layout"
         build = Path(self.temporary.name) / "custom-layout"

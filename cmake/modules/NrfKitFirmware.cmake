@@ -130,6 +130,17 @@ function(nrfkit_enable_sdc target)
   set_target_properties("${target}" PROPERTIES NRFKIT_SDC_VARIANT "${ARG_VARIANT}")
 endfunction()
 
+function(nrfkit_enable_rram target)
+  get_target_property(variant "${target}" NRFKIT_SDC_VARIANT)
+  get_target_property(finalized "${target}" NRFKIT_FINALIZED)
+  get_target_property(enabled "${target}" NRFKIT_RRAM_ENABLED)
+  if(NOT variant OR finalized OR enabled OR ARGN)
+    message(FATAL_ERROR "nrfkit_enable_rram: enable once after SDC and before finalization")
+  endif()
+  target_sources("${target}" PRIVATE "${NrfKit_ROOT}/runtime/nrfx/rram.c")
+  set_target_properties("${target}" PROPERTIES NRFKIT_RRAM_ENABLED TRUE)
+endfunction()
+
 function(nrfkit_enable_mpsl_timeslot target)
   if(NOT TARGET "${target}")
     message(FATAL_ERROR "nrfkit_enable_mpsl_timeslot: unknown target '${target}'")
@@ -652,7 +663,15 @@ function(_nrfkit_enable_s115_baseline target)
   )
 endfunction()
 
+function(nrfkit_enable_usb_port target)
+  _nrfkit_enable_usb("${target}" PORT_ONLY ${ARGN})
+endfunction()
+
 function(nrfkit_enable_usb_device target)
+  _nrfkit_enable_usb("${target}" ${ARGN})
+endfunction()
+
+function(_nrfkit_enable_usb target)
   if(NOT TARGET "${target}")
     message(FATAL_ERROR "nrfkit_enable_usb_device: unknown target '${target}'")
   endif()
@@ -665,7 +684,7 @@ function(nrfkit_enable_usb_device target)
     message(FATAL_ERROR "nrfkit_enable_usb_device: '${target}' is already finalized")
   endif()
 
-  cmake_parse_arguments(PARSE_ARGV 1 ARG "" "STACK;SOURCE_DIR"
+  cmake_parse_arguments(PARSE_ARGV 1 ARG "PORT_ONLY" "STACK;SOURCE_DIR"
     "CLASSES;IN_ENDPOINT_MAX_PACKET_SIZES"
   )
   if(ARG_UNPARSED_ARGUMENTS)
@@ -770,6 +789,8 @@ function(nrfkit_enable_usb_device target)
     "#define CONFIG_USBDEV_REQUEST_BUFFER_LEN 512\n"
     "#define CONFIG_USB_DWC2_DMA_ENABLE\n"
     "#define CONFIG_USB_HS\n"
+    "#include <nrf.h>\n"
+    "#define USBD_REG_BASE_ADDRESS ((uintptr_t)NRF_USBHSCORE)\n"
     "#define NRFKIT_USBHS_DEVICE_TX_FIFO_WORDS { ${tx_fifo_initializer} }\n"
     "#endif\n"
   )
@@ -780,13 +801,17 @@ function(nrfkit_enable_usb_device target)
     "${cherryusb}/port/dwc2"
   )
   target_sources("${target}" PRIVATE
-    "${cherryusb}/core/usbd_core.c"
-    "${cherryusb}/port/dwc2/usb_dc_dwc2.c"
+    "${NrfKit_ROOT}/usb/nrf54l/usb_dc.c"
     "${NrfKit_ROOT}/usb/nrf54l/usb_glue_dwc2.c"
   )
+  if(NOT ARG_PORT_ONLY)
+    target_sources("${target}" PRIVATE "${cherryusb}/core/usbd_core.c")
+  endif()
   if("hid" IN_LIST ARG_CLASSES)
     target_include_directories("${target}" PRIVATE "${cherryusb}/class/hid")
-    target_sources("${target}" PRIVATE "${cherryusb}/class/hid/usbd_hid.c")
+    if(NOT ARG_PORT_ONLY)
+      target_sources("${target}" PRIVATE "${cherryusb}/class/hid/usbd_hid.c")
+    endif()
   endif()
   set_target_properties("${target}" PROPERTIES
     NRFKIT_USB_DEVICE_STACK cherryusb
@@ -1161,6 +1186,56 @@ function(nrfkit_configure_target target)
         "nrfkit_configure_target: IMAGE_LAYOUT must match target ${target}, describe nrf54lm20a/cpuapp, and forbid configuration regions"
       )
     endif()
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${image_layout}")
+    foreach(region IN ITEMS ram rram)
+      string(JSON ${region}_origin ERROR_VARIABLE region_error
+        GET "${image_layout_content}" "${region}" origin)
+      if(region_error AND region STREQUAL "rram")
+        set(rram_origin "")
+        continue()
+      endif()
+      string(JSON ${region}_length ERROR_VARIABLE length_error
+        GET "${image_layout_content}" "${region}" length)
+      if(region_error OR length_error OR
+          NOT "${${region}_origin}" MATCHES "^[0-9]+$" OR
+          NOT "${${region}_length}" MATCHES "^[1-9][0-9]*$")
+        message(FATAL_ERROR "nrfkit: invalid ${region} layout bounds")
+      endif()
+      math(EXPR ${region}_end "${${region}_origin} + ${${region}_length}")
+    endforeach()
+    if(ram_origin LESS 536870912 OR ram_end GREATER 537133056)
+      message(FATAL_ERROR "nrfkit: RAM layout exceeds the supported LM20 range")
+    endif()
+    if(NOT rram_origin STREQUAL "")
+      if(rram_end GREATER 2084864)
+        message(FATAL_ERROR "nrfkit: RRAM layout exceeds the supported LM20 range")
+      endif()
+      set(load_origin "${rram_origin}")
+      set(load_end "${rram_end}")
+    else()
+      set(load_origin "${ram_origin}")
+      set(load_end "${ram_end}")
+    endif()
+    set(contract "${CMAKE_CURRENT_BINARY_DIR}/nrfkit/${target}/image-contract.ld")
+    file(WRITE "${contract}"
+      "/* SDK startup ABI checks; the consumer owns its complete layout. */\n"
+      "ASSERT(SIZEOF(.isr_vector) == 0x4c8, \"nrfkit: vector size\")\n"
+      "ASSERT((ADDR(.isr_vector) & 0x7ff) == 0, \"nrfkit: vector alignment\")\n"
+      "ASSERT(__vector_start == ADDR(.isr_vector), \"nrfkit: vector symbol\")\n"
+      "ASSERT(ADDR(.isr_vector) >= ${load_origin} && ADDR(.isr_vector) + SIZEOF(.isr_vector) <= ${load_end}, \"nrfkit: vector outside layout\")\n"
+      "ASSERT(ADDR(.text) >= ${load_origin} && ADDR(.text) + SIZEOF(.text) <= ${load_end}, \"nrfkit: text outside layout\")\n"
+      "ASSERT(__data_load_start == LOADADDR(.data), \"nrfkit: data copy source\")\n"
+      "ASSERT(__data_start == ADDR(.data) && __data_end >= __data_start + SIZEOF(.data), \"nrfkit: data copy destination\")\n"
+      "ASSERT(LOADADDR(.data) >= ${load_origin} && LOADADDR(.data) + SIZEOF(.data) <= ${load_end}, \"nrfkit: data load outside layout\")\n"
+      "ASSERT(__data_start >= ${ram_origin} && __data_end <= ${ram_end}, \"nrfkit: data outside RAM layout\")\n"
+      "ASSERT(__bss_start__ == ADDR(.bss) && __bss_end__ >= __bss_start__ + SIZEOF(.bss), \"nrfkit: BSS zero range\")\n"
+      "ASSERT(__bss_start__ >= ${ram_origin} && __bss_end__ <= ${ram_end}, \"nrfkit: BSS outside RAM layout\")\n"
+      "ASSERT(__noinit_start >= ${ram_origin} && __noinit_end <= ${ram_end}, \"nrfkit: noinit outside RAM layout\")\n"
+      "ASSERT(__StackLimit >= 0x20000000 && __StackTop <= 0x20040000 && __StackTop > __StackLimit && (__StackTop & 7) == 0, \"nrfkit: stack bounds/alignment\")\n"
+      "ASSERT(__HeapLimit <= __StackLimit && __noinit_end <= __StackLimit && __bss_end__ <= __StackLimit && __data_end <= __StackLimit, \"nrfkit: RAM overlaps stack\")\n"
+    )
+    target_link_options("${target}" PRIVATE "-T${contract}")
+    set_property(TARGET "${target}" APPEND PROPERTY LINK_DEPENDS "${contract}")
   else()
     set(linker_script "${sdk_root}/linker/layouts/nrf54lm20a-cpuapp-standalone.ld")
     set(image_layout "")
@@ -1179,6 +1254,7 @@ function(nrfkit_configure_target target)
     "${mdk}/nrf54l/system_nrf54l.c"
     "${sdk_root}/runtime/common/freestanding.c"
     "${sdk_root}/runtime/cortex-m/fault.c"
+    "${sdk_root}/runtime/cortex-m/reset.c"
   )
   target_include_directories("${target}" PRIVATE
     "${sdk_root}/include"
@@ -1227,8 +1303,8 @@ function(nrfkit_configure_target target)
     NRFKIT_CORE "cpuapp"
     NRFKIT_BOARD "${ARG_BOARD}"
     NRFKIT_IMAGE_LAYOUT "${image_layout}"
-    LINK_DEPENDS "${linker_script}"
   )
+  set_property(TARGET "${target}" APPEND PROPERTY LINK_DEPENDS "${linker_script}")
 endfunction()
 
 function(nrfkit_finalize_target target)

@@ -9,6 +9,10 @@ This document defines the kinds of input available to maintainers and autonomous
 3. This document for input discovery and provenance rules.
 4. `.local/AVAILABLE_INPUTS.md`, when present, for the current machine only.
 
+For a silicon review, register the matching product specification and each applicable
+errata revision in the local inventory, with document date, SHA-256, and build-code
+applicability. Check the errata before accepting a vendor driver as complete.
+
 The local inventory is useful context, not authority. Every path, source identity, tool, and connected device must still be validated before use.
 
 ## Input classes
@@ -18,7 +22,7 @@ The local inventory is useful context, not authority. Every path, source identit
 | Nordic nRF Connect SDK workspace | Official build/run oracle and implementation evidence | No | Release plus exact module commits |
 | nRF Connect SDK Bare Metal workspace | Bare-metal, SoftDevice, startup, linker, and integration evidence | No | Release plus exact module commits |
 | Version-locked Nordic sdk-nrfxlib | First-class MPSL and SoftDevice Controller runtime input | Yes, when wireless is selected | Repository tag/commit, component manifest revision, selected header/archive/license hashes, security domain, float ABI, documented resource contract |
-| Nordic product documentation | Memory, reset, security, power, peripheral, and errata facts | No | Document title, revision, URL or file hash |
+| Nordic product documentation, including matching silicon errata | Memory, reset, security, power, peripheral, and errata facts | No | Document title, revision, URL or file hash |
 | Version-locked upstream submodules and selected snapshots | Inputs shipped by this SDK | Yes | Upstream path, commit, selected-file hashes, license, patches |
 | Legacy SoftDevice binary packages | Historical or optional runtime components | Yes, when explicitly selected | Exact version, binary/header/spec hashes, license, ABI checks |
 | Local read-only implementation references | General tooling and architecture patterns | No | Local-only identity; never publish its name or path |

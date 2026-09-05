@@ -73,7 +73,7 @@ int main(void)
         retained.reset_count = 1U;
         nrfx_ram_ctrl_retention_enable_set((const void *)&retained, sizeof(retained), true);
         __DSB();
-        NVIC_SystemReset();
+        nrfkit_system_reset();
     }
     REQUIRE(retained.reset_count == 1U, 1U);
     retained.reset_count = 2U;
