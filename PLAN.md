@@ -957,17 +957,19 @@ bring-up 的阻塞项。
 
 交付：
 
-- fixed-A staging/swap 与 direct-XIP dual-link 两类布局；
-- MCUboot port 或有明确理由的自有 bootloader；
-- 签名、版本、防回滚、掉电恢复测试；
-- CRACEN/KMU 集成；
+- consumer 自有的单槽明文 RRAM 布局、signed application contract 与原子有效性发布；
+- 有明确能力审计和取舍依据的自有 bootloader；
+- 统一的签名加密传输容器、版本策略和掉电恢复测试；
+- 明确的 rollback 与存储/调试保护策略；只有能减少可提取 key 或落实该策略时才接入
+  CRACEN/KMU，不为形式上的平台集成增加实现层次；
 - 独立的、默认不可达的 production provisioning 工具设计。
 
 退出条件：
 
 - 仿真和实板 fault-injection 覆盖更新关键点；
-- 非法、损坏、降级镜像均被拒绝；
-- direct-XIP 两个镜像确实分别链接到 A/B 地址；
+- 非法、损坏镜像被拒绝，降级镜像按明确选择的 rollback policy 处理；
+- linker、signed header、写入范围与首个 commit unit 的最后发布共同保证无效或中断镜像
+  不会启动；
 - 日常 CI 仍不能写任何一次性区域；
 - 实际 provision 只有在用户另行明确授权后才可执行，因此不属于本计划的无人值守完成条件。
 
@@ -1022,12 +1024,21 @@ read-back 继续由既有 RRAM writer 提供；共享 host fault injection 覆�
 
 全新板应用在固定 offset `0x500` 保存 v1 publisher-signed header，认证 target、地址、大小、
 security/image version、source timestamp 与完整 image hash，不回退到旧
-magic/application-header 格式；v1 格式本身即表示 plaintext storage。在线 `.appimg` 仍是
-所有板共用的签名加密传输容器，解密后得到目标存储镜像。未来若使用芯片加密格式，应提升
-bootloader/application-format 版本，而不是在 v1 中预留一个无法兑现的选项。加入完整校验、
+magic/application-header 格式。在线 `.appimg` 仍是所有板共用的签名加密传输容器；LM20
+解密后把明文应用写入 RRAM，持久化格式不保留 storage-mode 或 EXIP 字段。存储访问和调试
+保护属于独立产品策略。加入完整校验、
 maintenance request 和 handoff 后，compile probe 的 RRAM load end 为 `0x00004bdc`
 （19,420 bytes），128 KiB boot 区尚余 111,652 bytes；16 项 host tests、迁移后的 LM20
 application、LM20 bootloader probe 与既有另一 target 的 Release bootloader/upgrader 均通过。
+
+LM20 RAM updater 也已作为同一 opt-in 下的独立 compile probe 链接，不增加公共 SDK API。
+consumer 自有入口把 handoff 参数保存在 callee-saved registers 中，经过官方 startup 后交给
+既有 updater main，并在启动 timer/USB 前把 VTOR 指向 RAM vector table。Release ELF 的入口为
+`0x20010001`，vector table 位于 `0x20010080`；load image 为 15,432 bytes，BSS 结束于
+`0x2001612c`，在 64 KiB direct-load window 中尚余 40,660 bytes。generic updater 内部也把
+Flash 特有的 `erase_unit` 术语改为 storage-neutral `commit_unit`；既有另一 target 的 Release
+upgrader 重新链接通过。probe 仍使用无效 key，不能生成 bootloader 会接受的签名 RAM program，
+也没有设备烧写 target，因此这里只是链接、布局和入口 ABI 证据。
 
 ## 9. 测试矩阵
 
