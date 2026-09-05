@@ -1,6 +1,6 @@
 # nrfkit：目标与执行计划
 
-> 状态：P0、M0、M1、M2、M3、M6 已完成；M4 仅余但暂缓直连拓扑 remote wake；M5 direct-RADIO 基线已收束；M7 功能、时序、retry 与共存门禁已完成，外部仪器电气功耗测量暂缓
+> 状态：P0、M0、M1、M2、M3、M6 已完成；M4 仅余但暂缓直连拓扑 remote wake；M5 direct-RADIO 基线已收束；M7 功能、时序、retry 与共存门禁已完成，外部仪器电气功耗测量暂缓；M8 技术集成门禁已完成，仅余 RC 版本与发布决定
 > 计划基线：2026-09-05<br>
 > 唯一 SDK 支持目标：nRF54LM20A / nRF54LM20 DK<br>
 > 实验室夹具：nRF54L15 DK（不属于 SDK 支持目标）<br>
@@ -924,8 +924,11 @@ RRAM；ignored local report 记录了中断恢复与最终 cleanup 成功，原�
 这组查询仍属于下游协议观测，因此另以公共 GDB workflow 对持续运行中的同一镜像做只 attach、
 不 reset 的独立快照：PC 位于主循环，毫秒时钟已达到 250510 ms，通用 fault record 与 SDC
 fault record 均为零；workflow 随后恢复 target 运行、detach 并确认 GDB server cleanup。至此
-settings 与协议无关长稳/fault-state 门禁均已完成。M8 尚不能退出：仍需从干净下游 checkout
-复现 build，并完成 release-candidate 版本决定与发布前检查。
+settings 与协议无关长稳/fault-state 门禁均已完成。随后从独立、干净的下游 checkout 初始化
+全部锁定 submodule，并显式提供已按 lock 准备的 host tool 依赖；CMake configure/build 未运行
+包管理器、未访问网络，也未修改 source tree。该 checkout 完成完整 Release app 构建，生成的
+manifest 与 image-layout 检查通过，构建后主仓库与所有 submodule 仍为 clean。至此 M8 技术
+集成门禁已完成；尚待用户决定 release-candidate 版本，并据此执行发布前检查与发布。
 RC 版本准备已把 `include/nrfkit/version.h` 设为唯一版本来源；根项目、source-tree
 package 与 installed package 会从同一组 numeric/full version 生成并由离线 consumer
 门禁交叉验证。当前仍保持 `0.0.0`，不会在私有集成验收前伪装成已发布 RC。
@@ -935,7 +938,7 @@ driver/header closure、CherryUSB core/HID/DWC2 closure 与锁定的 SDC/MPSL se
 从当前提交新建、不共享工作树状态的 SDK checkout，并在其中检出三份精确锁定 submodule
 后，M8 组合 consumer 已重新完成 C++23 configure/link，且 checkout 保持 clean；因此
 “干净 SDK checkout”公共侧已由实际克隆验证，而不是由原工作树构建替代。下游 checkout
-与实板主模式验收仍受上述私有写入授权边界约束。
+也已按上述边界完成独立复现；实板主模式的 settings、长稳与 fault-state 验收均已完成。
 
 ### M9：boot/DFU 与 production 支持
 
