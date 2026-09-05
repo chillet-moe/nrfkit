@@ -1015,6 +1015,15 @@ policy 会改变安全模型，必须在普通
 RRAM authenticated floor、硬件 monotonic policy 或明确允许 rollback 三者中取得用户决定；
 在此之前继续推进与该选择无关且不增加 consumer 配置复杂度的工作。
 
+已以锁定 NCS v3.4.0 中 MCUboot commit
+`c1d2d128a001a97db3ccfd66be524c0232094df6` 做了有界对照。当前方案只采用三项原则：候选
+镜像在发布前完成认证、更新事务的有效标志最后写入、写入路径受到约束时普通启动无需重复
+publisher signature。MCUboot 自身也允许关闭 `MCUBOOT_VALIDATE_PRIMARY_SLOT`；其双槽、
+swap/trailer、revert、TLV image header、Zephyr glue 和 serial recovery 不符合当前 LM20
+“单槽明文 RRAM + maintenance 可恢复”的产品选择，不引入。由此停止扩展 MPC/GDB 专用 gate；
+下一项有效工作是用明确的测试 key 完成一次 signed RAM updater 与加密 `.appimg` 的端到端更新，
+而不是继续搭建调试器恢复编排。
+
 应用更新无需另造一套事务框架：现有 updater 已把首个 update unit 缓存在 RAM，在完整
 image hash 成功后才最后写回。内部 handoff ABI v2 以 application-storage 语义提供
 `prepare_application_update` 与 `program_application`：Flash target 仍擦除完整应用范围，
@@ -1060,13 +1069,14 @@ LM20 的保护审计选择“阻止未授权写入”而不是依赖启动时重
 bootloader 应把完整应用 RRAM 配置为 read/execute、禁止 write，并锁定 MPC override 到下次
 reset；settings 保持为独立可写区。进入 maintenance 的 reset 路径不发布该限制，应用写入仍
 只能由通过 publisher signature、分块认证和完整 payload hash 的 RAM updater 经受限 service
-完成。独立的 production provisioning 工具再以 BOOTCONF 固化 read/execute 且不可写的 boot
-区，启用 APPROTECT/SECUREAPPROTECT 阻止外部 debugger 访问，并以 ERASEPROTECT 阻止
-ERASEALL；这些持久保护一次性写入并回读验证，bootloader 不探测、不配置也不修复它们。
+完成。BOOTCONF、APPROTECT、SECUREAPPROTECT、ERASEPROTECT 等持久芯片保护只由量产
+provisioning 一次性写入并回读验证；它们不是 bootloader 功能，bootloader 不探测、不配置、
+不修复也不为其增加抽象。
 这个结论不依赖 RRAMC `REGION[4]`，其 7-bit KiB size 不足以覆盖当前应用；也不声称防御
 bootloader 漏洞、已授权签名代码或侵入式物理攻击。MPC normal/maintenance 配置和 reset
-errata workaround 必须先经 host/compile 与实板 read-back 门禁证明，所有 UICR/protection
-provisioning 仍需单独明确授权。bootloader 负责的 MPC override 是每次 reset 后的易失运行时
+errata workaround 经 host/compile 与官方寄存器契约审查；不再把调试器写入/恢复编排加入普通
+更新门禁。所有 UICR/protection provisioning 仍需单独明确授权。bootloader 负责的 MPC
+override 是每次 reset 后的易失运行时
 写保护，不属于上述量产读保护或一次性配置。
 
 compile probe 已按这一结论实现最小运行时路径：应用范围收齐为 MPC 的 4 KiB 粒度
@@ -1074,8 +1084,7 @@ compile probe 已按这一结论实现最小运行时路径：应用范围收齐
 先回读地址和权限，再 enable+lock 并回读；任何不一致都进入 maintenance，不启动应用。
 maintenance 路径不设置该 override。nRF54L 的公共 software-reset 实现也在 SYSRESETREQ 前进入
 constant-latency，使应用、bootloader 和 RAM updater 共同覆盖 anomaly 63。Release app、
-bootloader、updater 均重新链接，两个 device manifest inspection 与 16 项 host tests 通过；
-实板 protected-range 写拒绝及独立 settings 写仍需门禁验证，尚不把 compile 结果写成实板结论。
+bootloader、updater 均重新链接，两个 device manifest inspection 与 16 项 host tests 通过。
 
 RRAM ECC 只保证每个 128-bit data unit 最多纠正两位并对不可纠正错误产生事件，不能证明
 超过该范围的任意损坏一定被启动前发现或一定不会在应用执行后卡死。因此 M9 不把 ECC 当作
