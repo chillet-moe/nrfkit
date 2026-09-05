@@ -201,3 +201,9 @@ CMake declaration orders select the MPSL HFCLK24M path. The same work found and
 closed two previously hidden integration defects: the freestanding `string.h`
 prototype was not valid C++, and USB unnecessarily linked the nrfx CLOCK ISR beside
 MPSL's handler.
+
+A fresh local clone at the current public commit, populated with exactly the three
+locked submodule commits, independently configured and linked the same combined
+C++23 consumer and remained clean afterward. This closes the SDK-checkout half of
+M8 reproducibility without treating the still-read-only downstream checkout as
+validated.

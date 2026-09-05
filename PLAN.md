@@ -907,6 +907,10 @@ package 与 installed package 会从同一组 numeric/full version 生成并由�
 安装前缀也已从复制完整 nrfx/CherryUSB checkout 收束为 LM20 支持所需的 nrfx
 driver/header closure、CherryUSB core/HID/DWC2 closure 与锁定的 SDC/MPSL selection；
 无关 demo、host tool、bundled third-party example 和 Zephyr/Kconfig glue 不进入 RC 包。
+从当前提交新建、不共享工作树状态的 SDK checkout，并在其中检出三份精确锁定 submodule
+后，M8 组合 consumer 已重新完成 C++23 configure/link，且 checkout 保持 clean；因此
+“干净 SDK checkout”公共侧已由实际克隆验证，而不是由原工作树构建替代。下游 checkout
+与实板主模式验收仍受上述私有写入授权边界约束。
 
 ### M9：boot/DFU 与 production 支持
 
