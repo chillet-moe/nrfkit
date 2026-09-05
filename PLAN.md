@@ -1054,6 +1054,31 @@ Flash 特有的 `erase_unit` 术语改为 storage-neutral `commit_unit`；既有
 upgrader 重新链接通过。probe 仍使用无效 key，不能生成 bootloader 会接受的签名 RAM program，
 也没有设备烧写 target，因此这里只是链接、布局和入口 ABI 证据。
 
+LM20 的保护审计选择“阻止未授权写入”而不是依赖启动时重复 hash。正常应用启动前，
+bootloader 应把完整应用 RRAM 配置为 read/execute、禁止 write，并锁定 MPC override 到下次
+reset；settings 保持为独立可写区。进入 maintenance 的 reset 路径不发布该限制，应用写入仍
+只能由通过 publisher signature、分块认证和完整 payload hash 的 RAM updater 经受限 service
+完成。独立的 production provisioning 工具再以 BOOTCONF 固化 read/execute 且不可写的 boot
+区，启用 APPROTECT/SECUREAPPROTECT 阻止外部 debugger 访问，并以 ERASEPROTECT 阻止
+ERASEALL；这些持久保护一次性写入并回读验证，bootloader 不探测、不配置也不修复它们。
+这个结论不依赖 RRAMC `REGION[4]`，其 7-bit KiB size 不足以覆盖当前应用；也不声称防御
+bootloader 漏洞、已授权签名代码或侵入式物理攻击。MPC normal/maintenance 配置和 reset
+errata workaround 必须先经 host/compile 与实板 read-back 门禁证明，所有 UICR/protection
+provisioning 仍需单独明确授权。bootloader 负责的 MPC override 是每次 reset 后的易失运行时
+写保护，不属于上述量产读保护或一次性配置。
+
+RRAM ECC 只保证每个 128-bit data unit 最多纠正两位并对不可纠正错误产生事件，不能证明
+超过该范围的任意损坏一定被启动前发现或一定不会在应用执行后卡死。因此 M9 不把 ECC 当作
+镜像完整性协议，也不为它增加持久 hash/header；vector-last 只负责更新事务有效性。当前
+nRF54LM20A Engineering B 与 Revision 1 errata 未列出削弱上述 RRAM access control/ECC
+边界的 anomaly；两者都包含 soft-reset anomaly 63，相关 reset 路径必须在 SYSRESETREQ 前
+进入 constant-latency，并在 CTRL-AP 操作中使用 pin reset。
+
+`ad1be17d` 复核为跨既有板、host packer、CMake 和 wire status 的纯术语重命名；它已经位于
+共享的 `origin/main` 历史中，drop 会重写其后的公共历史，局部 revert 又会制造第二次 ABI/CLI
+变化。因此当前任务不再改动它，也暂停继续扩散 `application_*` / `storage_failed` 术语；
+LM20 新代码直接使用当前最短、最贴近硬件职责的接口，不为统一命名修改既有板或 host CLI。
+
 ## 9. 测试矩阵
 
 ### 9.1 每次提交的 host 测试
