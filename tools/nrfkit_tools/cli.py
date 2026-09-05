@@ -130,8 +130,12 @@ def load_manifest(path: Path, *, artifacts: bool = True) -> dict[str, Any]:
 
 def _new_run(operation: str) -> tuple[Path, dict[str, Any]]:
     root = project_root()
-    run_dir = root / ".work/runs" / f"{time.strftime('%Y%m%d-%H%M%S')}-{operation}-{os.getpid()}"
-    run_dir.mkdir(parents=True, exist_ok=False)
+    runs_dir = root / ".work/runs"
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    run_dir = Path(tempfile.mkdtemp(
+        prefix=f"{time.strftime('%Y%m%d-%H%M%S')}-{operation}-",
+        dir=runs_dir,
+    ))
     report: dict[str, Any] = {
         "schema": "nrfkit-run/v1", "operation": operation,
         "status": "running", "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),

@@ -12,8 +12,8 @@ import unittest
 from unittest import mock
 
 from nrfkit_tools.cli import (
-    ToolError, _default_gdb, _probe_has_msd, _probe_lock, _serial_cleanup, _serial_open,
-    _serial_reader, _serial_reader_stop, _set_probe_msd, command_flash,
+    ToolError, _default_gdb, _new_run, _probe_has_msd, _probe_lock, _serial_cleanup,
+    _serial_open, _serial_reader, _serial_reader_stop, _set_probe_msd, command_flash,
     command_m2_gate, command_p0_gate, command_probe_msd, command_run, load_manifest,
 )
 from nrfkit_tools.device import program_argv, reset_argv, safe_backend_contract
@@ -43,6 +43,18 @@ class FlashCommandTests(unittest.TestCase):
         self.assertIn("reset=RESET_NONE", joined)
         self.assertNotIn("ERASE_ALL", joined)
         self.assertNotIn("recover", argv)
+
+    def test_run_directories_remain_unique_with_matching_timestamps(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with (
+                mock.patch("nrfkit_tools.cli.project_root", return_value=root),
+                mock.patch("nrfkit_tools.cli.time.strftime", return_value="fixed"),
+            ):
+                first, _ = _new_run("inspect")
+                second, _ = _new_run("inspect")
+
+        self.assertNotEqual(first, second)
 
     def test_gdb_discovery_accepts_explicit_environment_path(self) -> None:
         with mock.patch.dict(os.environ, {"NRF_GDB": "/opt/arm/bin/arm-none-eabi-gdb"}):
