@@ -957,7 +957,7 @@ bring-up 的阻塞项。
 
 交付：
 
-- consumer 自有的单槽明文 RRAM 布局、signed application contract 与原子有效性发布；
+- consumer 自有的单槽明文 RRAM 布局与 vector-last 原子有效性发布；
 - 有明确能力审计和取舍依据的自有 bootloader；
 - 统一的签名加密传输容器、版本策略和掉电恢复测试；
 - 明确的 rollback 与存储/调试保护策略；只有能减少可提取 key 或落实该策略时才接入
@@ -967,8 +967,8 @@ bring-up 的阻塞项。
 退出条件：
 
 - 仿真和实板 fault-injection 覆盖更新关键点；
-- 非法、损坏镜像被拒绝，降级镜像按明确选择的 rollback policy 处理；
-- linker、signed header、写入范围与首个 commit unit 的最后发布共同保证无效或中断镜像
+- 在线传输中的非法、损坏镜像被拒绝，降级镜像按明确选择的 rollback policy 处理；
+- linker、写入范围与首个 commit unit 的最后发布共同保证无效或中断镜像
   不会启动；
 - 日常 CI 仍不能写任何一次性区域；
 - 实际 provision 只有在用户另行明确授权后才可执行，因此不属于本计划的无人值守完成条件。
@@ -1000,14 +1000,15 @@ CMake 配置中打开一个选项并构建一个显式 target。Release 链接�
 断言保持分离，因此 direct load 作为当前工作选择，不同时实现 persistent staging。probe 使用
 无效占位 key，因此没有真实签名应用可以通过校验；它也没有烧写 target，仍不能作为可部署镜像。
 consumer linker script 已把这个全新板的应用迁移到暂定 `0x00020000`，不保留 legacy image
-兼容路径；143,664-byte 应用到既有 settings 边界仍有 1,777,104 bytes 余量。匹配的 image
+兼容路径；143,472-byte 应用到既有 settings 边界仍有 1,777,296 bytes 余量。匹配的 image
 layout 也由 consumer 维护，Release 链接确认 vector 与所有 load segment 均位于新应用范围。
 
-LM20 compile target 已在 publisher signature 与完整 image hash 通过后读取并验证 vector，
-清理 SysTick/NVIC 状态，恢复 mask/control 状态并设置 VTOR/MSP 后分支。Release disassembly
-确认最终 trampoline 是 `LDR` vector、`MSR MSP`、`CPSIE I`、`BX` 的固定短序列。应用通过
-固定的一次性 RAM request 请求 maintenance，bootloader 消费前先清除；无效或未签名应用也
-进入 maintenance。实板 handoff 仍待验证。rollback policy 会改变安全模型，必须在普通
+LM20 compile target 启动时只验证 vector 所表达的事务有效性、MSP 对齐/RAM 范围与 reset
+target Thumb bit/应用范围，随后清理 SysTick/NVIC 状态，恢复 mask/control 状态并设置
+VTOR/MSP 后分支。Release disassembly 确认最终 trampoline 是 `LDR` vector、`MSR MSP`、
+`CPSIE I`、`BX` 的固定短序列。应用通过固定的一次性 RAM request 请求 maintenance，
+bootloader 消费前先清除；无效 vector 进入 maintenance。实板 handoff 仍待验证。rollback
+policy 会改变安全模型，必须在普通
 RRAM authenticated floor、硬件 monotonic policy 或明确允许 rollback 三者中取得用户决定；
 在此之前继续推进与该选择无关且不增加 consumer 配置复杂度的工作。
 
@@ -1022,14 +1023,16 @@ service 抽象；bootloader/settings/scratch 和配置区均不可达。最终 4
 read-back 继续由既有 RRAM writer 提供；共享 host fault injection 覆盖 prepare、body 和最终
 发布调用边界，硬件 data-unit 掉电注入仍待验证。
 
-全新板应用在固定 offset `0x500` 保存 v1 publisher-signed header，认证 target、地址、大小、
-security/image version、source timestamp 与完整 image hash，不回退到旧
-magic/application-header 格式。在线 `.appimg` 仍是所有板共用的签名加密传输容器；LM20
-解密后把明文应用写入 RRAM，持久化格式不保留 storage-mode 或 EXIP 字段。存储访问和调试
-保护属于独立产品策略。加入完整校验、
-maintenance request 和 handoff 后，compile probe 的 RRAM load end 为 `0x00004bdc`
-（19,420 bytes），128 KiB boot 区尚余 111,652 bytes；16 项 host tests、迁移后的 LM20
-application、LM20 bootloader probe 与既有另一 target 的 Release bootloader/upgrader 均通过。
+在线 `.appimg` 仍是所有板共用的签名加密传输容器；LM20 updater 验证 publisher signature、
+每块密文认证和完整 payload hash 后，把明文应用写入 RRAM。持久化应用不重复保存 publisher
+signature，不保留 storage-mode 或 EXIP 字段，也不在应用 linker 中预留专用 header hole。
+启动只依赖 vector-last 事务：更新开始先使首个 16-byte vector data unit 无效，body 与其余
+首个 commit unit 写完且在线 payload hash 成功后，最后恢复该 data unit；bootloader 随后只做
+vector 和范围验证。存储访问和调试保护属于独立产品策略，不在这一层增加未来平台抽象。
+删除持久签名实现后，compile probe 的 RRAM load end 为 `0x000049cc`（18,892 bytes），
+128 KiB boot 区尚余 112,180 bytes；应用 raw image 为 143,472 bytes。16 项 host tests、LM20
+application/bootloader/updater probe 与既有另一 target 的 Release app/bootloader/upgrader
+均重新构建通过。
 
 LM20 RAM updater 也已作为同一 opt-in 下的独立 compile probe 链接，不增加公共 SDK API。
 consumer 自有入口把 handoff 参数保存在 callee-saved registers 中，经过官方 startup 后交给
