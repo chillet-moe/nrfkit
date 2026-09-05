@@ -112,6 +112,16 @@ class NrfxlibContractTests(unittest.TestCase):
             rf"\b{re.escape(low['name'])}\s*=\s*{low['number']}\s*,",
         )
 
+    def test_platform_prepares_grtc_before_enabling_syscounter(self) -> None:
+        platform = (ROOT / "softdevice/sdc/nrf54l/platform.c").read_text(
+            encoding="utf-8"
+        )
+        prepare = platform.index("nrfy_grtc_prepare(NRF_GRTC, true)")
+        enable = platform.index("nrfy_grtc_sys_counter_start(NRF_GRTC, true)")
+        initialize = platform.index("mpsl_init(&clock")
+        self.assertLess(prepare, enable)
+        self.assertLess(enable, initialize)
+
     def test_archive_abi_and_public_link_closure(self) -> None:
         readelf = "/usr/sbin/arm-none-eabi-readelf"
         nm = "/usr/sbin/arm-none-eabi-nm"

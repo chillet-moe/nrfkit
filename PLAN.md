@@ -1,6 +1,6 @@
 # nrfkit：目标与执行计划
 
-> 状态：P0、M0、M1、M2、M3、M6 已完成；M4 仅余但暂缓直连拓扑 remote wake；M5 direct-RADIO 基线已收束；M7 功能、时序、retry 与共存门禁已完成，外部仪器电气功耗测量暂缓；M8 的 0.1.0-rc.1 已完成本地发布验收，仅余经授权的外部发布；M9 正在复用自有 bootloader，已完成共享主机加固、LM20 容量验证与实板应用交接
+> 状态：P0、M0、M1、M2、M3、M6、M9 已完成；M4 仅余但暂缓直连拓扑 remote wake；M5 direct-RADIO 基线已收束；M7 功能、时序、retry 与共存门禁已完成，外部仪器电气功耗测量暂缓；M8 的 0.1.0-rc.1 已完成本地发布验收，仅余经授权的外部发布
 > 计划基线：2026-09-05<br>
 > 唯一 SDK 支持目标：nRF54LM20A / nRF54LM20 DK<br>
 > 实验室夹具：nRF54L15 DK（不属于 SDK 支持目标）<br>
@@ -940,6 +940,9 @@ NCS/Zephyr 环境变量下仍能离线 configure/build。最终发布前 host su
 2.3 validator、public hygiene 与 diff check 通过。本地 tag/归档可以无人值守准备；向远端
 push tag 或创建托管 release 属于外部账号发布，必须取得新的明确授权，因此不阻塞 M9 的
 本地审计与实现工作，但仍是 M8 唯一未完成的退出动作。
+现有本地签名 tag `v0.1.0-rc.1` 固定在上述验收提交；其后修复的 SDC/GRTC cold-start 问题
+不属于该 tag。不得移动或把新内容误记进旧 tag；若要发布当前 HEAD，应先选择新的 prerelease
+版本并重新执行本地发布门禁，外部 push/release 仍需单独授权。
 安装前缀也已从复制完整 nrfx/CherryUSB checkout 收束为 LM20 支持所需的 nrfx
 driver/header closure、CherryUSB core/HID/DWC2 closure 与锁定的 SDC/MPSL selection；
 无关 demo、host tool、bundled third-party example 和 Zephyr/Kconfig glue 不进入 RC 包。
@@ -973,11 +976,13 @@ bring-up 的阻塞项。
 - 日常 CI 仍不能写任何一次性区域；
 - 实际 provision 只有在用户另行明确授权后才可执行，因此不属于本计划的无人值守完成条件。
 
-M9 当前检查点：对首个私有 consumer 自有 bootloader 的审计结论是优先复用和修正，
+M9 完成结论：对首个私有 consumer 自有 bootloader 的审计结论是优先复用和修正，
 MCUboot 不是机械键盘首阶段的前置条件。已有实现具备签名并加密的 RAM maintenance
 program、分块认证、完整解密 payload hash、产品 target 约束、WebHID transport 与受限 platform
-service ABI；USBHS 更新全链路和 reset 中断恢复已经通过实板门禁。主要剩余缺口是明确
-rollback policy 与真实供电切断 fault injection。trust root 和持久芯片保护明确属于默认不可达、
+service ABI；USBHS 更新全链路和 reset 中断恢复已经通过实板门禁。rollback policy 已明确为
+不设置版本下限：正确签名的旧 updater/application 允许安装，`security_version` 仅保留为认证
+metadata，不增加持久 floor 或硬件 monotonic state。真实供电切断 fault injection 已覆盖
+三个未发布状态并全部恢复。trust root 和持久芯片保护明确属于默认不可达、
 需单独授权的量产 provisioning，不进入 bootloader。应用、bootloader、
 settings 与 scratch 的 linker script 和配套 image-layout 由 consumer 维护，公共 SDK 只负责
 验证声明的边界与禁止区域，不把产品布局固化为 SDK 默认值。LM20 的传输层解密结果就是
@@ -1002,7 +1007,7 @@ Release 链接结果占 19,084 bytes RRAM；在暂定 128 KiB boot 区中余 111
 ignored `manufacturing/secrets.toml`，bootloader 只嵌入产品加密密钥和 publisher 公钥；同一
 测试专用 key source 由既有 host packer 生成真实签名加密 `.rprog` 与 `.appimg`，没有跳过认证路径。
 consumer linker script 已把这个全新板的应用迁移到暂定 `0x00020000`，不保留 legacy image
-兼容路径；143,520-byte 应用到 `0x001f4000` 保护边界仍有 1,773,408 bytes 余量，之后保留
+兼容路径；143,872-byte 应用到 `0x001f4000` 保护边界仍有 1,773,056 bytes 余量，之后保留
 3840-byte 空隙再进入既有 settings。匹配的 image
 layout 也由 consumer 维护，Release 链接确认 vector 与所有 load segment 均位于新应用范围。
 
@@ -1012,10 +1017,9 @@ VTOR/MSP 后分支。Release disassembly 确认最终 trampoline 是 `LDR` vecto
 `CPSIE I`、`BX` 的固定短序列。应用通过固定的一次性 RAM request 请求 maintenance，
 bootloader 消费前先清除；无效 vector 进入 maintenance。2026-09-05 的受控实板门禁已验证
 bootloader 到重定位应用的交接，应用协议版本为 38；门禁随后恢复地址 0 的原应用并再次
-验证同一协议。全过程只经公共 guard 写普通 RRAM，没有触及配置、OTP 或保护区。rollback
-policy 会改变安全模型，必须在普通
-RRAM authenticated floor、硬件 monotonic policy 或明确允许 rollback 三者中取得用户决定；
-在此之前继续推进与该选择无关且不增加 consumer 配置复杂度的工作。
+验证同一协议。全过程只经公共 guard 写普通 RRAM，没有触及配置、OTP 或保护区。按用户选择，
+首版不实现 rollback floor；host tests 明确接受 `security_version=0` 的有效签名 updater 与
+application。无效签名、密文认证失败和 payload hash 不匹配仍照常拒绝。
 
 已以锁定 NCS v3.4.0 中 MCUboot commit
 `c1d2d128a001a97db3ccfd66be524c0232094df6` 做了有界对照。当前方案只采用三项原则：候选
@@ -1037,8 +1041,12 @@ service 抽象；bootloader/settings/scratch 和配置区均不可达。最终 4
 read-back 继续由既有 RRAM writer 提供；共享 host fault injection 覆盖 prepare、body 和最终
 发布调用边界。受控实板门禁还分别在认证 manifest 已使 vector 无效后、以及 5 个认证 chunk
 跨过首个 4 KiB commit unit 后执行外部 reset；两次均回到 bootloader maintenance，重新认证并
-加载同一 updater 后完成更新。该证据只证明 reset 中断恢复，不替代 16-byte RRAM data unit
-发布过程中的真实供电切断；后者仍待验证。
+加载同一 updater 后完成更新。物理断电门禁又在 prepare 后、5 个 chunk 跨过首个 4 KiB 后、
+以及全部 147 个 chunk 写完但尚未发送 finish 的发布前状态切断主板和目标 VBUS；三次冷启动
+均只进入 idle maintenance，且都能重新认证并加载 updater。门禁按目标 VBUS 先断、主板后断，
+主板先恢复并稳定后再接 VBUS，避免通过第二根 USB 线形成不完整上电。该门禁不会声称以
+uhubctl 的时间精度命中最后 16-byte 写入内部；最后发布失败由 host fault injection 覆盖，
+而实板证明确认任何尚未开始发布的完整 body 都不能启动。
 
 在线 `.appimg` 仍是所有板共用的签名加密传输容器；LM20 updater 验证 publisher signature、
 每块密文认证和完整 payload hash 后，把明文应用写入 RRAM。持久化应用不重复保存 publisher
@@ -1048,10 +1056,11 @@ signature，不保留 storage-mode 或 EXIP 字段，也不在应用 linker 中�
 vector 和范围验证。存储访问和调试保护属于独立产品策略，不在这一层增加未来平台抽象。
 加入易失 MPC 写保护与 reset workaround 后，bootloader 的 RRAM load end 为
 `0x00004a8c`（19,084 bytes），128 KiB boot 区尚余 111,988 bytes；应用 raw image 为
-143,520 bytes。LM20 工具的 20 项 Python tests、完整 16-target host CTest、LM20
+143,872 bytes。LM20 工具的 22 项 Python tests、完整 16-target host CTest、公共 131 项
+host suite、LM20
 application/bootloader/updater 与既有另一 target 的 Release app/bootloader/upgrader
 均重新构建通过。最终实际测试容器分别包含 17,368-byte updater 的 18 个密文块和
-143,520-byte application 的 147 个密文块；两份 device manifest 均通过公共地址审计。
+143,872-byte application 的 147 个密文块；两份 device manifest 均通过公共地址审计。
 
 同一受控门禁随后补充了 bootloader USBHS maintenance 基本传输证据：实板连续两次接收完整
 1024-byte interrupt OUT request，并在中间 reset/re-enumeration 后都返回 protocol v2、匹配的
@@ -1083,6 +1092,13 @@ RAM vector table，VREGUSB IRQ 289 以 PC 零进入 fault；把 consumer linker 
 2 KiB 后，未改 USB ISR/关闭路径即连续通过。门禁现在每次从已构建 ELF 自动刷新 bootloader
 device manifest，避免增量重链接后人工传递陈旧 hash。
 
+真实冷启动还暴露并修复了一个与 bootloader 无关的 SDC 平台遗漏：代码曾直接调用
+`nrfy_grtc_sys_counter_start()`，却未先用 `nrfy_grtc_prepare()` 启动 GRTC 并等待三个低频
+时钟周期。warm-reset 门禁因此会掩盖 SYSCOUNTER BUSY 永久等待。只读 attach 将 PC 定位到
+该轮询后，公共 SDC 平台补齐官方 nrfx 的 prepare/start 次序；重新链接的应用经完整断电后
+重新枚举为 High-Speed USB 并返回协议 38，随后完整签名 updater/加密 application 门禁再次
+通过并恢复原应用。
+
 LM20 的保护审计选择“阻止未授权写入”而不是依赖启动时重复 hash。正常应用启动前，
 bootloader 应把完整应用 RRAM 配置为 read/execute、禁止 write，并锁定 MPC override 到下次
 reset；settings 保持为独立可写区。进入 maintenance 的 reset 路径不发布该限制，应用写入仍
@@ -1090,6 +1106,11 @@ reset；settings 保持为独立可写区。进入 maintenance 的 reset 路径�
 完成。BOOTCONF、APPROTECT、SECUREAPPROTECT、ERASEPROTECT 等持久芯片保护只由量产
 provisioning 一次性写入并回读验证；它们不是 bootloader 功能，bootloader 不探测、不配置、
 不修复也不为其增加抽象。
+量产工具边界已定义为独立且默认只读：版本化输入绑定准确 SoC/revision、最终 boot/application
+image hash 和期望的一次性值；只有新的明确授权才能进入写模式，且必须先验证最终镜像、最后
+写保护字段并逐项回读。它禁止自动 recover、mass erase、猜测替代值或在结果不明确时重试
+一次性写入。该设计不把工具入口加入普通 build、bootloader 或 board gate，也不授权当前实现
+或执行量产写入。
 这个结论不依赖 RRAMC `REGION[4]`，其 7-bit KiB size 不足以覆盖当前应用；也不声称防御
 bootloader 漏洞、已授权签名代码或侵入式物理攻击。MPC normal/maintenance 配置和 reset
 errata workaround 经 host/compile 与官方寄存器契约审查；不再把调试器写入/恢复编排加入普通

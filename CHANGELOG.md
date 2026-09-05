@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
+## Unreleased
+
+- Fix cold-start SDC initialization by preparing GRTC before enabling
+  SYSCOUNTER.
+
 ## 0.1.0-rc.1 - 2026-09-05
 
 First release candidate for the nRF54LM20A application core:

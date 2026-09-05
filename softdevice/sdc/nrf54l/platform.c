@@ -158,6 +158,7 @@ static int32_t initialize_libraries(const struct nrfkit_sdc_config *config)
 
     grtc_was_enabled = nrf_grtc_sys_counter_check(NRF_GRTC) ? 1U : 0U;
     if (grtc_was_enabled == 0U) {
+        nrfy_grtc_prepare(NRF_GRTC, true);
         nrfy_grtc_sys_counter_start(NRF_GRTC, true);
     }
 
