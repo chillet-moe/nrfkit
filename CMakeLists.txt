@@ -80,6 +80,8 @@ foreach(index RANGE 0 ${nrfxlib_last_file})
 endforeach()
 install(FILES docs/provenance/sources.lock
   DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/docs/provenance)
+install(FILES README.md CHANGELOG.md LICENSE
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/nrfkit)
 install(DIRECTORY cmake/toolchains
   DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/cmake
 )
@@ -111,3 +113,16 @@ install(FILES
 
 unset(nrfx_install_root)
 unset(cherryusb_install_root)
+
+set(CPACK_GENERATOR TGZ)
+set(CPACK_PACKAGE_NAME nrfkit)
+set(CPACK_PACKAGE_VENDOR "nrfkit contributors")
+set(CPACK_PACKAGE_VERSION "${NrfKit_VERSION_STRING}")
+set(CPACK_PACKAGE_FILE_NAME "nrfkit-${NrfKit_VERSION_STRING}")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
+  "Community bare-metal CMake SDK for nRF54LM20A")
+set(CPACK_PACKAGE_CHECKSUM SHA256)
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
+set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY ON)
+include(CPack)

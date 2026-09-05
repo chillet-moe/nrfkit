@@ -4,13 +4,15 @@
 
 This project is not affiliated with or endorsed by Nordic Semiconductor. Nordic Semiconductor, nRF, and related marks belong to their respective owners.
 
-The project is in early bring-up. P0 through M3 and M6 now provide locked official reference builds, a guarded hardware workflow, an experimental nRF54LM20A freestanding runtime, target-scoped nrfx drivers, and a pure-CMake SoftDevice Controller/MPSL integration validated with all three controller archives. M4 USBHS device support is partially validated. M7 now has bidirectional 4 Mbit/s direct and Timeslot air evidence, bounded retry/soak measurements, and three-round active-BLE coexistence evidence; external electrical power measurement remains open. This is not yet a consumer SDK release; see [`PLAN.md`](PLAN.md) for the normative scope and completion gates.
+Version `0.1.0-rc.1` is the first experimental consumer release candidate. P0 through M3 and M6 provide locked official reference builds, a guarded hardware workflow, an nRF54LM20A freestanding runtime, target-scoped nrfx drivers, and a pure-CMake SoftDevice Controller/MPSL integration validated with all three controller archives. M4 USBHS device support is partially validated. M7 has bidirectional 4 Mbit/s direct and Timeslot air evidence, bounded retry/soak measurements, and three-round active-BLE coexistence evidence; USB remote wake and external electrical power measurement remain deferred. See [`PLAN.md`](PLAN.md) and [`CHANGELOG.md`](CHANGELOG.md) for the normative scope and release limitations.
 
 The first M8 public integration gate now links C++23, USB HID, Multirole SDC/MPSL,
 Timeslot, and ordinary lifecycle-separated RRAM support in one offline source-tree
 or installed-package consumer. A combined real-board image also passes USB control,
-bulk, HID, and reconnect testing while MPSL remains initialized. Private downstream
-integration and the release candidate are still pending.
+bulk, HID, and reconnect testing while MPSL remains initialized. An independently
+clean downstream checkout also completes its offline Release build, manifest audit,
+ordinary-settings persistence gate, and long-running fault-state check without an
+SDK fork.
 
 The review-image Timeslot retry regression is resolved by idempotently replaying an ACK for the previous valid sequence. The current gate forces that recovery path and passes a 20-round soak; see [`docs/provenance/m7-radio-evidence.md`](docs/provenance/m7-radio-evidence.md).
 
