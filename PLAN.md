@@ -1040,7 +1040,10 @@ application/bootloader/updater probe 与既有另一 target 的 Release app/boot
 1024-byte interrupt OUT request，并在中间 reset/re-enumeration 后都返回 protocol v2、匹配的
 target identity、idle state 和无错误状态；64-byte response 路径也通过。该结果尚不包括真实
 签名 RAM program 的 load/data/commit、updater 启动或 `.appimg` 写入，因此 USBHS 更新全链路
-仍保持未完成。
+仍保持未完成。门禁还在两次 maintenance session 中提交了结构、target、范围和 chunk layout
+均有效但 publisher signature 无效的 manifest，实板均返回 `manifest_signature_invalid`；这已
+证明 manifest 签名拒绝路径，但不替代后续 ciphertext authentication 与完整 payload hash 实板
+验证。
 
 LM20 RAM updater 也已作为同一 opt-in 下的独立 compile probe 链接，不增加公共 SDK API。
 consumer 自有入口把 handoff 参数保存在 callee-saved registers 中，经过官方 startup 后交给
