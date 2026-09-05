@@ -911,7 +911,11 @@ interface，端点最大包长依次覆盖 8-byte keyboard、64-byte 双向 conf
 和 32-byte NKRO，并通过 100 次普通 USB reset/re-enumeration。该 consumer smoke 只使用标准
 USB configuration/descriptor/reset 事务，不发送私有协议 payload，也不替代已延期的 remote wake
 或 PPK2 证据。最终 ignored local report 绑定上述公共实现提交并记录 `sdk_dirty=false`；原始
-报告不进入公共仓库。键盘输入和长稳仍待执行，因此 M8 尚不能退出。
+报告不进入公共仓库。用户于 2026-09-05 明确决定跳过开发板 D4/D5 物理按键输入验证；该项
+保持为未覆盖的产品引脚/扫描链路证据，但不再阻塞 M8 或后续里程碑。M8 下一项实板门禁改为
+普通 RRAM settings 的受控修改、延迟 flush、SDC pause/resume、reset 后读回，以及不依赖
+私有协议的长时间主循环/fault-state 观测。该门禁不得触及配置区、一次性区域或 protection
+状态。settings 持久化和长稳仍待执行，因此 M8 尚不能退出。
 RC 版本准备已把 `include/nrfkit/version.h` 设为唯一版本来源；根项目、source-tree
 package 与 installed package 会从同一组 numeric/full version 生成并由离线 consumer
 门禁交叉验证。当前仍保持 `0.0.0`，不会在私有集成验收前伪装成已发布 RC。
