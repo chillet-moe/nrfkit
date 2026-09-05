@@ -67,6 +67,22 @@ class CMakePackageTests(unittest.TestCase):
                 cmake, "--build", str(sdk_build), "--target", "install",
             ], environment)
 
+            installed_vendor = prefix / "share/nrfkit/external"
+            for required in (
+                "nrfx/nrfx.h", "nrfx/drivers/src/nrfx_rramc.c",
+                "nrfx/bsp/stable/mdk/nrf54l/system_nrf54l.c",
+                "cherryusb/core/usbd_core.c",
+                "cherryusb/port/dwc2/usb_dc_dwc2.c",
+                "cherryusb/class/hid/usbd_hid.c",
+            ):
+                self.assertTrue((installed_vendor / required).is_file(), required)
+            for excluded in (
+                "nrfx/doc", "cherryusb/.github", "cherryusb/demo",
+                "cherryusb/third_party", "cherryusb/tools", "cherryusb/zephyr",
+                "cherryusb/Kconfig",
+            ):
+                self.assertFalse((installed_vendor / excluded).exists(), excluded)
+
             installed_build = temporary / "installed-consumer"
             self.run_command([
                 cmake, "-S", str(CONSUMER), "-B", str(installed_build), "-G", "Ninja",

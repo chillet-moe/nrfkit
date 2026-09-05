@@ -904,6 +904,9 @@ release candidate 仍未完成，M8 尚不能退出。
 RC 版本准备已把 `include/nrfkit/version.h` 设为唯一版本来源；根项目、source-tree
 package 与 installed package 会从同一组 numeric/full version 生成并由离线 consumer
 门禁交叉验证。当前仍保持 `0.0.0`，不会在私有集成验收前伪装成已发布 RC。
+安装前缀也已从复制完整 nrfx/CherryUSB checkout 收束为 LM20 支持所需的 nrfx
+driver/header closure、CherryUSB core/HID/DWC2 closure 与锁定的 SDC/MPSL selection；
+无关 demo、host tool、bundled third-party example 和 Zephyr/Kconfig glue 不进入 RC 包。
 
 ### M9：boot/DFU 与 production 支持
 

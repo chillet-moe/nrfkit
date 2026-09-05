@@ -16,6 +16,10 @@ The review-image Timeslot retry regression is resolved by idempotently replaying
 
 Clone with submodules initialized (`git clone --recurse-submodules`) before building. The complete nrfx, CherryUSB, and Nordic sdk-nrfxlib trees remain immutable, version-locked upstream submodules instead of ordinary project-owned source. NrfKit compiles or links only requested components and prepares nrfx project patches in an ignored consumer cache; configure never downloads or edits an upstream tree. An explicit `NRFKIT_NRFXLIB_ROOT` override may point at the exact same locked checkout after full identity/hash validation; normal builds never discover an installed NCS workspace.
 
+Installed packages contain the supported nrfx driver/header closure, the CherryUSB
+core plus HID/DWC2 closure, and the locked SDC/MPSL selection. They exclude unrelated
+upstream demos, host tools, bundled third-party examples, and Zephyr/Kconfig glue.
+
 The M0 source decision, current target status, and contribution contract are documented in [`docs/provenance/source-audit.md`](docs/provenance/source-audit.md), [`docs/support-matrix.md`](docs/support-matrix.md), and [`CONTRIBUTING.md`](CONTRIBUTING.md). Exact upstream identities remain machine-independent in `sources.lock`; local source paths and hardware identities never belong in tracked files.
 
 ## Experimental firmware build

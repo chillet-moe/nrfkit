@@ -31,13 +31,41 @@ install(DIRECTORY
   usb
   DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit
 )
-install(DIRECTORY external/nrfx/
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/nrfx
-  PATTERN ".git" EXCLUDE
+set(nrfx_install_root "${CMAKE_INSTALL_DATADIR}/nrfkit/external/nrfx")
+install(FILES
+  external/nrfx/nrfx.h
+  external/nrfx/LICENSE
+  external/nrfx/README.md
+  external/nrfx/CHANGELOG.md
+  DESTINATION "${nrfx_install_root}"
 )
-install(DIRECTORY external/cherryusb/
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/cherryusb
-  PATTERN ".git" EXCLUDE
+install(DIRECTORY
+  external/nrfx/drivers
+  external/nrfx/hal
+  external/nrfx/haly
+  external/nrfx/helpers
+  external/nrfx/lib
+  external/nrfx/templates
+  DESTINATION "${nrfx_install_root}"
+)
+install(DIRECTORY external/nrfx/bsp/stable
+  DESTINATION "${nrfx_install_root}/bsp"
+)
+
+set(cherryusb_install_root "${CMAKE_INSTALL_DATADIR}/nrfkit/external/cherryusb")
+install(FILES external/cherryusb/LICENSE
+  DESTINATION "${cherryusb_install_root}"
+)
+install(DIRECTORY
+  external/cherryusb/common
+  external/cherryusb/core
+  DESTINATION "${cherryusb_install_root}"
+)
+install(DIRECTORY external/cherryusb/port/dwc2
+  DESTINATION "${cherryusb_install_root}/port"
+)
+install(DIRECTORY external/cherryusb/class/hid
+  DESTINATION "${cherryusb_install_root}/class"
 )
 # Install exactly the same selected input set that consumer configure validates.
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/docs/provenance/sources.lock" source_lock)
@@ -80,3 +108,6 @@ install(FILES
   ${CMAKE_CURRENT_BINARY_DIR}/NrfKitConfigVersion.cmake
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/NrfKit
 )
+
+unset(nrfx_install_root)
+unset(cherryusb_install_root)
