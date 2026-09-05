@@ -1009,6 +1009,9 @@ floor、硬件 monotonic policy 或明确允许 rollback 三者中取得用户�
 image hash 成功后才最后写回。LM20 适配必须把 `flash_erase` 明确定义为“先使首单元失效并
 读回确认”，不能映射为 no-op；最终应用格式还必须持久保留可验证的 publisher signature
 或 signed manifest，因为现有 application-header hash 只证明完整性，不证明发布者身份。
+共享 updater 的 host fault injection 已覆盖 erase 后中断、两个 body program 调用失败和最终
+首单元发布调用失败；四个边界下首单元均保持无效。该结果固定了 LM20 service 必须保留的
+调用级事务语义，但不替代 RRAM service 内部 data-unit fault injection 或实板掉电测试。
 
 ## 9. 测试矩阵
 
