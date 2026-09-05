@@ -976,8 +976,9 @@ bring-up 的阻塞项。
 M9 当前检查点：对首个私有 consumer 自有 bootloader 的审计结论是优先复用和修正，
 MCUboot 不是机械键盘首阶段的前置条件。已有实现具备签名并加密的 RAM maintenance
 program、分块认证、完整解密 payload hash、产品 target 约束、WebHID transport 与受限 platform
-service ABI；主要剩余缺口是 rollback floor、trust-root/provisioning policy、USBHS 更新链路
-验收及掉电 fault injection。应用、bootloader、
+service ABI；USBHS 更新全链路和 reset 中断恢复已经通过实板门禁。主要剩余缺口是明确
+rollback policy 与真实供电切断 fault injection。trust root 和持久芯片保护明确属于默认不可达、
+需单独授权的量产 provisioning，不进入 bootloader。应用、bootloader、
 settings 与 scratch 的 linker script 和配套 image-layout 由 consumer 维护，公共 SDK 只负责
 验证声明的边界与禁止区域，不把产品布局固化为 SDK 默认值。LM20 的传输层解密结果就是
 写入普通 RRAM 的明文应用；当前范围不为其他平台引入存储格式或执行时解密抽象。
@@ -1047,16 +1048,17 @@ signature，不保留 storage-mode 或 EXIP 字段，也不在应用 linker 中�
 vector 和范围验证。存储访问和调试保护属于独立产品策略，不在这一层增加未来平台抽象。
 加入易失 MPC 写保护与 reset workaround 后，bootloader 的 RRAM load end 为
 `0x00004a8c`（19,084 bytes），128 KiB boot 区尚余 111,988 bytes；应用 raw image 为
-143,520 bytes。LM20 工具的 18 项 Python tests、完整 16-target host CTest、LM20
+143,520 bytes。LM20 工具的 19 项 Python tests、完整 16-target host CTest、LM20
 application/bootloader/updater 与既有另一 target 的 Release app/bootloader/upgrader
 均重新构建通过。最终实际测试容器分别包含 17,368-byte updater 的 18 个密文块和
 143,520-byte application 的 147 个密文块；两份 device manifest 均通过公共地址审计。
 
 同一受控门禁随后补充了 bootloader USBHS maintenance 基本传输证据：实板连续两次接收完整
 1024-byte interrupt OUT request，并在中间 reset/re-enumeration 后都返回 protocol v2、匹配的
-target identity、idle state 和无错误状态；64-byte response 路径也通过。该结果尚不包括真实
-签名 RAM program 的 load/data/commit、updater 启动或 `.appimg` 写入，因此 USBHS 更新全链路
-仍保持未完成。门禁还在两次 maintenance session 中提交了结构、target、范围和 chunk layout
+target identity、idle state 和无错误状态；64-byte response 路径也通过。这个较早的 basic
+transport 阶段尚未包括真实签名 RAM program 的 load/data/commit、updater 启动或 `.appimg`
+写入；后续下述 authenticated updater 门禁已补齐全链路。门禁还在两次 maintenance session
+中提交了结构、target、范围和 chunk layout
 均有效但 publisher signature 无效的 manifest，实板均返回 `manifest_signature_invalid`；这已
 证明 manifest 签名拒绝路径，但不替代后续 ciphertext authentication 与完整 payload hash 实板
 验证。
