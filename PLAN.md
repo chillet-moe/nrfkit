@@ -1036,6 +1036,12 @@ vector 和范围验证。存储访问和调试保护属于独立产品策略，�
 application/bootloader/updater probe 与既有另一 target 的 Release app/bootloader/upgrader
 均重新构建通过。
 
+同一受控门禁随后补充了 bootloader USBHS maintenance 基本传输证据：实板连续两次接收完整
+1024-byte interrupt OUT request，并在中间 reset/re-enumeration 后都返回 protocol v2、匹配的
+target identity、idle state 和无错误状态；64-byte response 路径也通过。该结果尚不包括真实
+签名 RAM program 的 load/data/commit、updater 启动或 `.appimg` 写入，因此 USBHS 更新全链路
+仍保持未完成。
+
 LM20 RAM updater 也已作为同一 opt-in 下的独立 compile probe 链接，不增加公共 SDK API。
 consumer 自有入口把 handoff 参数保存在 callee-saved registers 中，经过官方 startup 后交给
 既有 updater main，并在启动 timer/USB 前把 VTOR 指向 RAM vector table。Release ELF 的入口为
