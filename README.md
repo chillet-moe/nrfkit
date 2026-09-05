@@ -84,6 +84,13 @@ linker scripts do not need to be split into SDK-specific fragments.
 application-RRAM allowlist from it; settings and scratch reservations are never
 included in the programming allowlist.
 
+Component declarations between configure and finalize may be ordered freely:
+Timeslot and RRAM may be declared before SDC, but finalization requires SDC to be
+present. Runtime initialization order is a separate constraint. The
+[CMake composition notes](docs/architecture/cmake-composition.md) explain native
+driver targets, per-firmware configuration, and why the explicit finalize step
+remains.
+
 The experimental LM20 USBHS device integration is also target-scoped:
 
 ```cmake

@@ -1,0 +1,64 @@
+# CMake composition
+
+NrfKit's build layer assembles ordinary CMake targets. It is not a second
+configuration language or an application lifecycle manager. Public function names
+remain compatible; internal module and target names are implementation details.
+
+## Ownership
+
+- `NrfKitFirmware.cmake`: firmware identity, runtime/compiler setup, and the public
+  configure/finalize entry points.
+- `NrfKitNrfx.cmake`: immutable nrfx cache, selected driver targets, resource
+  reservations, and each firmware's generated configuration.
+- `NrfKitWireless.cmake` / `NrfKitNrfxlib.cmake`: wireless composition and
+  version-locked binary validation, respectively.
+- `NrfKitUsb.cmake`: CherryUSB port or complete device-stack selection and FIFO
+  configuration.
+- `NrfKitImage.cmake`: layout validation, linker assertions, and ELF/HEX/BIN/map
+  metadata. Consumer linker scripts stay complete and consumer-owned.
+- `NrfKitLegacyS115.cmake`: the stopped opt-in reference integration. Loaded only
+  by its existing explicit entry point, never by ordinary firmware configuration.
+
+Generated headers, JSON, and linker assertions live in `cmake/templates` as
+readable files. Source and installed packages preserve the same module/template
+layout. Templates are configure inputs, so editing one triggers regeneration.
+Normal configuration remains offline and does not require Python or an NCS tree.
+
+## Native targets and per-firmware configuration
+
+nrfx source sets are INTERFACE targets: sources are compiled in the consuming
+firmware's context, with its own nrfx configuration and compiler options. They
+are not shared precompiled objects. Serial drivers link a shared PRS target;
+CMake carries that dependency and deduplicates shared source files. The header
+target deliberately preserves normal include-directory semantics.
+
+SDC imported targets carry their FEM/MPSL archive dependencies. Firmware does not
+need to repeat that link closure. Version, security domain, and ABI checks remain
+at the binary-input boundary.
+
+The target report records the selected sources and resource reservations. It is
+an audit output, not a separate dependency graph used to decide what to compile.
+
+## Why finalize remains
+
+`nrfkit_configure_target()` binds an executable to LM20 and its image layout.
+`nrfkit_enable_*()` calls add capabilities; Timeslot and RRAM declarations may
+precede SDC. `nrfkit_finalize_target()` checks the completed composition, emits
+per-firmware nrfx configuration, and attaches image artifacts. Missing SDC for
+Timeslot/RRAM and a competing nrfx CLOCK owner still fail at configure time.
+
+This explicit boundary is needed because source selection and reserved-resource
+masks can accumulate over several calls. An automatic deferred pass would add
+hidden execution order, and one global configuration would break builds containing
+several independently configured firmware images. Neither is a simplification.
+The boundary does not impose the runtime initialization order: applications still
+initialize SDC/MPSL before using USB's shared clock path or submitting RRAM work.
+
+## Validation
+
+The contract tests cover source and installed packages, independent nrfx
+configurations in one build, all supported drivers, both USB/SDC declaration
+orders, SDC declared after Timeslot/RRAM, and rejection when it is absent.
+Existing archive hash/ABI, IRQ/resource conflict, ELF/layout, and reproducibility
+checks remain in place. Historical S115 evidence stays immutable; its source
+checks follow the relocated integration module.

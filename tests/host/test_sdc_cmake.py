@@ -237,6 +237,40 @@ class SdcCmakeTests(unittest.TestCase):
                 self.assertIn("mpsl_clock_hfclk_src_request", link_map)
                 self.assertIn("libsoftdevice_controller_multirole.a", link_map)
 
+            # Templates are part of the installed package and incremental inputs.
+            template = next(prefix.rglob("sdc-target.json.in"))
+            template.write_text(template.read_text().replace(
+                '"schema":', '"template_probe": true,\n  "schema":', 1))
+            build = base / "installed-usb-first"
+            result = subprocess.run([self.cmake, "--build", str(build)],
+                                    text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            report = json.loads((build / "nrfkit/contract/sdc-target.json").read_text())
+            self.assertTrue(report["template_probe"])
+
+    def test_wireless_components_allow_sdc_last_but_require_it_at_finalize(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            for missing in (False, True):
+                build = Path(directory) / ("missing" if missing else "sdc-last")
+                result = subprocess.run([
+                    self.cmake, "-S", str(COMBINED_FIXTURE), "-B", str(build),
+                    "-G", "Ninja", f"-DNrfKit_DIR={ROOT / 'cmake'}",
+                    f"-DCMAKE_TOOLCHAIN_FILE={ROOT / 'cmake/toolchains/arm-clang.cmake'}",
+                    f"-DNRF_LLVM_ROOT={self.llvm_root}", "-DCOMBINED_SDC_LAST=ON",
+                    f"-DCOMBINED_NO_SDC={'ON' if missing else 'OFF'}",
+                ], text=True, capture_output=True)
+                output = result.stdout + result.stderr
+                if missing:
+                    self.assertNotEqual(result.returncode, 0, output)
+                    self.assertIn("Timeslot/RRAM requires SDC", output)
+                else:
+                    self.assertEqual(result.returncode, 0, output)
+                    result = subprocess.run([self.cmake, "--build", str(build)],
+                                            text=True, capture_output=True)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertIn("NRFKIT_USBHS_MPSL_CLOCK=1",
+                                  (build / "build.ninja").read_text())
+
     def test_combined_target_rejects_nrfx_clock_irq_conflict(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             result = subprocess.run([

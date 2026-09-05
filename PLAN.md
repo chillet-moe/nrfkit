@@ -1253,6 +1253,15 @@ LM20 新代码直接使用当前最短、最贴近硬件职责的接口，不为
   ATT/GATT、HID profile、产品配对策略、S115、GZLL、nRF52、nRF53、L15 consumer
   target 或其他 nRF54 支持。
 
+### CMake 组织简化（2026-09-06）
+
+保留公开 configure/enable/finalize 接口与每个固件独立的配置；Timeslot、RRAM 不再要求
+CMake 声明时 SDC 在前，依赖完整性在 finalize 检查。nrfx 源文件与 PRS 依赖使用普通
+INTERFACE target 组合；SDC imported target 自己携带 FEM/MPSL 链接依赖。
+头文件、JSON、链接断言改用模板，历史 S115 仅在显式调用时加载。
+详见 [CMake 组织说明](docs/architecture/cmake-composition.md)。本轮不改变运行时初始化、
+寄存器行为、驱动选择范围或硬件验收结论。
+
 ### 消费者边界修正（2026-09-06）
 
 - 活跃 MPSL 下的普通 RRAM 持久化使用独立 storage Timeslot session；不再用停启

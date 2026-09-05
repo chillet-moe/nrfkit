@@ -18,7 +18,7 @@ class EquivalenceTests(unittest.TestCase):
         port = (project_root / "softdevice/nrf54l/bm_port.c").read_text(
             encoding="utf-8"
         )
-        cmake = (project_root / "cmake/modules/NrfKitFirmware.cmake").read_text(
+        cmake = (project_root / "cmake/modules/NrfKitLegacyS115.cmake").read_text(
             encoding="utf-8"
         )
         verifier = (

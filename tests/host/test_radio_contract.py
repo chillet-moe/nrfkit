@@ -29,7 +29,7 @@ class RadioContractTests(unittest.TestCase):
             self.assertIn(token, header)
 
     def test_radio_is_target_scoped_and_owns_no_vendor_tree(self) -> None:
-        module = (ROOT / "cmake/modules/NrfKitFirmware.cmake").read_text(encoding="utf-8")
+        module = (ROOT / "cmake/modules/NrfKitWireless.cmake").read_text(encoding="utf-8")
         self.assertIn("function(nrfkit_enable_radio target)", module)
         self.assertIn('radio/nrf54l/radio.c', module)
         self.assertFalse((ROOT / "radio/vendor").exists())
@@ -109,7 +109,7 @@ class RadioContractTests(unittest.TestCase):
         source = (ROOT / "radio/timeslot/nrf54l/timeslot.c").read_text(
             encoding="utf-8"
         )
-        module = (ROOT / "cmake/modules/NrfKitFirmware.cmake").read_text(
+        module = (ROOT / "cmake/modules/NrfKitWireless.cmake").read_text(
             encoding="utf-8"
         )
         for token in (
@@ -127,7 +127,7 @@ class RadioContractTests(unittest.TestCase):
         ):
             self.assertIn(token, source)
         self.assertIn("function(nrfkit_enable_mpsl_timeslot target)", module)
-        self.assertIn("enable SDC on '${target}' first", module)
+        self.assertIn("Timeslot/RRAM requires SDC", module)
         link = (ROOT / "examples/m7-timeslot-radio-link/main.c").read_text(
             encoding="utf-8"
         )

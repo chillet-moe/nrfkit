@@ -85,8 +85,7 @@ install(FILES README.md CHANGELOG.md LICENSE
 install(DIRECTORY cmake/toolchains
   DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/cmake
 )
-install(FILES cmake/modules/NrfKitFirmware.cmake cmake/modules/NrfKitNrfxlib.cmake
-  cmake/modules/NrfKitVersion.cmake
+install(DIRECTORY cmake/modules cmake/templates
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/NrfKit
 )
 install(EXPORT NrfKitTargets
