@@ -84,7 +84,12 @@ int32_t nrfkit_sdc_hci_get(uint8_t *packet, uint8_t *message_type);
 /** Submit one raw HCI ACL packet to the controller. */
 int32_t nrfkit_sdc_hci_acl_put(const uint8_t *packet);
 
-/** Disable the controller; MPSL remains alive until any Timeslot closes. */
+/**
+ * Disable the controller.
+ *
+ * MPSL remains alive until every SDK client releases it, including open
+ * Timeslot sessions and USBHS clock requests on combined targets.
+ */
 int32_t nrfkit_sdc_disable(void);
 
 #ifdef __cplusplus

@@ -749,11 +749,11 @@ function(nrfkit_enable_usb_device target)
     target_include_directories("${target}" PRIVATE "${cherryusb}/class/hid")
     target_sources("${target}" PRIVATE "${cherryusb}/class/hid/usbd_hid.c")
   endif()
-  nrfkit_enable_nrfx("${target}" DRIVERS clock)
   set_target_properties("${target}" PROPERTIES
     NRFKIT_USB_DEVICE_STACK cherryusb
     NRFKIT_USB_DEVICE_SOURCE "${cherryusb}"
     NRFKIT_USB_DEVICE_CLASSES "${ARG_CLASSES}"
+    NRFKIT_NRFX_HEADERS_REQUIRED TRUE
   )
 endfunction()
 
@@ -853,8 +853,12 @@ endfunction()
 
 function(_nrfkit_finalize_nrfx target)
   get_target_property(drivers "${target}" NRFKIT_NRFX_DRIVERS)
-  if(NOT drivers)
+  get_target_property(headers_required "${target}" NRFKIT_NRFX_HEADERS_REQUIRED)
+  if(NOT drivers AND NOT headers_required)
     return()
+  endif()
+  if(NOT drivers)
+    set(drivers "")
   endif()
 
   set(sdk_root "${NrfKit_ROOT}")
@@ -1025,7 +1029,9 @@ function(_nrfkit_finalize_nrfx target)
   string(REPLACE ";" "\", \"" drivers_json "${drivers}")
   string(REPLACE ";" "\", \"" sources_json "${sources}")
   string(REPLACE ";" "\", \"" resources_json "${resource_keys}")
-  set(drivers_json "\"${drivers_json}\"")
+  if(drivers_json)
+    set(drivers_json "\"${drivers_json}\"")
+  endif()
   if(sources_json)
     set(sources_json "\"${sources_json}\"")
   endif()
@@ -1148,6 +1154,20 @@ function(nrfkit_finalize_target target)
   get_target_property(finalized "${target}" NRFKIT_FINALIZED)
   if(finalized)
     message(FATAL_ERROR "nrfkit_finalize_target: '${target}' is already finalized")
+  endif()
+  get_target_property(usb_stack "${target}" NRFKIT_USB_DEVICE_STACK)
+  get_target_property(sdc_variant "${target}" NRFKIT_SDC_VARIANT)
+  get_target_property(nrfx_drivers "${target}" NRFKIT_NRFX_DRIVERS)
+  if(sdc_variant AND "clock" IN_LIST nrfx_drivers)
+    message(FATAL_ERROR
+      "nrfkit_finalize_target: '${target}' cannot link the nrfx CLOCK driver "
+      "while SDC/MPSL owns CLOCK"
+    )
+  endif()
+  if(usb_stack AND sdc_variant)
+    # MPSL owns CLOCK while initialized. Its public clock arbitration API is
+    # therefore the only safe way for USBHS to hold HFCLK24M on this target.
+    target_compile_definitions("${target}" PRIVATE NRFKIT_USBHS_MPSL_CLOCK=1)
   endif()
   _nrfkit_finalize_nrfx("${target}")
   if(NOT CMAKE_OBJCOPY)

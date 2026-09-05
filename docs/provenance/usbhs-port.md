@@ -50,6 +50,16 @@ locked device headers. It starts VREGUSB and derives VBUS state from the documen
 the versioned NCS v3.4.0 USBHS wrapper. No NCS or Zephyr source participates in the
 consumer build.
 
+On a combined USBHS and SDC/MPSL target, MPSL owns CLOCK. Finalization therefore
+selects a different clock path independent of whether the consumer enables USB or
+SDC first in CMake: USB initialization retains MPSL, requests HFCLK24M through
+`mpsl_clock_hfclk_src_request()`, polls the matching public running query, and
+releases both the clock and retain during USB teardown. SDC must be enabled before
+USB is initialized, and USB must be deinitialized before its final SDC disable.
+This ordering prevents MPSL from being removed while the USB clock is live. A
+USB-only target continues to use the documented CLOCK tasks directly and no longer
+links the unused nrfx CLOCK ISR.
+
 The DWC2 core identifies a 3040-word SPRAM through `GHWCFG3 = 0x0be0c0e8` on the
 validation device. An initial 160-word receive FIFO satisfied CherryUSB's static
 minimum but caused repeatable high-speed DMA bulk OUT timeouts. Setting the receive
@@ -91,6 +101,15 @@ host-initiated suspend/resume but reset and re-enumeration after the device asse
 remote wake. That result localizes the remaining failure but is not acceptance
 evidence; the final low-power gate must pass on a topology that propagates the resume
 signal without resetting the device.
+
+The combined M8 validation image initializes the Multirole Controller before USB
+and retains the compiled Timeslot backend. Its guarded hardware run completed 20
+USB reset/reconnect cycles and 20.05 seconds of simultaneous control, bulk, and HID
+traffic while SDC/MPSL remained initialized. It transferred 57,416,192 bytes in
+each bulk direction across 112,141 transfers, with both HID directions completing
+and no endpoint-arm error. The local structured report is
+`.work/runs/20260905-142022-m4-usb-gate-1056219/run.json`. The power stage was
+intentionally skipped; this is coexistence evidence, not remote-wake acceptance.
 
 TinyUSB remains a viable alternative stack because it also has a portable DCD
 boundary, but it was not selected for this first port. Maintaining two USB stacks

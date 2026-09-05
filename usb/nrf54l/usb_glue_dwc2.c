@@ -13,6 +13,10 @@
 #include <usb_dwc2_param.h>
 #include <usbd_core.h>
 
+#if defined(NRFKIT_USBHS_MPSL_CLOCK)
+#include "../../softdevice/sdc/nrf54l/platform_internal.h"
+#endif
+
 #define USBHS_WAIT_ITERATIONS UINT32_C(10000000)
 
 static volatile bool initialized;
@@ -20,6 +24,9 @@ static volatile bool connected;
 static volatile bool connect_requested;
 static volatile bool vbus_present;
 static uint8_t usb_busid;
+#if defined(NRFKIT_USBHS_MPSL_CLOCK)
+static bool mpsl_clock_requested;
+#endif
 
 /* Kept as global symbols so the repository GDB gate can diagnose headless bring-up. */
 volatile uint32_t nrfkit_usbhs_stage;
@@ -44,7 +51,7 @@ static bool wait_for(volatile uint32_t const *reg, uint32_t mask, bool set)
 void usb_dc_low_level_init(uint8_t busid)
 {
     nrfkit_usbhs_stage = 1U;
-    if (busid != 0U) {
+    if (busid != 0U || initialized) {
         nrfkit_usbhs_result = NRFKIT_USBHS_ERR_STATE;
         nrfkit_assert_fail();
     }
@@ -67,6 +74,29 @@ void usb_dc_low_level_init(uint8_t busid)
     }
     nrfkit_usbhs_stage = 3U;
 
+#if defined(NRFKIT_USBHS_MPSL_CLOCK)
+    if (nrfkit_mpsl_hfclk24m_request() != 0) {
+        nrfkit_usbhs_result = NRFKIT_USBHS_ERR_CLOCK_CONTROL;
+        nrfkit_assert_fail();
+    }
+    mpsl_clock_requested = true;
+    bool clock_running = false;
+    uint32_t remaining = USBHS_WAIT_ITERATIONS;
+    int32_t clock_result = 0;
+    while (remaining-- != 0U && !clock_running) {
+        clock_result = nrfkit_mpsl_hfclk24m_is_running(&clock_running);
+        if (clock_result != 0) {
+            break;
+        }
+    }
+    if (clock_result != 0 || !clock_running) {
+        (void)nrfkit_mpsl_hfclk24m_release();
+        mpsl_clock_requested = false;
+        nrfkit_usbhs_result = clock_result == 0 ?
+            NRFKIT_USBHS_ERR_CLOCK_TIMEOUT : NRFKIT_USBHS_ERR_CLOCK_CONTROL;
+        nrfkit_assert_fail();
+    }
+#else
     nrf_clock_event_clear(NRF_CLOCK, NRF_CLOCK_EVENT_HFCLK24MSTARTED);
     nrf_clock_task_trigger(NRF_CLOCK, NRF_CLOCK_TASK_HFCLK24MSTART);
     if (!wait_for(&NRF_CLOCK->EVENTS_XO24MSTARTED, 1U, true)) {
@@ -74,6 +104,7 @@ void usb_dc_low_level_init(uint8_t busid)
         nrfkit_assert_fail();
     }
     nrf_clock_event_clear(NRF_CLOCK, NRF_CLOCK_EVENT_HFCLK24MSTARTED);
+#endif
     nrfkit_usbhs_stage = 4U;
 
     NRF_USBHS->ENABLE = USBHS_ENABLE_CORE_Msk;
@@ -119,7 +150,17 @@ void usb_dc_low_level_deinit(uint8_t busid)
     NRF_USBHS->PHY.OVERRIDEVALUES = USBHS_PHY_OVERRIDEVALUES_ID_Msk;
     NRF_USBHS->ENABLE = 0U;
     nrfx_coredep_delay_us(10U);
+#if defined(NRFKIT_USBHS_MPSL_CLOCK)
+    if (mpsl_clock_requested) {
+        if (nrfkit_mpsl_hfclk24m_release() != 0) {
+            nrfkit_usbhs_result = NRFKIT_USBHS_ERR_CLOCK_CONTROL;
+            nrfkit_assert_fail();
+        }
+        mpsl_clock_requested = false;
+    }
+#else
     nrf_clock_task_trigger(NRF_CLOCK, NRF_CLOCK_TASK_HFCLK24MSTOP);
+#endif
     NRF_VREGUSB->INTENCLR = VREGUSB_INTENCLR_VBUSDETECTED_Msk |
         VREGUSB_INTENCLR_VBUSREMOVED_Msk;
     NRF_VREGUSB->TASKS_STOP = 1U;

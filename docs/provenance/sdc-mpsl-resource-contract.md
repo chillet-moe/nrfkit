@@ -62,8 +62,19 @@ worst-case preset.
 MPSL is non-reentrant. Initialization and all low-priority SDC/MPSL APIs must be
 serialized. MPSL starts before SDC; feature selection and SDC resource
 configuration precede enable; entropy is registered before enable. Disable is
-synchronous. MPSL is uninitialized only after SDC is disabled and every
-Timeslot session is closed.
+synchronous. MPSL is uninitialized only after SDC is disabled and every retained
+SDK client is released. Retained clients currently include a Timeslot session and
+the USBHS HFCLK24M request on a combined target. The latter uses MPSL's public clock
+arbiter; linking the nrfx CLOCK driver into the same target is forbidden because
+both would define and control the CLOCK interrupt.
+
+RRAMC has a narrower lifecycle boundary. SDC owns it while the Controller is
+enabled, and the MPSL low-latency callbacks access its power configuration while
+MPSL is initialized. A combined binary may include the nrfx RRAMC driver for normal
+application persistence, but direct application RRAMC operations must complete
+before MPSL initialization or after SDC is disabled, every retained client is
+released, and deferred processing has uninitialized MPSL. Configuration-region and
+one-time writes remain outside this contract.
 
 The platform must implement both nRF54L low-latency callbacks. They coordinate
 CPU constant-latency operation and RRAM latency as one nested/coalesced
@@ -180,3 +191,13 @@ The bounded request/ACK fixture treats only the immediately previous committed
 sequence as a duplicate. It replays that ACK without advancing completion or channel
 state twice. Every retry run suppresses one post-commit ACK to force this path; the
 current image passed the three-round gate and a 20-round soak with zero client drops.
+
+## M8 combined-consumer checkpoint
+
+The source-tree and installed-package fixtures now link one C++23 LM20 target with
+CherryUSB HID, Multirole SDC/MPSL, the Timeslot backend, and nrfx RRAMC while all
+NCS/Zephyr environment paths are deliberately invalid. Both USB-first and SDC-first
+CMake declaration orders select the MPSL HFCLK24M path. The same work found and
+closed two previously hidden integration defects: the freestanding `string.h`
+prototype was not valid C++, and USB unnecessarily linked the nrfx CLOCK ISR beside
+MPSL's handler.

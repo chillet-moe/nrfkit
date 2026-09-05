@@ -27,6 +27,8 @@ static volatile uint8_t low_latency_depth;
 static uint8_t controller_initialized;
 static uint8_t mpsl_initialized;
 static uint8_t timeslot_references;
+static uint8_t mpsl_client_references;
+static uint8_t hfclk24m_references;
 static uint8_t grtc_was_enabled;
 static uint32_t saved_rram_low_power;
 static size_t controller_memory_size;
@@ -224,7 +226,7 @@ int32_t nrfkit_sdc_required_memory(const struct nrfkit_sdc_config *config,
     if (result != 0) {
         return result;
     }
-    if (timeslot_references == 0U) {
+    if (mpsl_client_references == 0U) {
         release_mpsl();
     }
     *required_memory = controller_memory_size;
@@ -243,7 +245,7 @@ int32_t nrfkit_sdc_enable(const struct nrfkit_sdc_config *config,
         return result;
     }
     if (controller_memory_size > memory_size) {
-        if (timeslot_references == 0U) {
+        if (mpsl_client_references == 0U) {
             release_mpsl();
         }
         return -NRF_ENOMEM;
@@ -258,7 +260,7 @@ int32_t nrfkit_sdc_enable(const struct nrfkit_sdc_config *config,
     }
     if (result != 0) {
         nrfx_cracen_uninit();
-        if (timeslot_references == 0U) {
+        if (mpsl_client_references == 0U) {
             release_mpsl();
         }
         return result;
@@ -274,7 +276,7 @@ void nrfkit_sdc_process(void)
         mpsl_low_priority_process();
     }
     if (mpsl_initialized != 0U && enabled == 0U &&
-        timeslot_references == 0U) {
+        mpsl_client_references == 0U) {
         release_mpsl();
     }
 }
@@ -313,11 +315,11 @@ int32_t nrfkit_sdc_disable(void)
     }
     enabled = 0U;
     hci_pending = 0U;
-    if (timeslot_references == 0U) {
+    if (mpsl_client_references == 0U) {
         low_priority_pending = 0U;
     }
     nrfx_cracen_uninit();
-    if (timeslot_references == 0U) {
+    if (mpsl_client_references == 0U) {
         release_mpsl();
     }
     return 0;
@@ -330,10 +332,12 @@ bool nrfkit_mpsl_is_initialized(void)
 
 int32_t nrfkit_mpsl_timeslot_retain(void)
 {
-    if (mpsl_initialized == 0U || timeslot_references != 0U) {
+    if (mpsl_initialized == 0U || timeslot_references != 0U ||
+        mpsl_client_references == UINT8_MAX) {
         return -NRF_EPERM;
     }
     timeslot_references = 1U;
+    ++mpsl_client_references;
     return 0;
 }
 
@@ -341,7 +345,54 @@ void nrfkit_mpsl_timeslot_release(void)
 {
     if (timeslot_references != 0U) {
         timeslot_references = 0U;
+        --mpsl_client_references;
     }
+}
+
+int32_t nrfkit_mpsl_hfclk24m_request(void)
+{
+    if (mpsl_initialized == 0U || hfclk24m_references != 0U ||
+        mpsl_client_references == UINT8_MAX) {
+        return -NRF_EPERM;
+    }
+    ++mpsl_client_references;
+    int32_t const result = mpsl_clock_hfclk_src_request(
+        MPSL_CLOCK_HF_SRC_HFCLK24M, NULL);
+    if (result != 0) {
+        --mpsl_client_references;
+    } else {
+        hfclk24m_references = 1U;
+    }
+    return result;
+}
+
+int32_t nrfkit_mpsl_hfclk24m_is_running(bool *running)
+{
+    if (running == NULL || mpsl_initialized == 0U) {
+        return -NRF_EPERM;
+    }
+    uint32_t value = 0U;
+    int32_t const result = mpsl_clock_hfclk_src_is_running(
+        MPSL_CLOCK_HF_SRC_HFCLK24M, &value);
+    if (result == 0) {
+        *running = value != 0U;
+    }
+    return result;
+}
+
+int32_t nrfkit_mpsl_hfclk24m_release(void)
+{
+    if (mpsl_initialized == 0U || hfclk24m_references == 0U ||
+        mpsl_client_references == 0U) {
+        return -NRF_EPERM;
+    }
+    int32_t const result = mpsl_clock_hfclk_src_release(
+        MPSL_CLOCK_HF_SRC_HFCLK24M);
+    if (result == 0) {
+        hfclk24m_references = 0U;
+        --mpsl_client_references;
+    }
+    return result;
 }
 
 void SWI00_IRQHandler(void)

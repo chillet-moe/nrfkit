@@ -889,6 +889,19 @@ reservation duty 和 11.27% 共存 burst duty 只是功耗代理，不能替代�
 - SDK 当前文件、Git history、commit message、issue template、CI artifact 和 release note 均无私有下游标识；
 - 实板主要工作模式通过长时间运行和切换测试。
 
+M8 当前检查点：已完成公开侧的组合 consumer 前置门禁。source-tree 与 installed
+`find_package` 两条离线路径均可把 C++23、CherryUSB HID、Multirole SDC/MPSL、Timeslot
+和按生命周期隔离的普通 RRAMC 支持链接进同一 LM20 target，且 USB/SDC 两种 CMake
+声明顺序等价。审计同时修复了 freestanding `string.h` 的 C++ 不兼容、USB 多余引入
+nrfx CLOCK ISR 与 MPSL handler 冲突，以及协议栈运行时 USBHS 直接控制 HFCLK24M 的
+所有权错误；组合目标现在通过 MPSL 公共时钟 API retain/request/release。实板组合镜像
+在 SDC/MPSL 持续初始化时通过 20 次 USB 重连和 20.05 秒 control/bulk/HID 压力测试，
+双向各传输 57,416,192 bytes、112,141 次 transfer，端点错误为零；本地报告为
+`.work/runs/20260905-142022-m4-usb-gate-1056219/run.json`，remote wake 按用户决定跳过。
+首个私有 consumer 的本地只读审计确认其当前仍无 LM20 target 或 NrfKit 接入；根据输入
+契约，本 goal 未获修改该私有仓库的授权，因此下游 clean-build、主工作模式长稳和 0.x
+release candidate 仍未完成，M8 尚不能退出。
+
 ### M9：boot/DFU 与 production 支持
 
 交付：

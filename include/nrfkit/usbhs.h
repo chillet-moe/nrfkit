@@ -13,6 +13,7 @@ enum nrfkit_usbhs_result {
     NRFKIT_USBHS_OK = 0,
     NRFKIT_USBHS_ERR_CLOCK_TIMEOUT = -2,
     NRFKIT_USBHS_ERR_STATE = -4,
+    NRFKIT_USBHS_ERR_CLOCK_CONTROL = -5,
 };
 
 /* Request connection now or on the next documented VBUS-detected event. */

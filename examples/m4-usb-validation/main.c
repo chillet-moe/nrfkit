@@ -6,6 +6,9 @@
 
 #include <nrf.h>
 #include <nrfkit/runtime.h>
+#if defined(NRFKIT_M8_COMBINED)
+#include <nrfkit/sdc.h>
+#endif
 #include <nrfkit/usbhs.h>
 #include <nrfx_timer.h>
 #include <usbd_core.h>
@@ -24,6 +27,12 @@
 #define VENDOR_REQUEST_ARM_REMOTE_WAKE UINT8_C(0x41)
 #define USB_STATUS_MAGIC UINT32_C(0x4D345553)
 #define HID_REPORT_DESCRIPTOR_LENGTH UINT16_C(85)
+
+#if defined(NRFKIT_M8_COMBINED)
+#define CONTROLLER_MEMORY_SIZE (8U * 1024U)
+static uint8_t controller_memory[CONTROLLER_MEMORY_SIZE]
+    __attribute__((aligned(8)));
+#endif
 
 #define CONFIG_TOTAL_LENGTH (9U + 9U + 7U + 7U + 9U + 9U + 7U + 7U)
 
@@ -385,6 +394,20 @@ static void usb_event(uint8_t busid, uint8_t event)
 
 int main(void)
 {
+#if defined(NRFKIT_M8_COMBINED)
+    struct nrfkit_sdc_config const sdc_config = {
+        .lfclk_source = NRFKIT_SDC_LFCLK_XTAL,
+        .lfclk_accuracy_ppm = 20U,
+        .hfclk_startup_time_us = 1400U,
+    };
+    size_t required_memory = 0U;
+    if (nrfkit_sdc_required_memory(&sdc_config, &required_memory) != 0 ||
+        required_memory > sizeof(controller_memory) ||
+        nrfkit_sdc_enable(&sdc_config, controller_memory,
+                          sizeof(controller_memory)) != 0) {
+        nrfkit_assert_fail();
+    }
+#endif
     uint32_t timer_frequency = NRF_TIMER_BASE_FREQUENCY_GET(timer.p_reg);
     nrfx_timer_config_t timer_config = NRFX_TIMER_DEFAULT_CONFIG(timer_frequency);
     timer_config.bit_width = NRF_TIMER_BIT_WIDTH_32;
@@ -406,6 +429,9 @@ int main(void)
         return 1;
     }
     for (;;) {
+#if defined(NRFKIT_M8_COMBINED)
+        nrfkit_sdc_process();
+#endif
         if (remote_wakeup_due) {
             remote_wakeup_due = false;
             perform_remote_wakeup();

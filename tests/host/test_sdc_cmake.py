@@ -13,6 +13,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = ROOT / "tests/consumer/sdc-contract"
+COMBINED_FIXTURE = ROOT / "tests/consumer/combined-contract"
 
 
 class SdcCmakeTests(unittest.TestCase):
@@ -187,6 +188,65 @@ class SdcCmakeTests(unittest.TestCase):
             )
             self.assertNotEqual(result.returncode, 0, result.stdout)
             self.assertIn("hash mismatch: mpsl/include/mpsl_timeslot.h", result.stdout)
+
+    def test_combined_cpp23_usb_sdc_timeslot_rram_consumer_links_offline(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            environment = os.environ.copy()
+            for name in (
+                "NRF_CONNECT_SDK_ROOT", "WEST_TOPDIR", "ZEPHYR_BASE",
+                "ZEPHYR_SDK_INSTALL_DIR",
+            ):
+                environment[name] = "/path/that/must/not/be/consulted"
+
+            sdk_build = base / "sdk-build"
+            prefix = base / "prefix"
+            commands = [
+                [
+                    self.cmake, "-S", str(ROOT), "-B", str(sdk_build),
+                    "-G", "Ninja", f"-DCMAKE_INSTALL_PREFIX={prefix}",
+                ],
+                [self.cmake, "--build", str(sdk_build), "--target", "install"],
+            ]
+            for usb_first, package_options in (
+                (False, [f"-DNrfKit_DIR={ROOT / 'cmake'}",
+                         f"-DCMAKE_TOOLCHAIN_FILE={ROOT / 'cmake/toolchains/arm-clang.cmake'}"]),
+                (True, [f"-DCMAKE_PREFIX_PATH={prefix}",
+                        f"-DCMAKE_TOOLCHAIN_FILE={prefix / 'share/nrfkit/cmake/toolchains/arm-clang.cmake'}"]),
+            ):
+                build = base / ("installed-usb-first" if usb_first else "source-sdc-first")
+                commands.extend(([
+                    self.cmake, "-S", str(COMBINED_FIXTURE), "-B", str(build),
+                    "-G", "Ninja", f"-DNRF_LLVM_ROOT={self.llvm_root}",
+                    f"-DCOMBINED_USB_FIRST={'ON' if usb_first else 'OFF'}",
+                    *package_options,
+                ], [self.cmake, "--build", str(build)]))
+
+            for argv in commands:
+                result = subprocess.run(
+                    argv, text=True, stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT, env=environment, check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stdout)
+
+            for build in (base / "source-sdc-first", base / "installed-usb-first"):
+                ninja_file = (build / "build.ninja").read_text(encoding="utf-8")
+                self.assertIn("NRFKIT_USBHS_MPSL_CLOCK=1", ninja_file)
+                link_map = (build / "contract.map").read_text(encoding="utf-8")
+                self.assertIn("mpsl_clock_hfclk_src_request", link_map)
+                self.assertIn("libsoftdevice_controller_multirole.a", link_map)
+
+    def test_combined_target_rejects_nrfx_clock_irq_conflict(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            result = subprocess.run([
+                self.cmake, "-S", str(COMBINED_FIXTURE), "-B", directory,
+                "-G", "Ninja", f"-DNrfKit_DIR={ROOT / 'cmake'}",
+                f"-DCMAKE_TOOLCHAIN_FILE={ROOT / 'cmake/toolchains/arm-clang.cmake'}",
+                f"-DNRF_LLVM_ROOT={self.llvm_root}", "-DCOMBINED_NRFX_CLOCK=ON",
+            ], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                check=False)
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+            self.assertIn("cannot link the nrfx CLOCK driver", result.stdout)
 
     def test_all_controller_variants_reach_real_link_closure(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

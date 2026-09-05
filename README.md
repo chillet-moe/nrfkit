@@ -6,6 +6,12 @@ This project is not affiliated with or endorsed by Nordic Semiconductor. Nordic 
 
 The project is in early bring-up. P0 through M3 and M6 now provide locked official reference builds, a guarded hardware workflow, an experimental nRF54LM20A freestanding runtime, target-scoped nrfx drivers, and a pure-CMake SoftDevice Controller/MPSL integration validated with all three controller archives. M4 USBHS device support is partially validated. M7 now has bidirectional 4 Mbit/s direct and Timeslot air evidence, bounded retry/soak measurements, and three-round active-BLE coexistence evidence; external electrical power measurement remains open. This is not yet a consumer SDK release; see [`PLAN.md`](PLAN.md) for the normative scope and completion gates.
 
+The first M8 public integration gate now links C++23, USB HID, Multirole SDC/MPSL,
+Timeslot, and ordinary lifecycle-separated RRAM support in one offline source-tree
+or installed-package consumer. A combined real-board image also passes USB control,
+bulk, HID, and reconnect testing while MPSL remains initialized. Private downstream
+integration and the release candidate are still pending.
+
 The review-image Timeslot retry regression is resolved by idempotently replaying an ACK for the previous valid sequence. The current gate forces that recovery path and passes a 20-round soak; see [`docs/provenance/m7-radio-evidence.md`](docs/provenance/m7-radio-evidence.md).
 
 Clone with submodules initialized (`git clone --recurse-submodules`) before building. The complete nrfx, CherryUSB, and Nordic sdk-nrfxlib trees remain immutable, version-locked upstream submodules instead of ordinary project-owned source. NrfKit compiles or links only requested components and prepares nrfx project patches in an ignored consumer cache; configure never downloads or edits an upstream tree. An explicit `NRFKIT_NRFXLIB_ROOT` override may point at the exact same locked checkout after full identity/hash validation; normal builds never discover an installed NCS workspace.
@@ -49,6 +55,9 @@ It uses the pinned CherryUSB tree by default. `SOURCE_DIR` may select an explici
 managed compatible CherryUSB checkout. The port's evidence hierarchy and the exact
 CherryUSB documentation and newer DWC2 glue examples used during its design are
 recorded in [`docs/provenance/usbhs-port.md`](docs/provenance/usbhs-port.md).
+When the same target also enables SDC, enable the Controller at runtime before USB
+initialization and tear USB down before the final Controller disable; NrfKit then
+routes HFCLK24M through MPSL automatically.
 
 The experimental proprietary RADIO adapter is enabled independently:
 

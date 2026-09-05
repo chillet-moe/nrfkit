@@ -71,6 +71,18 @@ nrfkit_enable_usb_device(m4_usb_validation STACK cherryusb CLASSES hid)
 nrfkit_enable_nrfx(m4_usb_validation DRIVERS timer)
 nrfkit_finalize_target(m4_usb_validation)
 
+add_executable(m8_combined_validation m4-usb-validation/main.c)
+nrfkit_configure_target(m8_combined_validation
+  SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
+)
+nrfkit_claim_resources(m8_combined_validation OWNER usb_validation RESOURCES timer21)
+nrfkit_enable_sdc(m8_combined_validation VARIANT multirole)
+nrfkit_enable_usb_device(m8_combined_validation STACK cherryusb CLASSES hid)
+nrfkit_enable_mpsl_timeslot(m8_combined_validation)
+nrfkit_enable_nrfx(m8_combined_validation DRIVERS timer)
+target_compile_definitions(m8_combined_validation PRIVATE NRFKIT_M8_COMBINED=1)
+nrfkit_finalize_target(m8_combined_validation)
+
 add_executable(m5_radio_validation m5-radio-validation/main.c)
 nrfkit_configure_target(m5_radio_validation
   SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
