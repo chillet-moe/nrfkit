@@ -1,6 +1,6 @@
 # nrfkit：目标与执行计划
 
-> 状态：P0、M0、M1、M2、M3、M6、M9 已完成；M4 仅余但暂缓直连拓扑 remote wake；M5 direct-RADIO 基线已收束；M7 功能、时序、retry 与共存门禁已完成，外部仪器电气功耗测量暂缓；M8 的 0.1.0-rc.1 已完成本地发布验收，仅余经授权的外部发布
+> 状态：P0、M0、M1、M2、M3、M6、M8、M9 已完成；M4 仅余但暂缓直连拓扑 remote wake；M5 direct-RADIO 基线已收束；M7 功能、时序、retry 与共存门禁已完成，外部仪器电气功耗测量暂缓；0.1.0-rc.2 已完成发布验收并推送公开 main/签名 tag
 > 计划基线：2026-09-05<br>
 > 唯一 SDK 支持目标：nRF54LM20A / nRF54LM20 DK<br>
 > 实验室夹具：nRF54L15 DK（不属于 SDK 支持目标）<br>
@@ -931,18 +931,20 @@ manifest 与 image-layout 检查通过，构建后主仓库与所有 submodule �
 集成门禁已完成。
 RC 版本准备已把 `include/nrfkit/version.h` 设为唯一版本来源；根项目、source-tree
 package 与 installed package 会从同一组 numeric/full version 生成并由离线 consumer
-门禁交叉验证。首个版本选择为 `0.1.0-rc.1`：`0.x` 保留实验性 API 边界，`rc.1` 明确
+门禁交叉验证。首个版本选择为 `0.1.0-rc.1`：`0.x` 保留实验性 API 边界，prerelease 明确
 表示 remote wake、外部仪器功耗和产品按键矩阵不在已声明证据内。SPDX SBOM、README、
 changelog、CMake package 的 numeric/full version 已保持一致。CPack TGZ 安装归档包含项目
 许可证、发布说明和支持所需的 nrfx、CherryUSB、SDC/MPSL 闭包；固定
 `SOURCE_DATE_EPOCH` 的两次独立打包 SHA-256 相同，解包后 consumer 在故意污染的
-NCS/Zephyr 环境变量下仍能离线 configure/build。最终发布前 host suite 为 129/129，SPDX
-2.3 validator、public hygiene 与 diff check 通过。本地 tag/归档可以无人值守准备；向远端
-push tag 或创建托管 release 属于外部账号发布，必须取得新的明确授权，因此不阻塞 M9 的
-本地审计与实现工作，但仍是 M8 唯一未完成的退出动作。
-现有本地签名 tag `v0.1.0-rc.1` 固定在上述验收提交；其后修复的 SDC/GRTC cold-start 问题
-不属于该 tag。不得移动或把新内容误记进旧 tag；若要发布当前 HEAD，应先选择新的 prerelease
-版本并重新执行本地发布门禁，外部 push/release 仍需单独授权。
+NCS/Zephyr 环境变量下仍能离线 configure/build。`0.1.0-rc.2` 发布前 host suite 为 131/131，
+SPDX 2.3 validator、public hygiene 与 diff check 通过；两次精确发布归档逐字节一致，SHA-256
+为 `b99fcbb42414cf6ddc234aca76c491c02af02d8e742edec1db76f724d81ba0e7`。签名 tag
+`v0.1.0-rc.2` 固定到提交 `0eac727a9df47b996557c347e4dc01a00331906d`，已验证为 Good
+signature，并与公开 `main` 一同推送到 GitHub。经用户明确决定，另建 GitHub 托管 release
+及上传归档附件不属于退出条件；可复现归档、校验文件和结构化验收报告保存在 ignored local
+release evidence 中。至此 M8 完成。
+旧签名 tag `v0.1.0-rc.1` 继续固定在原验收提交；其后的 SDC/GRTC cold-start 修复仅进入
+`v0.1.0-rc.2`，未移动或重写旧 tag。
 安装前缀也已从复制完整 nrfx/CherryUSB checkout 收束为 LM20 支持所需的 nrfx
 driver/header closure、CherryUSB core/HID/DWC2 closure 与锁定的 SDC/MPSL selection；
 无关 demo、host tool、bundled third-party example 和 Zephyr/Kconfig glue 不进入 RC 包。
