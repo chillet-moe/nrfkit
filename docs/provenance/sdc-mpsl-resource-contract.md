@@ -175,3 +175,8 @@ runs received the active-connection sequence 15 with zero loss or invalid payloa
 while raw bidirectional ACL remained live. Detailed rate, latency, negative, soak,
 scheduling, and remaining electrical-power evidence is in
 [`m7-radio-evidence.md`](m7-radio-evidence.md).
+
+The bounded request/ACK fixture treats only the immediately previous committed
+sequence as a duplicate. It replays that ACK without advancing completion or channel
+state twice. Every retry run suppresses one post-commit ACK to force this path; the
+current image passed the three-round gate and a 20-round soak with zero client drops.

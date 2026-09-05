@@ -677,7 +677,7 @@
         "tests/hardware/m5-radio-peer/configs/tx-4m-bt-0-4.conf": "9b16dc9101d89970806a787251e3ec11c6de767f826f2910ca792af4a92e0efe",
         "tests/hardware/m5-radio-peer/configs/rx-4m-bt-0-4.conf": "28cf03d97c2720a2eac820e043b44243afacd6f7722a3e29ff6ab1838356846f",
         "tests/hardware/m5-radio-peer/configs/retry-server-4m.conf": "9e3fe085a90894740b1cbcafa778ee009a58750b0c44704fa1b9dd2091a54bc7",
-        "tests/hardware/m5-radio-peer/src/main.c": "2b00f72cf11da725b573c6ffc897021e1bdab5bbf90920f262ab02db7b449855"
+        "tests/hardware/m5-radio-peer/src/main.c": "a7ada94511118ed287b2ad842cf79c247b26d91b5b0deeb6901ae699428a3fb6"
       },
       "license": "BSD-3-Clause",
       "imported": false,

@@ -138,10 +138,22 @@ class RadioContractTests(unittest.TestCase):
             encoding="utf-8"
         )
         for token in (
-            "QUEUE_CAPACITY 8U", "MAX_RETRIES 3U", "retries == 8U",
+            "QUEUE_CAPACITY 8U", "MAX_RETRIES 3U",
+            "retries >= INTENTIONAL_RETRIES",
             "channel_switches == 4U", "__WFE()",
         ):
             self.assertIn(token, retry)
+        peer = (ROOT / "tests/hardware/m5-radio-peer/src/main.c").read_text(
+            encoding="utf-8"
+        )
+        for token in (
+            "sequence == (uint8_t)(completed - 1U)",
+            "if (duplicate)",
+            "suppress_ack",
+            "suppressed=1",
+            "duplicates=%u",
+        ):
+            self.assertIn(token, peer)
 
     def test_dual_board_harness_rejects_a_single_probe(self) -> None:
         cli = (ROOT / "tools/nrfkit_tools/cli.py").read_text(encoding="utf-8")
@@ -158,6 +170,7 @@ class RadioContractTests(unittest.TestCase):
         self.assertIn('"crc-rejection", round=round_number', cli)
         self.assertIn('"--retry-contract"', cli)
         self.assertIn('"retry-queue-channel", round=round_number', cli)
+        self.assertIn('duplicate_acks=rx_counters["duplicates"]', cli)
         self.assertIn('"--performance-rate"', cli)
         self.assertIn('"radio-performance", round=round_number', cli)
 

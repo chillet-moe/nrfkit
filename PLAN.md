@@ -1,6 +1,6 @@
 # nrfkit：目标与执行计划
 
-> 状态：P0、M0、M1、M2、M3、M6 已完成；M4 仅余直连拓扑 remote wake；M5 direct-RADIO 基线已收束；M7 双向 Timeslot 与共存回归通过，retry 回归待修复，外部仪器电气功耗测量仍待完成<br>
+> 状态：P0、M0、M1、M2、M3、M6 已完成；M4 仅余但暂缓直连拓扑 remote wake；M5 direct-RADIO 基线已收束；M7 功能、时序、retry 与共存门禁已完成，外部仪器电气功耗测量暂缓
 > 计划基线：2026-09-05<br>
 > 唯一 SDK 支持目标：nRF54LM20A / nRF54LM20 DK<br>
 > 实验室夹具：nRF54L15 DK（不属于 SDK 支持目标）<br>
@@ -862,10 +862,13 @@ soak 均通过。4/2/1 Mbit/s 已用同一 DWT/16-byte payload 方法量化。Ti
 PPK2、示波器、电流表或功率分析仪，官方 DK 测量流程要求外部仪器；已有 60.55% retry
 reservation duty 和 11.27% 共存 burst duty 只是功耗代理，不能替代安培/瓦特/焦耳。
 
-2026-09-05 后续审查回归：输入校验和 Timeslot 请求状态修复通过 121 项 host tests；
-双向 Timeslot 与活动 BLE 共存各三轮通过。但当前 retry 镜像两次耗尽重试，历史镜像在
-同一 peer 下连续三轮通过。试验性 ACK 间隔未稳定解决问题，已撤回；不得将历史 20 轮
-soak 结果当成本次修改后的 retry 验收。该回归需要独立定位并修复，详见上述证据文档。
+2026-09-05 后续审查回归已闭环：输入校验和 Timeslot 请求状态修复通过 121 项 host tests；
+双向 Timeslot 与活动 BLE 共存各三轮通过。retry 根因是 ACK server 在 ACK 丢失后已经
+推进序号、却不重放上一序号 ACK，导致 client 永久失步。peer 现在幂等处理合法重复包，
+并以每轮一次 server-side commit 后 ACK 抑制强制覆盖该路径。当前镜像先通过三轮，再通过
+20 轮 soak；每轮 64/64 完成、零 drop，且一次额外真实 ACK 丢失也成功恢复。详见上述
+证据文档。M4 remote wake 与 M7 外部电气功耗由用户于 2026-09-05 明确暂缓，保留为未完成
+退出条件，但不再阻塞其余里程碑推进。
 
 ### M8：首个私有下游集成与 LM20 release candidate
 

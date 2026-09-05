@@ -76,17 +76,23 @@ polling receive measurements are 649,610, 426,095, and 258,573 bit/s. Report IDs
 `20260905-054305-m5-radio-dual-781865`, and
 `20260905-054322-m5-radio-dual-781692`.
 
-The bounded Timeslot protocol has an eight-entry queue and three-retry ceiling. Its
-peer intentionally drops the first acknowledgement for every eighth sequence. In 20
-consecutive rounds it conserved 64 accepted/completed packets, eight retries, zero
-drops, peak queue depth eight, 72 grants, four synchronized channel switches, and
-287 foreground sleeps per round. Mean round-trip latency ranged from 5573.5625 to
-5573.625 microseconds (`20260905-054701-m7-radio-dual-786083`). Receiving after
-`WFE` wake is intrinsic to every grant/acknowledgement iteration rather than a
-separate busy-wait-only demonstration.
+The bounded Timeslot protocol has an eight-entry queue and a three-retry ceiling per
+packet. Its peer intentionally drops the first acknowledgement for every eighth
+sequence. It also suppresses one acknowledgement after committing sequence 1, which
+forces the client to resend the previous sequence and proves that the peer replays
+the ACK without committing the packet twice. In the current 20 consecutive rounds,
+all runs conserved 64 accepted/completed packets, zero client drops, peak queue depth
+eight, and four synchronized channel switches. Nineteen rounds used nine retries,
+73 grants, 291 foreground sleeps, and one replayed ACK. One round encountered an
+additional lost ACK and recovered with ten retries, 74 grants, 295 sleeps, and two
+replayed ACKs (`20260905-140210-m7-radio-dual-1037815`). The preceding three-round
+gate also passed and forced the same recovery (`20260905-140128-m7-radio-dual-1037225`).
+Receiving after `WFE` wake is intrinsic to every grant/acknowledgement iteration
+rather than a separate busy-wait-only demonstration.
 
-For this retry test the measurable scheduling/power proxy is 216 milliseconds of
-reserved grant time over 356.708--356.712 milliseconds, or 60.55% reservation duty.
+For the current retry test the measurable scheduling/power proxy is 219--222
+milliseconds of reserved grant time over 361.708--366.708 milliseconds, or about
+60.55% reservation duty.
 The connected coexistence envelope reserves 8 milliseconds across each approximately
 71-millisecond finite burst, or 11.27% within-burst reservation duty. These values
 quantify scheduling cost, not electrical current or energy.
@@ -104,7 +110,7 @@ passed three rounds in each Timeslot air direction and three connected BLE round
   received sequence 15 and retained bidirectional raw ACL.
 - Independent GDB: `20260905-131828-gdb-smoke-984190`.
 
-The current retry image did **not** pass. Runs
+The initial review retry image did **not** pass. Runs
 `20260905-130927-m7-radio-dual-973097` and
 `20260905-131247-m7-radio-dual-974634` completed only two and one packets,
 respectively, before exhausting retries. Programming/read-back and serial transport
@@ -114,12 +120,17 @@ one control round (`20260905-131201-m7-radio-dual-974247`) and three consecutive
 control rounds (`20260905-131642-m7-radio-dual-982500`).
 
 An experimental 100-microsecond peer ACK turnaround passed one round but failed the
-next after 61 completed packets (`20260905-131454-m7-radio-dual-976629`). That peer
-change was reverted, including its source-lock hash. ACK timing and retry handling
-remain investigation hypotheses, not an established root cause. This is an unresolved
-review-image regression; the historical 20-round soak must not be reported as current
-acceptance. All hardware runs used guarded application RRAM with read-back verification
-and completed process cleanup. Raw evidence remains in ignored local reports.
+next after 61 completed packets (`20260905-131454-m7-radio-dual-976629`). That timing
+change was reverted. The failure exposed a protocol defect instead: after transmitting
+an ACK, the peer advanced `completed`; if that ACK was lost, the client's retry of the
+previous sequence was thereafter rejected forever. The peer now accepts exactly the
+immediately previous committed sequence as a duplicate, replays its ACK, and does not
+advance counters or channels twice. The current gate deterministically suppresses one
+post-commit ACK per round, so this recovery is no longer dependent on incidental RF
+loss. Three rounds and the subsequent 20-round soak passed, including one additional
+incidental ACK loss. All hardware runs used guarded application RRAM with read-back
+verification and completed process cleanup. Raw evidence remains in ignored local
+reports.
 
 ## Remaining electrical power boundary
 
@@ -130,7 +141,8 @@ profile or average-current measurement. Serial and debug connections also alter 
 measurement boundary. Consequently M7 has functional, timing, stability, and duty
 evidence, but it does not yet claim measured amperes, watts, or joules. Closing the
 PLAN power exit condition requires an instrumented baseline/4/2/1/Timeslot run using
-the same packet and timing method.
+the same packet and timing method. The user explicitly deferred this external-instrument
+gate on 2026-09-05; it remains unclaimed and does not block work on later milestones.
 
 `tools/nrfkit m7-power-audit` is the instrument-independent final reducer. It requires
 seven normalized captures named `idle`, `direct-1m`, `direct-2m`, `direct-4m`,

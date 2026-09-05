@@ -975,23 +975,59 @@ def command_m5_radio_dual(args: argparse.Namespace) -> int:
             rx_report = str(Path(lines[0]).resolve())
             report["child_reports"].extend((rx_report, tx_report))
             if retry_contract:
-                transcript = Path(tx_report).with_name("serial.log").read_text(
+                tx_transcript = Path(tx_report).with_name("serial.log").read_text(
                     encoding="utf-8", errors="replace"
                 )
-                required = (
-                    "accepted=64", "completed=64", "retries=8", "dropped=0",
-                    "peak=8", "channels=4",
+                rx_transcript = Path(rx_report).with_name("serial.log").read_text(
+                    encoding="utf-8", errors="replace"
                 )
-                if any(value not in transcript for value in required):
+
+                def counter(transcript: str, name: str) -> int:
+                    match = re.search(rf"\b{re.escape(name)}=(\d+)\b", transcript)
+                    if match is None:
+                        raise ToolError(f"M7 retry contract has no {name} counter")
+                    return int(match.group(1))
+
+                tx_counters = {
+                    name: counter(tx_transcript, name)
+                    for name in (
+                        "accepted", "completed", "retries", "dropped", "peak",
+                        "channels", "ticks",
+                    )
+                }
+                rx_counters = {
+                    name: counter(rx_transcript, name)
+                    for name in (
+                        "completed", "drops", "suppressed", "channels", "invalid",
+                        "duplicates",
+                    )
+                }
+                if any((
+                    tx_counters["accepted"] != 64,
+                    tx_counters["completed"] != 64,
+                    tx_counters["dropped"] != 0,
+                    tx_counters["peak"] != 8,
+                    tx_counters["channels"] != 4,
+                    tx_counters["retries"] < 8,
+                    tx_counters["retries"] > 64 * 3,
+                    rx_counters["completed"] != 64,
+                    rx_counters["drops"] != 8,
+                    rx_counters["suppressed"] != 1,
+                    rx_counters["channels"] != 4,
+                    rx_counters["invalid"] != 0,
+                    rx_counters["duplicates"] < rx_counters["suppressed"],
+                    tx_counters["retries"] <
+                        rx_counters["drops"] + rx_counters["suppressed"],
+                )):
                     raise ToolError("M7 retry/queue/channel counters are not conserved")
-                ticks_match = re.search(r"\bticks=(\d+)\b", transcript)
-                if ticks_match is None:
-                    raise ToolError("M7 retry contract has no GRTC measurement")
-                ticks = int(ticks_match.group(1))
+                ticks = tx_counters["ticks"]
                 _stage(
                     run_dir, report, "retry-queue-channel", round=round_number,
                     grtc_ticks=ticks,
                     mean_round_trip_us=ticks / 64.0,
+                    retries=tx_counters["retries"],
+                    suppressed_acks=rx_counters["suppressed"],
+                    duplicate_acks=rx_counters["duplicates"],
                 )
             if getattr(args, "require_rx_crc_rejection", False):
                 transcript = Path(rx_report).with_name("serial.log").read_text(

@@ -114,6 +114,8 @@ int main(void)
     uint8_t dropped_once[64] = {0};
     uint32_t completed = 0U;
     uint32_t intentional_drops = 0U;
+    uint32_t suppressed_acks = 0U;
+    uint32_t duplicate_acks = 0U;
     uint32_t channel_switches = 0U;
     uint32_t invalid = 0U;
     uint32_t attempts = 0U;
@@ -127,21 +129,38 @@ int main(void)
             continue;
         }
         uint8_t const sequence = packet[1];
-        if (sequence >= 64U || sequence != completed) {
+        bool const duplicate = completed != 0U &&
+            sequence == (uint8_t)(completed - 1U);
+        if (sequence >= 64U || (sequence != completed && !duplicate)) {
             ++invalid;
             continue;
         }
-        if ((sequence % 8U) == 0U && dropped_once[sequence] == 0U) {
+        if (!duplicate && (sequence % 8U) == 0U && dropped_once[sequence] == 0U) {
             dropped_once[sequence] = 1U;
             ++intentional_drops;
             continue;
         }
-        packet[0] = 2U;
-        packet[1] = sequence;
-        packet[2] = 0xACU;
-        if (!transfer(NRF_RADIO_TASK_TXEN)) {
-            printk("NRFKIT_M7_PEER_RETRY FAIL ack\n");
-            return 1;
+        if (duplicate) {
+            ++duplicate_acks;
+        }
+        bool const suppress_ack = !duplicate && sequence == 1U &&
+            suppressed_acks == 0U;
+        if (suppress_ack) {
+            /* Model an ACK lost after server-side commit. The duplicate request
+             * must be re-ACKed without advancing completed a second time.
+             */
+            ++suppressed_acks;
+        } else {
+            packet[0] = 2U;
+            packet[1] = sequence;
+            packet[2] = 0xACU;
+            if (!transfer(NRF_RADIO_TASK_TXEN)) {
+                printk("NRFKIT_M7_PEER_RETRY FAIL ack\n");
+                return 1;
+            }
+        }
+        if (duplicate) {
+            continue;
         }
         ++completed;
         if ((completed % 16U) == 0U) {
@@ -151,13 +170,16 @@ int main(void)
             ++channel_switches;
         }
     }
-    if (completed != 64U || intentional_drops != 8U ||
+    if (completed != 64U || intentional_drops != 8U || suppressed_acks != 1U ||
+        duplicate_acks < suppressed_acks ||
         channel_switches != 4U || invalid != 0U) {
-        printk("NRFKIT_M7_PEER_RETRY FAIL completed=%u drops=%u channels=%u invalid=%u\n",
-               completed, intentional_drops, channel_switches, invalid);
+        printk("NRFKIT_M7_PEER_RETRY FAIL completed=%u drops=%u suppressed=%u duplicates=%u channels=%u invalid=%u\n",
+               completed, intentional_drops, suppressed_acks, duplicate_acks,
+               channel_switches, invalid);
         return 1;
     }
-    printk("NRFKIT_M7_PEER_RETRY PASS completed=64 drops=8 channels=4 invalid=0\n");
+    printk("NRFKIT_M7_PEER_RETRY PASS completed=64 drops=8 suppressed=1 channels=4 invalid=0 duplicates=%u\n",
+           duplicate_acks);
 #elif defined(CONFIG_NRFKIT_M5_PEER_TX) && CONFIG_NRFKIT_M5_PEER_TX
     k_sleep(K_SECONDS(1));
     packet[0] = PACKET_LENGTH;

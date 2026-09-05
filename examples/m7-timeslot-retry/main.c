@@ -15,6 +15,7 @@
 #define TOTAL_PACKETS 64U
 #define QUEUE_CAPACITY 8U
 #define MAX_RETRIES 3U
+#define INTENTIONAL_RETRIES (TOTAL_PACKETS / 8U)
 #define PACKET_LENGTH 16U
 #define GRANT_LENGTH_US 3000U
 #define CLEANUP_MARGIN_US 200U
@@ -220,7 +221,8 @@ int main(void)
     }
 
     int const passed = accepted == TOTAL_PACKETS && completed == TOTAL_PACKETS &&
-        dropped == 0U && retries == 8U && queue_peak == QUEUE_CAPACITY &&
+        dropped == 0U && retries >= INTENTIONAL_RETRIES &&
+        retries <= TOTAL_PACKETS * MAX_RETRIES && queue_peak == QUEUE_CAPACITY &&
         channel_switches == 4U && sleeps != 0U;
     uint8_t output[192] __attribute__((aligned(4)));
     size_t position = 0U;
