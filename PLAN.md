@@ -984,7 +984,9 @@ settings 与 scratch 的 linker script 和配套 image-layout 由 consumer 维�
 response 增加 500 ms 有界 drain，超时只重启 transport，不执行尚未可靠回传结果的 reset
 或 launch。另已建立 fail-closed Cortex-M vector contract，主机测试覆盖 image/alignment、
 8-byte MSP、RAM 边界、Thumb bit 与 reset target 范围。共享层 16 项 host tests 通过，既有
-另一目标 Release bootloader 仍能交叉链接。
+另一目标 Release bootloader 仍能交叉链接。RAM maintenance program 继续使用既有 platform
+service C ABI；loader 现按 target 声明的入口地址 mask 在 load-begin 拒绝 ISA 不兼容的
+签名 manifest，LM20 要求 Thumb bit，既有 RISC-V target 要求 bit 0 清零。
 
 LM20 的非部署 compile probe 也已完成，不增加新的用户配置层：consumer 只需在既有 LM20
 CMake 配置中打开一个选项并构建一个显式 target。Release 链接结果占 18,028 bytes RRAM；
