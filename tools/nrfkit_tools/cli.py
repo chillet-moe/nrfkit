@@ -52,8 +52,9 @@ from .reference import (
 )
 from .sdk import SdkContractError, create_device_manifest
 from .usb_validation import (
-    UsbValidationError, run_host_resume_validation, run_power_validation,
-    run_reconnect_validation, run_transfer_validation,
+    UsbValidationError, inspect_standard_descriptors, run_host_resume_validation,
+    run_power_validation, run_reconnect_validation,
+    run_standard_reconnect_validation, run_transfer_validation,
 )
 
 
@@ -82,7 +83,7 @@ def load_manifest(path: Path, *, artifacts: bool = True) -> dict[str, Any]:
         "board_version", "device_family", "expected_token", "vcom", "debug_allowlist",
         "debug_elf", "images", "backend",
     }
-    optional = {"build_evidence", "hci_transport"}
+    optional = {"build_evidence", "hci_transport", "image_layout"}
     if (
         value.get("schema") != "nrfkit-image/v1"
         or not required.issubset(value)
@@ -91,6 +92,14 @@ def load_manifest(path: Path, *, artifacts: bool = True) -> dict[str, Any]:
         raise ToolError("image manifest schema or fields are invalid")
     if value["backend"] != safe_backend_contract():
         raise ToolError("image manifest backend contract is invalid")
+    if "image_layout" in value:
+        layout = value["image_layout"]
+        if not isinstance(layout, dict) or set(layout) != {"path", "sha256"}:
+            raise ToolError("image manifest layout receipt is invalid")
+        layout_path = Path(layout["path"])
+        if (not layout_path.is_absolute() or not layout_path.is_file() or
+                sha256(layout_path) != layout["sha256"]):
+            raise ToolError("image manifest layout receipt is missing or stale")
     if not isinstance(value["debug_allowlist"], list) or not value["debug_allowlist"]:
         raise ToolError("image manifest debug allowlist is invalid")
     if artifacts:
@@ -754,6 +763,54 @@ def command_m4_usb_gate(args: argparse.Namespace) -> int:
             "status": "ok", "reconnect": reconnect, "transfers": transfers,
             "power": power,
         })
+    except BaseException as error:
+        report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
+        atomic_json(run_dir / "run.json", report)
+        raise
+    atomic_json(run_dir / "run.json", report)
+    print(run_dir / "run.json")
+    return 0
+
+
+def command_consumer_usb_smoke(args: argparse.Namespace) -> int:
+    run_dir, report = _new_run("consumer-usb-smoke")
+    try:
+        manifest = load_manifest(args.manifest)
+        _initialize_device_report(run_dir, report, args.manifest, manifest, args)
+        device = _select(manifest, args, run_dir)
+        _stage(run_dir, report, "device-selection", board_version=manifest["board_version"])
+        with _probe_lock(device["serialNumber"], "consumer-usb-smoke"):
+            _stage(run_dir, report, "probe-lock")
+            snapshots = _snapshot_hexes(manifest, run_dir)
+            _stage(
+                run_dir, report, "image-snapshot",
+                sha256=[sha256(snapshot) for snapshot in snapshots],
+            )
+            for snapshot in snapshots:
+                _program(manifest, device, snapshot, args, run_dir)
+                _stage(run_dir, report, "program", image_sha256=sha256(snapshot))
+            reset_result = run_logged(
+                reset_argv(
+                    args.nrfutil, device["serialNumber"], manifest["device_family"],
+                    manifest["core"], args.reset_kind,
+                ),
+                run_dir / "reset.log", args.timeout,
+            )
+            if reset_result.returncode:
+                raise ToolError("device reset failed")
+            _stage(run_dir, report, "reset", duration_seconds=reset_result.duration_seconds)
+
+        descriptors = inspect_standard_descriptors(
+            vid=args.vid, pid=args.pid, expected_speed=args.expected_speed,
+            expected_interfaces=args.expected_interfaces, timeout=args.timeout,
+        )
+        _stage(run_dir, report, "usb-standard-descriptors", **descriptors)
+        reconnect = run_standard_reconnect_validation(
+            vid=args.vid, pid=args.pid, cycles=args.reconnect_cycles,
+            timeout=args.timeout,
+        )
+        _stage(run_dir, report, "usb-reconnect", **reconnect)
+        report.update({"status": "ok", "descriptors": descriptors, "reconnect": reconnect})
     except BaseException as error:
         report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
         atomic_json(run_dir / "run.json", report)
@@ -2528,6 +2585,17 @@ def main(argv: list[str] | None = None) -> int:
     gdb.add_argument("--token-timeout", type=float, default=10)
     gdb.add_argument("--serial-ready-delay", type=float, default=0.5)
     gdb.set_defaults(handler=command_gdb_smoke)
+    consumer_usb = subparsers.add_parser(
+        "consumer-usb-smoke",
+        help="program a guarded consumer image and inspect standard USB descriptors",
+    )
+    add_device_arguments(consumer_usb)
+    consumer_usb.add_argument("--vid", type=lambda value: int(value, 0), required=True)
+    consumer_usb.add_argument("--pid", type=lambda value: int(value, 0), required=True)
+    consumer_usb.add_argument("--expected-speed", type=int)
+    consumer_usb.add_argument("--expected-interfaces", type=int)
+    consumer_usb.add_argument("--reconnect-cycles", type=int, default=10)
+    consumer_usb.set_defaults(handler=command_consumer_usb_smoke)
     m4_usb = subparsers.add_parser("m4-usb-gate")
     add_device_arguments(m4_usb)
     m4_usb.add_argument("--reconnect-cycles", type=int, default=100)

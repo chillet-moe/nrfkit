@@ -34,6 +34,17 @@ cmake -S examples -B build/lm20 -G Ninja \
 cmake --build build/lm20
 ```
 
+For a C++23 consumer that uses standard library headers, keep Clang as the
+compiler and additionally point `NRF_GNU_ARM_CXX_ROOT` at a GNU Arm Embedded
+installation prefix. NrfKit uses its target sysroot and C++ headers without
+switching the compiler away from Clang. The runtime remains freestanding: this
+enables header-only standard-library facilities, not hosted I/O, a heap, or an
+implicitly linked C++ runtime:
+
+```sh
+  -DNRF_GNU_ARM_CXX_ROOT=/path/to/arm-gnu-toolchain
+```
+
 This builds `empty`, `blinky`, `fault`, and the C++ constructor example. Each target produces `.elf`, `.hex`, `.bin`, `.map`, and `.image-layout.json`. The standalone layout uses RRAM at `0x00000000..0x001fd000`, RAM0 only at `0x20000000..0x20040000`, a 16 KiB stack, and no heap. RAM1 remains deliberately unavailable until its reserved top tail is modeled.
 
 The public target API is target-scoped:
@@ -49,14 +60,37 @@ nrfkit_configure_target(firmware
 nrfkit_finalize_target(firmware)
 ```
 
+Applications that reserve product-owned ordinary RRAM, such as settings, may
+provide a reviewed linker script and its matching guarded image-layout contract:
+
+```cmake
+nrfkit_configure_target(firmware
+  SOC nrf54lm20a CORE cpuapp RUNTIME freestanding
+  LINKER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/image/application.ld"
+  IMAGE_LAYOUT "${CMAKE_CURRENT_SOURCE_DIR}/image/application-layout.json"
+)
+```
+
+The two files are inseparable: configuration rejects either one alone, a layout
+for another target/SoC/core, or any layout that permits configuration-region writes.
+The consumer linker script remains responsible for asserting that code, data,
+settings, stack, and other product reservations cannot overlap.
+`tools/nrfkit sdk manifest` validates that layout again and derives the guarded
+application-RRAM allowlist from it; settings and scratch reservations are never
+included in the programming allowlist.
+
 The experimental LM20 USBHS device integration is also target-scoped:
 
 ```cmake
-nrfkit_enable_usb_device(firmware STACK cherryusb CLASSES hid)
+nrfkit_enable_usb_device(firmware STACK cherryusb CLASSES hid
+  IN_ENDPOINT_MAX_PACKET_SIZES 8 64 32 32)
 ```
 
 It uses the pinned CherryUSB tree by default. `SOURCE_DIR` may select an explicitly
-managed compatible CherryUSB checkout. The port's evidence hierarchy and the exact
+managed compatible CherryUSB checkout. The optional packet-size list describes IN
+endpoints 1 upward; NrfKit derives a minimum-sized TX FIFO for each endpoint and
+rejects allocations beyond the LM20 hardware capacity. If omitted, it preserves the
+validated M4 oracle allocation for endpoints 1 and 2. The port's evidence hierarchy and the exact
 CherryUSB documentation and newer DWC2 glue examples used during its design are
 recorded in [`docs/provenance/usbhs-port.md`](docs/provenance/usbhs-port.md).
 When the same target also enables SDC, enable the Controller at runtime before USB

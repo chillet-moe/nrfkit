@@ -19,6 +19,11 @@
 
 #define USBHS_WAIT_ITERATIONS UINT32_C(10000000)
 
+#ifndef NRFKIT_USBHS_DEVICE_TX_FIFO_WORDS
+#define NRFKIT_USBHS_DEVICE_TX_FIFO_WORDS \
+    { 16U, 128U, 64U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U }
+#endif
+
 static volatile bool initialized;
 static volatile bool connected;
 static volatile bool connect_requested;
@@ -234,11 +239,7 @@ void dwc2_get_user_params(uint32_t reg_base, struct dwc2_user_params *params)
         .device_dma_desc_enable = false,
         /* 25% of the LM20 core's 3040-word SPRAM, matching Nordic's cap. */
         .device_rx_fifo_size = 760U,
-        .device_tx_fifo_size = {
-            [0] = 16U,
-            [1] = 128U,
-            [2] = 64U,
-        },
+        .device_tx_fifo_size = NRFKIT_USBHS_DEVICE_TX_FIFO_WORDS,
     };
 
     if (reg_base != (uintptr_t)NRF_USBHSCORE) {

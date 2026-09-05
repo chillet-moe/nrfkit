@@ -19,7 +19,7 @@ For a VCOM token failure, preserve the raw local transcript and classify its byt
 
 For the P0 oracle matrix, `tools/nrfkit p0-gate` treats an already-disabled MSD interface as the preferred no-mutation state and verifies the required J-Link and dual-VCOM contract through every child operation. If MSD remains enabled, the gate gives an actionable persistent-workaround message. Its optional temporary compatibility path remains fixed to disable, reboot, verify, run the public child gates, enable, reboot, and verify; its final report must show `probe_msd_restored: true` before that temporary experiment is considered safely complete.
 
-For the standalone SDK, `sdk manifest` accepts only the versioned LM20 application layout and produces the same guarded manifest consumed by `inspect`, `flash`, `run`, and `gdb-smoke`. `m2-gate` is the aggregate acceptance entry point used by the opt-in CTest `hardware` test. It performs 20 exact build-ID program/reset/token cycles, the Reset Handler/main/single-step/RAM/observable-variable GDB contract, and deliberate HardFault capture. Its `finally` path always runs the guarded normal-image workflow; the gate is successful only when that recovery emits the expected normal boot token. CTest supplies a per-board `RESOURCE_LOCK` and an outer timeout, while every child retains its own probe lock, timeout, immutable snapshot, and structured run report.
+For the standalone SDK, `sdk manifest` accepts the versioned default LM20 application layout or a validated consumer-owned layout emitted by the target. It derives the programming allowlist only from ordinary application RRAM and excludes declared settings and scratch reservations. The resulting guarded manifest is consumed by `inspect`, `flash`, `run`, and `gdb-smoke`. `m2-gate` is the aggregate acceptance entry point used by the opt-in CTest `hardware` test. It performs 20 exact build-ID program/reset/token cycles, the Reset Handler/main/single-step/RAM/observable-variable GDB contract, and deliberate HardFault capture. Its `finally` path always runs the guarded normal-image workflow; the gate is successful only when that recovery emits the expected normal boot token. CTest supplies a per-board `RESOURCE_LOCK` and an outer timeout, while every child retains its own probe lock, timeout, immutable snapshot, and structured run report.
 
 Local reports may contain probe identities and device paths. They remain below gitignored `.work/` and must not be copied into tracked documentation, commits, issues, or public artifacts.
 
@@ -76,6 +76,15 @@ device-initiated remote wake. This ordering distinguishes a broken DWC2 resume p
 from a remote-wake signal or USB-topology failure. The root environment must provide
 PyUSB; do not copy credentials or machine-specific Python paths into repository
 documentation.
+
+For a consumer image that does not implement the M4 oracle protocol,
+`tools/nrfkit consumer-usb-smoke` retains the guarded manifest/program/reset path
+but restricts host interaction to standard configuration, interface, and endpoint
+descriptor inspection plus ordinary USB reset/re-enumeration. VID, PID, expected
+speed, interface count, and reconnect cycles are explicit command inputs. It does
+not claim interfaces, send HID reports, or issue vendor requests; selecting standard
+configuration 1 is allowed when the host has not already configured the device. This
+smoke does not count as remote-wake or electrical-power evidence.
 
 The historical S115 checkpoint retains `tools/nrfkit m6-ble-gate`. It uses the BlueZ D-Bus API
 directly and never starts an interactive `bluetoothctl` session. Every D-Bus

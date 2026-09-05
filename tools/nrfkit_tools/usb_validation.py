@@ -46,6 +46,108 @@ def _find(timeout: float) -> Any:
     raise UsbValidationError("M4 USB validation device did not enumerate")
 
 
+def _find_ids(*, vid: int, pid: int, timeout: float) -> Any:
+    usb_core, _ = _modules()
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        device = usb_core.find(idVendor=vid, idProduct=pid)
+        if device is not None:
+            return device
+        time.sleep(0.05)
+    raise UsbValidationError(
+        f"USB consumer device {vid:04x}:{pid:04x} did not enumerate"
+    )
+
+
+def _configured_device(*, vid: int, pid: int, timeout: float) -> tuple[Any, Any]:
+    _, usb_util = _modules()
+    deadline = time.monotonic() + timeout
+    last_error: Exception | None = None
+    while time.monotonic() < deadline:
+        device = _find_ids(
+            vid=vid, pid=pid, timeout=max(0.05, deadline - time.monotonic())
+        )
+        try:
+            try:
+                configuration = device.get_active_configuration()
+            except Exception:
+                device.set_configuration(1)
+                configuration = device.get_active_configuration()
+            return device, configuration
+        except Exception as error:
+            last_error = error
+            usb_util.dispose_resources(device)
+            time.sleep(0.05)
+    raise UsbValidationError(
+        f"USB consumer device cannot select configuration 1: {last_error}"
+    )
+
+
+def inspect_standard_descriptors(
+    *, vid: int, pid: int, expected_speed: int | None,
+    expected_interfaces: int | None, timeout: float,
+) -> dict[str, Any]:
+    """Inspect only standard descriptors; never send a consumer protocol request."""
+    device, configuration = _configured_device(vid=vid, pid=pid, timeout=timeout)
+    speed = getattr(device, "speed", None)
+    if expected_speed is not None and speed != expected_speed:
+        raise UsbValidationError(
+            f"USB consumer device speed is {speed}, expected {expected_speed}"
+        )
+    interfaces = []
+    for interface in configuration:
+        endpoints = [
+            {
+                "address": int(endpoint.bEndpointAddress),
+                "attributes": int(endpoint.bmAttributes),
+                "max_packet_size": int(endpoint.wMaxPacketSize),
+                "interval": int(endpoint.bInterval),
+            }
+            for endpoint in interface
+        ]
+        interfaces.append({
+            "number": int(interface.bInterfaceNumber),
+            "alternate_setting": int(interface.bAlternateSetting),
+            "class": int(interface.bInterfaceClass),
+            "subclass": int(interface.bInterfaceSubClass),
+            "protocol": int(interface.bInterfaceProtocol),
+            "endpoints": endpoints,
+        })
+    interface_numbers = {item["number"] for item in interfaces}
+    if expected_interfaces is not None and len(interface_numbers) != expected_interfaces:
+        raise UsbValidationError(
+            f"USB consumer device has {len(interface_numbers)} interfaces, "
+            f"expected {expected_interfaces}"
+        )
+    return {
+        "vid": int(device.idVendor),
+        "pid": int(device.idProduct),
+        "speed": speed,
+        "configuration": int(configuration.bConfigurationValue),
+        "interfaces": interfaces,
+    }
+
+
+def run_standard_reconnect_validation(
+    *, vid: int, pid: int, cycles: int, timeout: float,
+) -> dict[str, int]:
+    """Exercise ordinary USB reset without claiming interfaces or sending payloads."""
+    if cycles < 0:
+        raise UsbValidationError("USB reconnect cycle count must not be negative")
+    _, usb_util = _modules()
+    completed = 0
+    for _ in range(cycles):
+        device = _find_ids(vid=vid, pid=pid, timeout=timeout)
+        try:
+            device.reset()
+        finally:
+            usb_util.dispose_resources(device)
+        device, _ = _configured_device(vid=vid, pid=pid, timeout=timeout)
+        usb_util.dispose_resources(device)
+        completed += 1
+    return {"requested_cycles": cycles, "completed_cycles": completed}
+
+
 def _claim(device: Any, interfaces: tuple[int, ...] = (0, 1)) -> tuple[Any, list[int]]:
     _, usb_util = _modules()
     detached: list[int] = []

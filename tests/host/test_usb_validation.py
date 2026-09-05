@@ -16,6 +16,9 @@ class FakeUsbUtil:
     def claim_interface(self, device: object, interface: int) -> None:
         self.claimed.append(interface)
 
+    def dispose_resources(self, device: object) -> None:
+        pass
+
 
 class FakeDevice:
     def __init__(self, configuration: int | None) -> None:
@@ -36,6 +39,31 @@ class FakeDevice:
 
     def set_configuration(self, configuration: int) -> None:
         self.set_configurations.append(configuration)
+
+
+class FakeEndpoint:
+    bEndpointAddress = 0x81
+    bmAttributes = 3
+    wMaxPacketSize = 64
+    bInterval = 1
+
+
+class FakeInterface:
+    bInterfaceNumber = 0
+    bAlternateSetting = 0
+    bInterfaceClass = 3
+    bInterfaceSubClass = 1
+    bInterfaceProtocol = 1
+
+    def __iter__(self):
+        return iter((FakeEndpoint(),))
+
+
+class FakeConfiguration:
+    bConfigurationValue = 1
+
+    def __iter__(self):
+        return iter((FakeInterface(),))
 
 
 class UsbValidationTests(unittest.TestCase):
@@ -80,6 +108,63 @@ class UsbValidationTests(unittest.TestCase):
         before = {"configured_count": 2, "suspend_count": 4, "resume_count": 3}
         after = {"configured_count": 2, "suspend_count": 5, "resume_count": 4}
         usb_validation._validate_host_resume(before, after)
+
+    def test_standard_descriptor_inspection_uses_only_standard_objects(self) -> None:
+        device = SimpleNamespace(
+            speed=3, idVendor=0xCAFE, idProduct=0x4012,
+            get_active_configuration=lambda: FakeConfiguration(),
+        )
+        with mock.patch.object(
+            usb_validation, "_configured_device",
+            return_value=(device, FakeConfiguration()),
+        ):
+            result = usb_validation.inspect_standard_descriptors(
+                vid=0xCAFE, pid=0x4012, expected_speed=3,
+                expected_interfaces=1, timeout=1,
+            )
+        self.assertEqual(result["configuration"], 1)
+        self.assertEqual(result["interfaces"][0]["class"], 3)
+        self.assertEqual(result["interfaces"][0]["endpoints"][0]["address"], 0x81)
+
+    def test_standard_descriptor_inspection_rejects_interface_mismatch(self) -> None:
+        device = SimpleNamespace(
+            speed=3, idVendor=0xCAFE, idProduct=0x4012,
+            get_active_configuration=lambda: FakeConfiguration(),
+        )
+        with mock.patch.object(
+            usb_validation, "_configured_device",
+            return_value=(device, FakeConfiguration()),
+        ):
+            with self.assertRaisesRegex(usb_validation.UsbValidationError, "interfaces"):
+                usb_validation.inspect_standard_descriptors(
+                    vid=0xCAFE, pid=0x4012, expected_speed=3,
+                    expected_interfaces=2, timeout=1,
+                )
+
+    def test_standard_descriptor_inspection_selects_configuration_when_needed(self) -> None:
+        configurations: list[int] = []
+
+        def active_configuration() -> FakeConfiguration:
+            if not configurations:
+                raise ValueError("not configured")
+            return FakeConfiguration()
+
+        device = SimpleNamespace(
+            speed=3, idVendor=0xCAFE, idProduct=0x4012,
+            get_active_configuration=active_configuration,
+            set_configuration=lambda value: configurations.append(value),
+        )
+        util = FakeUsbUtil()
+        with (
+            mock.patch.object(usb_validation, "_find_ids", return_value=device),
+            mock.patch.object(usb_validation, "_modules", return_value=(object(), util)),
+        ):
+            returned_device, result = usb_validation._configured_device(
+                vid=0xCAFE, pid=0x4012, timeout=1,
+            )
+        self.assertEqual(configurations, [1])
+        self.assertIs(returned_device, device)
+        self.assertEqual(result.bConfigurationValue, 1)
 
 
 if __name__ == "__main__":

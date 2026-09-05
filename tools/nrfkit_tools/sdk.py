@@ -23,6 +23,9 @@ S115_APP_RRAM_ALLOWLIST = [[0x00000000, 0x001E1800]]
 S115_RRAM_ALLOWLIST = [[0x001E3800, 0x001FCC00]]
 S115_HEX_SHA256 = "c2b5bcf2b436e11daa9a85e9dca12060052244c2eec50032bf54d87a4a77c3a2"
 FREESTANDING_STACK_BYTES = 0x4000
+LM20_SAFE_RRAM_END = 0x001FD000
+LM20_RAM0_ORIGIN = 0x20000000
+LM20_RAM0_END = 0x20040000
 
 
 def _merged(ranges: tuple[tuple[int, int], ...]) -> tuple[tuple[int, int], ...]:
@@ -44,7 +47,7 @@ def sha256(path: Path) -> str:
 
 
 def _elf_load_budget(
-    elf: Path, *, ram_origin: int, ram_length: int, rram_length: int,
+    elf: Path, *, ram_origin: int, ram_length: int, rram_origin: int, rram_length: int,
 ) -> dict[str, int]:
     data = elf.read_bytes()
     if len(data) < 52 or data[:5] != b"\x7fELF\x01" or data[5] != 1:
@@ -69,8 +72,8 @@ def _elf_load_budget(
                 raise SdkContractError("SDC ELF LOAD segment exceeds RAM")
             ram_allocated += memory_size
             ram_initialized += file_size
-        if physical < rram_length:
-            if physical + file_size > rram_length:
+        if rram_origin <= physical < rram_origin + rram_length:
+            if physical + file_size > rram_origin + rram_length:
                 raise SdkContractError("SDC ELF LOAD segment exceeds RRAM")
             rram_file += file_size
     total_reserved = ram_allocated + FREESTANDING_STACK_BYTES
@@ -83,6 +86,52 @@ def _elf_load_budget(
         "ram_capacity_bytes": ram_length,
         "rram_file_bytes": rram_file,
     }
+
+
+def _validated_custom_allowlist(layout: dict[str, Any], target: str) -> list[list[int]]:
+    required = {
+        "schema": "nrfkit-image-layout/v1",
+        "target": target,
+        "soc": "nrf54lm20a",
+        "core": "cpuapp",
+        "configuration_regions_allowed": False,
+    }
+    if any(layout.get(key) != value for key, value in required.items()):
+        raise SdkContractError("SDK layout manifest identity or safety fields are invalid")
+    allowed_fields = set(required) | {"rram", "ram", "settings", "rram_scratch"}
+    if set(layout) - allowed_fields:
+        raise SdkContractError("custom SDK layout contains unsupported fields")
+
+    def region(name: str, low: int, high: int) -> tuple[int, int]:
+        value = layout.get(name)
+        if not isinstance(value, dict) or set(value) - {"origin", "length", "write_unit"}:
+            raise SdkContractError(f"custom SDK layout {name} region is invalid")
+        origin = value.get("origin")
+        length = value.get("length")
+        if (isinstance(origin, bool) or not isinstance(origin, int) or
+                isinstance(length, bool) or not isinstance(length, int) or length <= 0 or
+                origin < low or origin + length > high):
+            raise SdkContractError(f"custom SDK layout {name} range is unsafe")
+        write_unit = value.get("write_unit")
+        if write_unit is not None and (
+            isinstance(write_unit, bool) or not isinstance(write_unit, int) or write_unit <= 0
+        ):
+            raise SdkContractError(f"custom SDK layout {name} write unit is invalid")
+        return origin, origin + length
+
+    rram = region("rram", 0, LM20_SAFE_RRAM_END)
+    region("ram", LM20_RAM0_ORIGIN, LM20_RAM0_END)
+    declared_rram_regions = [("rram", rram)]
+    for name in ("settings", "rram_scratch"):
+        if name in layout:
+            declared_rram_regions.append((name, region(name, 0, LM20_SAFE_RRAM_END)))
+    for index, (first_name, first) in enumerate(declared_rram_regions):
+        for second_name, second in declared_rram_regions[index + 1:]:
+            if first[0] < second[1] and second[0] < first[1]:
+                raise SdkContractError(
+                    f"custom SDK layout regions overlap: {first_name} and {second_name}"
+                )
+    return [[rram[0], rram[1]]]
 
 
 def create_device_manifest(
@@ -135,12 +184,15 @@ def create_device_manifest(
         "ram": {"origin": 0x20002128, "length": 0x0003DED8},
         "configuration_regions_allowed": False,
     }
-    if layout not in (standalone_layout, s115_layout):
-        raise SdkContractError("SDK layout manifest does not match the guarded LM20 contract")
+    if layout == s115_layout:
+        allowlist = S115_APP_RRAM_ALLOWLIST
+    elif layout == standalone_layout:
+        allowlist = STANDALONE_RRAM_ALLOWLIST
+    else:
+        allowlist = _validated_custom_allowlist(layout, target)
 
     elf_image = parse_elf(elf)
     hex_image = parse_ihex(ihex)
-    allowlist = S115_APP_RRAM_ALLOWLIST if layout == s115_layout else STANDALONE_RRAM_ALLOWLIST
     require_allowed(elf_image.ranges, tuple(tuple(item) for item in allowlist))
     require_allowed(hex_image.ranges, tuple(tuple(item) for item in allowlist))
     if _merged(elf_image.ranges) != _merged(hex_image.ranges):
@@ -201,6 +253,10 @@ def create_device_manifest(
         "expected_token": expected_token,
         "vcom": 1,
         "backend": safe_backend_contract(),
+        "image_layout": {
+            "path": str(layout_path),
+            "sha256": sha256(layout_path),
+        },
         "debug_allowlist": allowlist,
         "debug_elf": {
             "path": str(elf),
@@ -253,6 +309,7 @@ def create_device_manifest(
                 elf,
                 ram_origin=layout["ram"]["origin"],
                 ram_length=layout["ram"]["length"],
+                rram_origin=layout["rram"]["origin"],
                 rram_length=layout["rram"]["length"],
             ),
         }

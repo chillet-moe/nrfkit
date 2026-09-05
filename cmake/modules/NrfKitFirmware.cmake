@@ -665,7 +665,9 @@ function(nrfkit_enable_usb_device target)
     message(FATAL_ERROR "nrfkit_enable_usb_device: '${target}' is already finalized")
   endif()
 
-  cmake_parse_arguments(PARSE_ARGV 1 ARG "" "STACK;SOURCE_DIR" "CLASSES")
+  cmake_parse_arguments(PARSE_ARGV 1 ARG "" "STACK;SOURCE_DIR"
+    "CLASSES;IN_ENDPOINT_MAX_PACKET_SIZES"
+  )
   if(ARG_UNPARSED_ARGUMENTS)
     message(FATAL_ERROR
       "nrfkit_enable_usb_device: unknown arguments: ${ARG_UNPARSED_ARGUMENTS}"
@@ -687,6 +689,42 @@ function(nrfkit_enable_usb_device target)
     endif()
   endforeach()
   list(REMOVE_DUPLICATES ARG_CLASSES)
+  if(NOT ARG_IN_ENDPOINT_MAX_PACKET_SIZES)
+    # Preserve the validated M4 oracle allocation for EP1 bulk and EP2 HID.
+    set(ARG_IN_ENDPOINT_MAX_PACKET_SIZES 512 256)
+  endif()
+  list(LENGTH ARG_IN_ENDPOINT_MAX_PACKET_SIZES in_endpoint_count)
+  if(in_endpoint_count GREATER 15)
+    message(FATAL_ERROR
+      "nrfkit_enable_usb_device: at most 15 IN endpoint packet sizes are supported"
+    )
+  endif()
+  set(tx_fifo_words 16)
+  set(tx_fifo_total 16)
+  foreach(packet_size IN LISTS ARG_IN_ENDPOINT_MAX_PACKET_SIZES)
+    if(NOT packet_size MATCHES "^[1-9][0-9]*$" OR packet_size GREATER 1024)
+      message(FATAL_ERROR
+        "nrfkit_enable_usb_device: invalid IN endpoint max packet size '${packet_size}'"
+      )
+    endif()
+    math(EXPR words "(${packet_size} + 3) / 4")
+    if(words LESS 16)
+      set(words 16)
+    endif()
+    list(APPEND tx_fifo_words "${words}")
+    math(EXPR tx_fifo_total "${tx_fifo_total} + ${words}")
+  endforeach()
+  while(in_endpoint_count LESS 15)
+    list(APPEND tx_fifo_words 0)
+    math(EXPR in_endpoint_count "${in_endpoint_count} + 1")
+  endwhile()
+  math(EXPR configured_fifo_words "760 + ${tx_fifo_total}")
+  if(configured_fifo_words GREATER 3040)
+    message(FATAL_ERROR
+      "nrfkit_enable_usb_device: RX/TX FIFO allocation exceeds the LM20 3040-word capacity"
+    )
+  endif()
+  string(JOIN ", " tx_fifo_initializer ${tx_fifo_words})
   get_target_property(soc "${target}" NRFKIT_SOC)
   if(NOT soc STREQUAL "nrf54lm20a")
     message(FATAL_ERROR
@@ -732,6 +770,7 @@ function(nrfkit_enable_usb_device target)
     "#define CONFIG_USBDEV_REQUEST_BUFFER_LEN 512\n"
     "#define CONFIG_USB_DWC2_DMA_ENABLE\n"
     "#define CONFIG_USB_HS\n"
+    "#define NRFKIT_USBHS_DEVICE_TX_FIFO_WORDS { ${tx_fifo_initializer} }\n"
     "#endif\n"
   )
   target_include_directories("${target}" PRIVATE
@@ -1058,7 +1097,8 @@ function(nrfkit_configure_target target)
     message(FATAL_ERROR "nrfkit_configure_target: unknown target '${target}'")
   endif()
 
-  cmake_parse_arguments(PARSE_ARGV 1 ARG "" "SOC;CORE;BOARD;RUNTIME" "")
+  cmake_parse_arguments(PARSE_ARGV 1 ARG ""
+    "SOC;CORE;BOARD;RUNTIME;LINKER_SCRIPT;IMAGE_LAYOUT" "")
   if(ARG_UNPARSED_ARGUMENTS)
     message(FATAL_ERROR "nrfkit_configure_target: unknown arguments: ${ARG_UNPARSED_ARGUMENTS}")
   endif()
@@ -1075,9 +1115,56 @@ function(nrfkit_configure_target target)
     message(FATAL_ERROR "M1 supports BOARD nrf54lm20dk only")
   endif()
 
+  if((ARG_LINKER_SCRIPT AND NOT ARG_IMAGE_LAYOUT) OR
+      (ARG_IMAGE_LAYOUT AND NOT ARG_LINKER_SCRIPT))
+    message(FATAL_ERROR
+      "nrfkit_configure_target: LINKER_SCRIPT and IMAGE_LAYOUT must be supplied together"
+    )
+  endif()
+
   set(sdk_root "${NrfKit_ROOT}")
   set(mdk "${sdk_root}/third_party/nrfx/mdk")
-  set(linker_script "${sdk_root}/linker/layouts/nrf54lm20a-cpuapp-standalone.ld")
+  if(ARG_LINKER_SCRIPT)
+    get_filename_component(linker_script "${ARG_LINKER_SCRIPT}" ABSOLUTE
+      BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+    get_filename_component(image_layout "${ARG_IMAGE_LAYOUT}" ABSOLUTE
+      BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+    foreach(required IN ITEMS "${linker_script}" "${image_layout}")
+      if(NOT EXISTS "${required}")
+        message(FATAL_ERROR "nrfkit_configure_target: missing consumer layout input: ${required}")
+      endif()
+    endforeach()
+    file(READ "${image_layout}" image_layout_content)
+    string(JSON image_layout_schema ERROR_VARIABLE image_layout_error
+      GET "${image_layout_content}" schema)
+    if(image_layout_error OR NOT image_layout_schema STREQUAL "nrfkit-image-layout/v1")
+      message(FATAL_ERROR
+        "nrfkit_configure_target: IMAGE_LAYOUT must use schema nrfkit-image-layout/v1"
+      )
+    endif()
+    foreach(field IN ITEMS target soc core configuration_regions_allowed)
+      string(JSON image_layout_${field} ERROR_VARIABLE image_layout_error
+        GET "${image_layout_content}" ${field})
+      if(image_layout_error)
+        message(FATAL_ERROR
+          "nrfkit_configure_target: IMAGE_LAYOUT is missing required field '${field}'"
+        )
+      endif()
+    endforeach()
+    if(NOT image_layout_target STREQUAL "${target}" OR
+        NOT image_layout_soc STREQUAL "nrf54lm20a" OR
+        NOT image_layout_core STREQUAL "cpuapp" OR
+        image_layout_configuration_regions_allowed)
+      message(FATAL_ERROR
+        "nrfkit_configure_target: IMAGE_LAYOUT must match target ${target}, describe nrf54lm20a/cpuapp, and forbid configuration regions"
+      )
+    endif()
+  else()
+    set(linker_script "${sdk_root}/linker/layouts/nrf54lm20a-cpuapp-standalone.ld")
+    set(image_layout "")
+  endif()
   foreach(required IN ITEMS
       "${mdk}/nrf54l/nrf54lm20a/gcc_startup_nrf54lm20a_application.S"
       "${mdk}/nrf54l/system_nrf54l.c"
@@ -1139,6 +1226,7 @@ function(nrfkit_configure_target target)
     NRFKIT_SOC "nrf54lm20a"
     NRFKIT_CORE "cpuapp"
     NRFKIT_BOARD "${ARG_BOARD}"
+    NRFKIT_IMAGE_LAYOUT "${image_layout}"
     LINK_DEPENDS "${linker_script}"
   )
 endfunction()
@@ -1182,8 +1270,11 @@ function(nrfkit_finalize_target target)
     VERBATIM
   )
 
+  get_target_property(consumer_image_layout "${target}" NRFKIT_IMAGE_LAYOUT)
   get_target_property(layout "${target}" NRFKIT_LAYOUT)
-  if(layout STREQUAL "s115-10.0.1")
+  if(consumer_image_layout)
+    file(READ "${consumer_image_layout}" layout_content)
+  elseif(layout STREQUAL "s115-10.0.1")
     get_target_property(softdevice_hex "${target}" NRFKIT_SOFTDEVICE_HEX)
     set(layout_content
       "{\n  \"schema\": \"nrfkit-image-layout/v1\",\n  \"target\": \"${target}\",\n  \"soc\": \"nrf54lm20a\",\n  \"core\": \"cpuapp\",\n  \"rram\": {\"origin\": 0, \"length\": 1972224},\n  \"settings\": {\"origin\": 1972224, \"length\": 8192},\n  \"softdevice\": {\"name\": \"s115\", \"version\": \"10.0.1\", \"origin\": 1980416, \"length\": 103424},\n  \"ram\": {\"origin\": 536879400, \"length\": 253656},\n  \"configuration_regions_allowed\": false\n}\n"

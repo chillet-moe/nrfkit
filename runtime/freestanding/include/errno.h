@@ -3,6 +3,10 @@
 #ifndef NRFKIT_FREESTANDING_ERRNO_H
 #define NRFKIT_FREESTANDING_ERRNO_H
 
+#if defined(__cplusplus) && defined(NRFKIT_USE_GNU_ARM_CXX_HEADERS)
+#include_next <errno.h>
+#else
+
 /* Values follow the Arm embedded C library ABI used by nrfx return codes. */
 #define EPERM 1
 #define E2BIG 7
@@ -12,11 +16,22 @@
 #define EFAULT 14
 #define EBUSY 16
 #define EINVAL 22
+#define ERANGE 34
 #define EALREADY 114
 #define EINPROGRESS 115
 #define ETIMEDOUT 116
 #define ENOTSUP 134
 #define EOVERFLOW 139
 #define ECANCELED 140
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern int errno;
+#ifdef __cplusplus
+}
+#endif
+
+#endif
 
 #endif

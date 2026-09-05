@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 import re
@@ -272,6 +273,47 @@ class M1FirmwareTests(unittest.TestCase):
         ])
         run([self.cmake, "--build", str(build), "--target", "m3_power_validation"])
         self.assertTrue((build / "m3_power_validation.elf").is_file())
+
+    def test_consumer_owned_linker_and_image_layout_are_used_together(self) -> None:
+        fixture = ROOT / "tests/consumer/custom-layout"
+        build = Path(self.temporary.name) / "custom-layout"
+        run([
+            self.cmake, "-S", str(fixture), "-B", str(build), "-G", "Ninja",
+            f"-DNrfKit_DIR={ROOT / 'cmake'}",
+            f"-DCMAKE_TOOLCHAIN_FILE={ROOT / 'cmake/toolchains/arm-clang.cmake'}",
+            f"-DNRF_LLVM_ROOT={self.llvm_root}",
+        ])
+        run([self.cmake, "--build", str(build)])
+        self.assertEqual(
+            (build / "custom_layout.image-layout.json").read_text(encoding="utf-8"),
+            (fixture / "image-layout.json").read_text(encoding="utf-8"),
+        )
+        reserved_layout = {
+            "schema": "nrfkit-image-layout/v1",
+            "target": "custom_layout",
+            "soc": "nrf54lm20a",
+            "core": "cpuapp",
+            "rram": {"origin": 0, "length": 0x001F4F00},
+            "settings": {"origin": 0x001F4F00, "length": 0x8000, "write_unit": 16},
+            "rram_scratch": {"origin": 0x001FCF00, "length": 0x100, "write_unit": 16},
+            "ram": {"origin": 0x20000000, "length": 0x40000},
+            "configuration_regions_allowed": False,
+        }
+        (build / "custom_layout.image-layout.json").write_text(
+            json.dumps(reserved_layout), encoding="utf-8"
+        )
+        manifest_path = create_device_manifest(
+            ROOT, build, "custom_layout", "CUSTOM_LAYOUT_TEST"
+        )
+        manifest = load_manifest(manifest_path)
+        self.assertEqual(manifest["debug_allowlist"], [[0, 0x001F4F00]])
+        self.assertEqual(manifest["images"][0]["allowlist"], [[0, 0x001F4F00]])
+        reserved_layout["settings"]["origin"] = 0x1000
+        (build / "custom_layout.image-layout.json").write_text(
+            json.dumps(reserved_layout), encoding="utf-8"
+        )
+        with self.assertRaisesRegex(SdkContractError, "regions overlap"):
+            create_device_manifest(ROOT, build, "custom_layout", "CUSTOM_LAYOUT_TEST")
 
 
 if __name__ == "__main__":

@@ -12,7 +12,8 @@ __attribute__((noinline)) void nrfkit_fault_observed(void)
     __asm volatile ("" ::: "memory");
 }
 
-void nrfkit_capture_fault(const uint32_t *frame, uint32_t exc_return)
+__attribute__((used)) void nrfkit_capture_fault(const uint32_t *frame,
+                                                uint32_t exc_return)
 {
     nrfkit_last_fault.magic = NRFKIT_FAULT_MAGIC;
     nrfkit_last_fault.exc_return = exc_return;

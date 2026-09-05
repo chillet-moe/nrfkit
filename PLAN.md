@@ -898,9 +898,19 @@ nrfx CLOCK ISR 与 MPSL handler 冲突，以及协议栈运行时 USBHS 直接�
 在 SDC/MPSL 持续初始化时通过 20 次 USB 重连和 20.05 秒 control/bulk/HID 压力测试，
 双向各传输 57,416,192 bytes、112,141 次 transfer，端点错误为零；本地报告为
 `.work/runs/20260905-142022-m4-usb-gate-1056219/run.json`，remote wake 按用户决定跳过。
-首个私有 consumer 的本地只读审计确认其当前仍无 LM20 target 或 NrfKit 接入；根据输入
-契约，本 goal 未获修改该私有仓库的授权，因此下游 clean-build、主工作模式长稳和 0.x
-release candidate 仍未完成，M8 尚不能退出。
+用户随后明确授权修改首个私有 consumer，并将首阶段范围限定为采用新板目录结构的机械
+键盘开发 target。该 consumer 现已用自有 linker script 与配套 image-layout、Clang C++23、
+NrfKit USB HID、Multirole SDC/MPSL、Timeslot 与生命周期分离的普通 RRAM 设置区完成
+Release configure/compile/link；生成的 ELF/HEX 通过公共 guard，load image 未进入设置区或
+scratch。公共 SDK 同时补齐可选 GNU Arm C++ headers/sysroot、consumer layout 派生 allowlist
+以及 LTO 下 HardFault/Arm EABI symbol retention。此结果仍是 compile/link 与离线地址审计，
+开发板 scanner 只使用已记录的少量 smoke input，并非产品矩阵。首次实板配置暴露了固定 USB
+TX FIFO 只覆盖两个 IN endpoint 的公共 SDK 缺口；consumer API 现显式接收从 EP1 开始的最大包长，
+据此计算、校验并生成 LM20 FIFO 分配。修复后的私有组合镜像以 High Speed 枚举为四个 HID
+interface，端点最大包长依次覆盖 8-byte keyboard、64-byte 双向 configurator、32-byte shared
+和 32-byte NKRO，并通过 100 次普通 USB reset/re-enumeration。该 consumer smoke 只使用标准
+USB configuration/descriptor/reset 事务，不发送私有协议 payload，也不替代已延期的 remote wake
+或 PPK2 证据。键盘输入和长稳仍待执行，因此 M8 尚不能退出。
 RC 版本准备已把 `include/nrfkit/version.h` 设为唯一版本来源；根项目、source-tree
 package 与 installed package 会从同一组 numeric/full version 生成并由离线 consumer
 门禁交叉验证。当前仍保持 `0.0.0`，不会在私有集成验收前伪装成已发布 RC。
@@ -913,6 +923,11 @@ driver/header closure、CherryUSB core/HID/DWC2 closure 与锁定的 SDC/MPSL se
 与实板主模式验收仍受上述私有写入授权边界约束。
 
 ### M9：boot/DFU 与 production 支持
+
+用户已说明首个私有 consumer 有自有 bootloader；因此当前不以尽快接入 MCUboot 为目标。
+M9 先对该实现与下列交付/退出条件做能力和做法差距审计，再决定复用、修正或替换。该审计
+不提前于 M8 的 application 主模式实板验收，也不把 bootloader/DFU 变成当前机械键盘
+bring-up 的阻塞项。
 
 交付：
 
