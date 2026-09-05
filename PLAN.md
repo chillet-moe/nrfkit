@@ -1,6 +1,6 @@
 # nrfkit：目标与执行计划
 
-> 状态：P0、M0、M1、M2、M3、M6 已完成；M4 仅余但暂缓直连拓扑 remote wake；M5 direct-RADIO 基线已收束；M7 功能、时序、retry 与共存门禁已完成，外部仪器电气功耗测量暂缓；M8 的 0.1.0-rc.1 已完成本地发布验收，仅余经授权的外部发布
+> 状态：P0、M0、M1、M2、M3、M6 已完成；M4 仅余但暂缓直连拓扑 remote wake；M5 direct-RADIO 基线已收束；M7 功能、时序、retry 与共存门禁已完成，外部仪器电气功耗测量暂缓；M8 的 0.1.0-rc.1 已完成本地发布验收，仅余经授权的外部发布；M9 正在复用自有 bootloader 的差距审计与主机层加固
 > 计划基线：2026-09-05<br>
 > 唯一 SDK 支持目标：nRF54LM20A / nRF54LM20 DK<br>
 > 实验室夹具：nRF54L15 DK（不属于 SDK 支持目标）<br>
@@ -970,6 +970,24 @@ bring-up 的阻塞项。
 - direct-XIP 两个镜像确实分别链接到 A/B 地址；
 - 日常 CI 仍不能写任何一次性区域；
 - 实际 provision 只有在用户另行明确授权后才可执行，因此不属于本计划的无人值守完成条件。
+
+M9 当前检查点：对首个私有 consumer 自有 bootloader 的审计结论是优先复用和修正，
+MCUboot 不是机械键盘首阶段的前置条件。已有实现具备签名并加密的 RAM maintenance
+program、分块认证、完整明文 hash、产品 target 约束、WebHID transport 与受限 platform
+service ABI；主要缺口是 LM20 RRAM 分区和应用有效性事务、Cortex-M 交接、rollback floor、
+trust-root/provisioning policy、USBHS target 验收及掉电 fault injection。应用、bootloader、
+settings 与 scratch 的 linker script 和配套 image-layout 由 consumer 维护，公共 SDK 只负责
+验证声明的边界与禁止区域，不把产品布局固化为 SDK 默认值。
+
+不依赖 LM20 实板的共享加固已开始完成：USB reset/disconnect 会使 maintenance session
+换代并在中断外清除 loader、manifest、crypto、receive 和 storage transaction；terminal
+response 增加 500 ms 有界 drain，超时只重启 transport，不执行尚未可靠回传结果的 reset
+或 launch。另已建立 fail-closed Cortex-M vector contract，主机测试覆盖 image/alignment、
+8-byte MSP、RAM 边界、Thumb bit 与 reset target 范围。共享层 16 项 host tests 通过，既有
+另一目标 Release bootloader 仍能交叉链接。LM20 上实际读取 vector、USB/MPSL/NVIC 清理、
+VTOR/MSP/branch、release map/disassembly 与实板 handoff 尚未完成。rollback policy 会改变
+安全模型，必须在普通 RRAM authenticated floor、硬件 monotonic policy 或明确允许 rollback
+三者中取得用户决定；在此之前继续推进与该选择无关的布局测量和 compile-only target。
 
 ## 9. 测试矩阵
 
