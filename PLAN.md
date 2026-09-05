@@ -1022,8 +1022,8 @@ RRAM authenticated floor、硬件 monotonic policy 或明确允许 rollback 三�
 publisher signature。MCUboot 自身也允许关闭 `MCUBOOT_VALIDATE_PRIMARY_SLOT`；其双槽、
 swap/trailer、revert、TLV image header、Zephyr glue 和 serial recovery 不符合当前 LM20
 “单槽明文 RRAM + maintenance 可恢复”的产品选择，不引入。由此停止扩展 MPC/GDB 专用 gate。
-测试 key 的完整构建、打包与 host container 传输检查已完成；下一项有效工作是完成 signed RAM
-updater 与加密 `.appimg` 的端到端实板更新，而不是继续搭建调试器恢复编排。
+测试 key 的完整构建、打包与 host container 传输检查已完成；signed RAM updater 与加密
+`.appimg` 的端到端实板更新也已闭环，不继续搭建调试器恢复编排。
 
 应用更新无需另造一套事务框架：现有 updater 已把首个 update unit 缓存在 RAM，在完整
 image hash 成功后才最后写回。内部 handoff ABI v2 以 application-storage 语义提供
@@ -1046,7 +1046,7 @@ vector 和范围验证。存储访问和调试保护属于独立产品策略，�
 `0x00004a8c`（19,084 bytes），128 KiB boot 区尚余 111,988 bytes；应用 raw image 为
 143,520 bytes。LM20 工具的 18 项 Python tests、完整 16-target host CTest、LM20
 application/bootloader/updater 与既有另一 target 的 Release app/bootloader/upgrader
-均重新构建通过。实际测试容器分别包含 15,448-byte updater 的 16 个密文块和
+均重新构建通过。最终实际测试容器分别包含 17,368-byte updater 的 18 个密文块和
 143,520-byte application 的 147 个密文块；两份 device manifest 均通过公共地址审计。
 
 同一受控门禁随后补充了 bootloader USBHS maintenance 基本传输证据：实板连续两次接收完整
@@ -1061,11 +1061,17 @@ target identity、idle state 和无错误状态；64-byte response 路径也通�
 LM20 RAM updater 也已作为同一 opt-in 下的独立 target 链接并打包，不增加公共 SDK API。
 consumer 自有入口把 handoff 参数保存在 callee-saved registers 中，经过官方 startup 后交给
 既有 updater main，并在启动 timer/USB 前把 VTOR 指向 RAM vector table。Release ELF 的入口为
-`0x20010001`，vector table 位于 `0x20010080`；load image 为 15,448 bytes，BSS 结束于
-`0x20016139`，在 64 KiB direct-load window 中尚余 40,647 bytes。generic updater 内部也把
+`0x20010001`；LM20 的 306 项完整 vector table 按 Cortex-M VTOR 契约以 2 KiB 对齐，位于
+`0x20010800`。load image 为 17,368 bytes，BSS 结束于 `0x200168bc`，在 64 KiB
+direct-load window 中尚余 38,724 bytes。generic updater 内部也把
 Flash 特有的 `erase_unit` 术语改为 storage-neutral `commit_unit`；既有另一 target 的 Release
 upgrader 重新链接通过。测试专用 key 已生成 bootloader 可认证的 RAM-program container；实板
-load/data/commit、updater 重枚举和 application update 仍需端到端门禁证明。
+已完成 18 个 updater 密文块的 load/data/commit、updater 重枚举、147 个 application 密文块
+及完整 payload hash 验证、明文 vector-last 发布和 protocol 38 启动；门禁随后恢复并验证地址
+零原应用。首次运行暴露的故障不是 USB shutdown 或 LLVM UB：现场 VTOR 为仅 128-byte 对齐的
+RAM vector table，VREGUSB IRQ 289 以 PC 零进入 fault；把 consumer linker 的完整表约束改为
+2 KiB 后，未改 USB ISR/关闭路径即连续通过。门禁现在每次从已构建 ELF 自动刷新 bootloader
+device manifest，避免增量重链接后人工传递陈旧 hash。
 
 LM20 的保护审计选择“阻止未授权写入”而不是依赖启动时重复 hash。正常应用启动前，
 bootloader 应把完整应用 RRAM 配置为 read/execute、禁止 write，并锁定 MPC override 到下次
