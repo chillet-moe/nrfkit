@@ -1048,7 +1048,7 @@ signature，不保留 storage-mode 或 EXIP 字段，也不在应用 linker 中�
 vector 和范围验证。存储访问和调试保护属于独立产品策略，不在这一层增加未来平台抽象。
 加入易失 MPC 写保护与 reset workaround 后，bootloader 的 RRAM load end 为
 `0x00004a8c`（19,084 bytes），128 KiB boot 区尚余 111,988 bytes；应用 raw image 为
-143,520 bytes。LM20 工具的 19 项 Python tests、完整 16-target host CTest、LM20
+143,520 bytes。LM20 工具的 20 项 Python tests、完整 16-target host CTest、LM20
 application/bootloader/updater 与既有另一 target 的 Release app/bootloader/upgrader
 均重新构建通过。最终实际测试容器分别包含 17,368-byte updater 的 18 个密文块和
 143,520-byte application 的 147 个密文块；两份 device manifest 均通过公共地址审计。
@@ -1064,6 +1064,9 @@ transport 阶段尚未包括真实签名 RAM program 的 load/data/commit、upda
 实板返回 `authentication_failed` 并保持 failed state；重新开始合法认证 session 后完整更新和
 原应用恢复均通过。完整 payload hash 的错误路径由 host fault test 覆盖，成功路径已在实板对
 147 个认证 chunk 完整执行。
+同一 gate 还在认证 manifest 和首个 application chunk 后执行标准 USB bus reset；updater
+重枚举后报告 idle 且无遗留错误，随后负向认证、完整更新和 cleanup 继续通过。这补齐了 USBHS
+session epoch 的实板中断证据，不增加 wire ABI。
 
 LM20 RAM updater 也已作为同一 opt-in 下的独立 target 链接并打包，不增加公共 SDK API。
 consumer 自有入口把 handoff 参数保存在 callee-saved registers 中，经过官方 startup 后交给
