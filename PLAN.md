@@ -1,6 +1,6 @@
 # nrfkit：目标与执行计划
 
-> 状态：P0、M0、M1、M2、M3、M6 已完成；M4 仅余但暂缓直连拓扑 remote wake；M5 direct-RADIO 基线已收束；M7 功能、时序、retry 与共存门禁已完成，外部仪器电气功耗测量暂缓；M8 技术集成门禁已完成，仅余 RC 版本与发布决定
+> 状态：P0、M0、M1、M2、M3、M6 已完成；M4 仅余但暂缓直连拓扑 remote wake；M5 direct-RADIO 基线已收束；M7 功能、时序、retry 与共存门禁已完成，外部仪器电气功耗测量暂缓；M8 的 0.1.0-rc.1 已完成本地发布验收，仅余经授权的外部发布
 > 计划基线：2026-09-05<br>
 > 唯一 SDK 支持目标：nRF54LM20A / nRF54LM20 DK<br>
 > 实验室夹具：nRF54L15 DK（不属于 SDK 支持目标）<br>
@@ -928,10 +928,18 @@ settings 与协议无关长稳/fault-state 门禁均已完成。随后从独立�
 全部锁定 submodule，并显式提供已按 lock 准备的 host tool 依赖；CMake configure/build 未运行
 包管理器、未访问网络，也未修改 source tree。该 checkout 完成完整 Release app 构建，生成的
 manifest 与 image-layout 检查通过，构建后主仓库与所有 submodule 仍为 clean。至此 M8 技术
-集成门禁已完成；尚待用户决定 release-candidate 版本，并据此执行发布前检查与发布。
+集成门禁已完成。
 RC 版本准备已把 `include/nrfkit/version.h` 设为唯一版本来源；根项目、source-tree
 package 与 installed package 会从同一组 numeric/full version 生成并由离线 consumer
-门禁交叉验证。当前仍保持 `0.0.0`，不会在私有集成验收前伪装成已发布 RC。
+门禁交叉验证。首个版本选择为 `0.1.0-rc.1`：`0.x` 保留实验性 API 边界，`rc.1` 明确
+表示 remote wake、外部仪器功耗和产品按键矩阵不在已声明证据内。SPDX SBOM、README、
+changelog、CMake package 的 numeric/full version 已保持一致。CPack TGZ 安装归档包含项目
+许可证、发布说明和支持所需的 nrfx、CherryUSB、SDC/MPSL 闭包；固定
+`SOURCE_DATE_EPOCH` 的两次独立打包 SHA-256 相同，解包后 consumer 在故意污染的
+NCS/Zephyr 环境变量下仍能离线 configure/build。最终发布前 host suite 为 129/129，SPDX
+2.3 validator、public hygiene 与 diff check 通过。本地 tag/归档可以无人值守准备；向远端
+push tag 或创建托管 release 属于外部账号发布，必须取得新的明确授权，因此不阻塞 M9 的
+本地审计与实现工作，但仍是 M8 唯一未完成的退出动作。
 安装前缀也已从复制完整 nrfx/CherryUSB checkout 收束为 LM20 支持所需的 nrfx
 driver/header closure、CherryUSB core/HID/DWC2 closure 与锁定的 SDC/MPSL selection；
 无关 demo、host tool、bundled third-party example 和 Zephyr/Kconfig glue 不进入 RC 包。
