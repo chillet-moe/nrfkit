@@ -3,7 +3,7 @@
 The startup/MDK audit was performed on 2026-09-04 and the first-class nrfxlib
 selection was added on 2026-09-05. Exact commits and file hashes are in
 `sources.lock`. M1 imports the audited CMSIS Core and nrfx/MDK subset; sdk-nrfxlib is
-an immutable upstream submodule, while external oracles and legacy S115 remain
+an immutable upstream submodule, while external oracles (including S115) remain
 outside the consumer package.
 
 ## Release baseline
@@ -84,7 +84,7 @@ The earlier fallback assumption is therefore superseded: M1 should start from th
 | nrfx `nrf_common.ld` | Permissive CodeSourcery notice embedded in the file | Permitted candidate under `LicenseRef-CodeSourcery-Linker-Script`; preserve the notice verbatim. |
 | TF-M Nordic startup comparison files | Apache-2.0 | Audit evidence; not currently planned for import. |
 | sdk-nrfxlib v3.4.0 MPSL and SDC | LicenseRef-Nordic-5-Clause | First-class, immutable version-locked submodule; build targets expose only the selected nRF54LM secure hard-float components. Preserve license/attribution. Binary archives must not be modified, disassembled, decompiled, or reverse engineered. |
-| S115 binary and API package | LicenseRef-Nordic-5-Clause | Optional Nordic-only component. Distribution and use must retain the supplied license and attribution and obey the Nordic-device and no-reverse-engineering conditions. |
+| S115 binary and API package | LicenseRef-Nordic-5-Clause | External reference-only input; the consumer adapter is [archived](../architecture/s115-archive.md). Distribution and use must retain the supplied license and attribution and obey the Nordic-device and no-reverse-engineering conditions. |
 | Project-owned build/runtime/tool code | BSD-3-Clause | Public repository license. |
 
 ## Memory cross-check

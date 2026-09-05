@@ -86,7 +86,10 @@ not claim interfaces, send HID reports, or issue vendor requests; selecting stan
 configuration 1 is allowed when the host has not already configured the device. This
 smoke does not count as remote-wake or electrical-power evidence.
 
-The historical S115 checkpoint retains `tools/nrfkit m6-ble-gate`. It uses the BlueZ D-Bus API
+The official S115 reference oracle retains `tools/nrfkit m6-ble-gate`.
+Bond-settings operations accept only that official oracle; retired SDK adapter
+manifests require the [archived tools](architecture/s115-archive.md).
+The gate uses the BlueZ D-Bus API
 directly and never starts an interactive `bluetoothctl` session. Every D-Bus
 operation has a finite timeout, failed pairing is cancelled, the exact test
 device is disconnected and removed, and an optional `btmon` process is wrapped

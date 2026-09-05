@@ -185,21 +185,6 @@ foreach(role IN ITEMS tx rx)
   nrfkit_finalize_target("${target}")
 endforeach()
 
-if(NRF_SOFTDEVICE_ROOT AND NRF_OBERON_ROOT)
-  if(NRF_BM_ROOT)
-    # The S115 equivalence target obtains the version-locked sample main.c from
-    # the audited nRF-BM input. No project-owned application handler is used.
-    add_executable(m6_ble_official_baseline)
-    nrfkit_configure_target(m6_ble_official_baseline
-      SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding)
-    _nrfkit_enable_s115_baseline(m6_ble_official_baseline VERSION 10.0.1
-      SOURCE_DIR "${NRF_SOFTDEVICE_ROOT}"
-      OBERON_DIR "${NRF_OBERON_ROOT}"
-      NRF_BM_DIR "${NRF_BM_ROOT}")
-    nrfkit_finalize_target(m6_ble_official_baseline)
-  endif()
-endif()
-
 set(NRFKIT_BUILD_ID "development" CACHE STRING
   "Build identifier emitted by the hardware-validation firmware"
 )
@@ -341,15 +326,6 @@ if(NRFKIT_ENABLE_HARDWARE_TESTS)
       --expected-token "NRFKIT_M7_RETRY PASS"
     VERBATIM
   )
-  if(TARGET m6_ble_official_baseline)
-    add_custom_command(TARGET m6_ble_official_baseline POST_BUILD
-      COMMAND "${NRFKIT_TOOL}" sdk manifest
-        --build-dir "$<TARGET_FILE_DIR:m6_ble_official_baseline>"
-        --target m6_ble_official_baseline
-        --expected-token "BLE HIDS Mouse sample initialized"
-      VERBATIM
-    )
-  endif()
   enable_testing()
   add_test(NAME m2_hardware_gate
     COMMAND "${NRFKIT_TOOL}" m2-gate

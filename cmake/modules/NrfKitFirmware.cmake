@@ -23,13 +23,6 @@ include("${CMAKE_CURRENT_LIST_DIR}/NrfKitWireless.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/NrfKitUsb.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/NrfKitImage.cmake")
 
-# Retain the stopped reference entry point without loading its integration on
-# the ordinary consumer path. It still requires explicit, version-checked inputs.
-function(_nrfkit_enable_s115_baseline target)
-  include("${CMAKE_CURRENT_FUNCTION_LIST_DIR}/NrfKitLegacyS115.cmake")
-  _nrfkit_configure_s115_baseline("${target}" ${ARGN})
-endfunction()
-
 function(nrfkit_configure_target target)
   if(NOT TARGET "${target}")
     message(FATAL_ERROR "nrfkit_configure_target: unknown target '${target}'")

@@ -63,7 +63,7 @@
    archive 必须包含同一固定 checkout。允许显式 `NRFKIT_NRFXLIB_ROOT` 覆盖，但必须通过
    同样的 identity/hash 校验；不得从 `$HOME/ncs` 自动发现或拼装库。
 3. SDC 的 Multirole、Peripheral-only、Central-only archive 与 `libmpsl.a` 必须来自同一锁定 release、`nrf54lm` security domain 和 hard-float ABI，不能跨版本混用。submodule 与其二进制保持原样，项目适配只能位于自有 CMake/platform layer；不得修改、反汇编、反编译或逆向预编译 archive。
-4. 旧 S115 输入按 SoC 和版本保留原始 license/attribution 与历史复现能力，但不再是当前无线实现方向；若外部使用则继续由 `NRF_SOFTDEVICE_ROOT` 指向官方包并校验版本与 hash。
+4. 旧 S115 适配实验通过 [归档提交](docs/architecture/s115-archive.md) 保留历史复现能力和原始 license/attribution；当前 SDK 不提供 S115 集成。官方 S115 oracle 仍使用锁定外部输入。
 5. SDK 构建不能搜索或隐式借用 `$HOME/ncs`。本机 NCS 目录只允许被显式的开发者对照测试使用。缺失或 commit 不匹配的上游输入必须给出明确诊断；普通 configure/build 不得自行联网更新它。
 6. Python 可以用于维护者工具、HEX 检查和硬件测试，但不得成为编译一个普通应用的必需依赖。核心构建只要求 CMake、构建器、编译器及 binutils 等效工具。
 7. 不引入 west manifest 的替代品，也不实现 Kconfig 或 Devicetree 的小型克隆。
@@ -171,8 +171,7 @@ nrfkit/
 ├── wireless/
 │   ├── mpsl/
 │   ├── sdc/
-│   ├── proprietary/
-│   └── legacy-s115/
+│   └── proprietary/
 ├── usb/
 ├── examples/
 ├── tests/
@@ -519,7 +518,9 @@ packet-format 和计数逻辑，以便做可信差分。
 - nRF52、nRF53、L15 consumer target 或其他 nRF54 器件支持。
 
 现有 S115/HIDS oracle、L15 central、BlueZ 门禁、receipt、测试工具和结构化失败结论作为
-历史诊断资产保留；不得删除，也不得让它们重新成为当前 SDC/MPSL 路线的隐式前置条件。
+历史诊断资产保留。根据 2026-09-06 用户授权，SDK compatibility layer 与专用等价审计工具
+移至固定 Git 归档；官方 oracle、L15 central、通用测试工具与历史证据保留在当前树中。
+这些资产不得成为当前 SDC/MPSL 路线的隐式前置条件。
 自动 HID 测试仍不得向日常桌面注入危险按键序列。
 
 ## 7. 镜像、A/B 与安全启动的架构预留
@@ -823,8 +824,9 @@ shim/patch 清单以及唯一实板结果。最终分歧定位在官方 `irq_ini
 详细复现、证据边界和失败结果保存在
 `docs/architecture/m6-official-baseline-failure.md`、
 `docs/provenance/nrf-bm-hids-s115-equivalence.json` 和
-`docs/provenance/m6-s115-equivalence-checkpoint.json`。现有 compatibility layer、L15
-central 与有界 BlueZ 工具作为诊断资产保留，但不继续扩充或刷写，不进入当前完成定义。
+`docs/provenance/m6-s115-equivalence-checkpoint.json`。compatibility layer 与专用审计工具仅在
+[归档提交](docs/architecture/s115-archive.md) 中保留；L15 central 与有界 BlueZ 工具
+继续作为诊断资产保留，不进入当前完成定义。
 历史 JSON 保持不可变；新方向由 ADR 与本 PLAN 覆盖。该检查点既不证明 S115 不可用，
 也不是 SDC/MPSL 路线的失败证据。
 
@@ -1258,7 +1260,9 @@ LM20 新代码直接使用当前最短、最贴近硬件职责的接口，不为
 保留公开 configure/enable/finalize 接口与每个固件独立的配置；Timeslot、RRAM 不再要求
 CMake 声明时 SDC 在前，依赖完整性在 finalize 检查。nrfx 源文件与 PRS 依赖使用普通
 INTERFACE target 组合；SDC imported target 自己携带 FEM/MPSL 链接依赖。
-头文件、JSON、链接断言改用模板，历史 S115 仅在显式调用时加载。
+头文件、JSON、链接断言改用模板。随后按用户授权清退历史 S115 集成：删除专用
+CMake、适配层、配置、链接布局和等价审计命令；固定此前完整提交用于历史复现。
+历史 JSON 不变，官方 reference 工作流保留，旧 SoftDevice layout 由现有字段白名单拒绝。
 详见 [CMake 组织说明](docs/architecture/cmake-composition.md)。本轮不改变运行时初始化、
 寄存器行为、驱动选择范围或硬件验收结论。
 

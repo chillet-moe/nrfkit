@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-import re
 
 from .image import ImageContractError, parse_ihex, require_allowed
 
@@ -14,11 +13,7 @@ M6_SETTINGS_RANGE = (M6_SETTINGS_START, M6_SETTINGS_START + M6_SETTINGS_SIZE)
 
 
 def is_m6_bond_manifest(oracle: str) -> bool:
-    return oracle in {
-        "sdk-m6_ble_validation",
-        "sdk-m6_ble_official_baseline",
-        "nrf-bm-ble-hids-mouse-s115",
-    } or re.fullmatch(r"sdk-m6_ble_phase[4-6]", oracle) is not None
+    return oracle == "nrf-bm-ble-hids-mouse-s115"
 
 
 def _record(kind: int, offset: int, data: bytes) -> str:

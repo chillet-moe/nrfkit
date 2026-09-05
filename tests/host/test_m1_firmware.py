@@ -228,6 +228,26 @@ class M1FirmwareTests(unittest.TestCase):
         self.assertEqual(manifest["expected_token"], "NRFKIT_TEST build-id")
         self.assertEqual(manifest["images"][0]["domain"], "hardware_validation")
 
+    def test_sdk_manifest_rejects_retired_softdevice_layout(self) -> None:
+        build = Path(self.temporary.name) / "retired-softdevice"
+        build.mkdir()
+        # Layout validation must reject this before parsing either dummy image.
+        for suffix in ("elf", "hex"):
+            (build / f"legacy.{suffix}").touch()
+        (build / "legacy.image-layout.json").write_text(json.dumps({
+            "schema": "nrfkit-image-layout/v1", "target": "legacy",
+            "soc": "nrf54lm20a", "core": "cpuapp",
+            "rram": {"origin": 0, "length": 0x001E1800},
+            "settings": {"origin": 0x001E1800, "length": 0x2000},
+            "softdevice": {"name": "s115", "version": "10.0.1",
+                           "origin": 0x001E3800, "length": 0x19400},
+            "ram": {"origin": 0x20002128, "length": 0x0003DED8},
+            "configuration_regions_allowed": False,
+        }), encoding="utf-8")
+        with self.assertRaisesRegex(SdkContractError, "unsupported fields"):
+            create_device_manifest(ROOT, build, "legacy", "LEGACY")
+        self.assertFalse((build / "legacy.device-manifest.json").exists())
+
     def test_sdk_manifest_rejects_unsafe_names_and_tokens_before_artifact_access(self) -> None:
         with self.assertRaisesRegex(SdkContractError, "basename"):
             create_device_manifest(ROOT, self.build_a, "../outside", "safe")

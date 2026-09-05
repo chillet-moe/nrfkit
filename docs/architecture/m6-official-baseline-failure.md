@@ -1,5 +1,8 @@
 # Historical S115 checkpoint: strict official-application equivalence
 
+> Archived implementation: commands and source paths below refer to the
+> [pinned S115 archive](s115-archive.md), not the current SDK.
+
 This checkpoint is retained as diagnostic evidence. It applies only to the stopped
 S115/nRF-BM compatibility route; it is not a general BLE result and does not govern
 the current sdk-nrfxlib SoftDevice Controller/MPSL direction. No further S115

@@ -6,7 +6,7 @@ This table distinguishes reference evidence from consumer SDK support. “Planne
 |---|---:|---:|---:|---|
 | nRF54LM20A application core, standalone | Complete | Clang/LLD primary and GNU Arm smoke PASS; target-scoped nrfx drivers | SDK M2 gate plus M3 core/peripheral/System ON sleep and retention PASS | M3 complete |
 | nRF54LM20A + sdk-nrfxlib v3.4.0 SDC/MPSL | Complete source/hash/license and resource/ABI contract | Pure-CMake Multirole, Peripheral-only, and Central-only targets PASS offline | Official oracle PASS; all standalone archives 3/3 PASS with lifecycle, roles, connection/disconnection, bidirectional ACL, budgets, canaries, stack watermark, fault status, and GDB | M6 complete |
-| nRF54LM20A + S115 10.0.1 | Complete historical checkpoint | Reproducible pure-CMake baseline stopped at documented platform boundary | Official HIDS oracle PASS; pure baseline stops before advertising | Historical route stopped |
+| nRF54LM20A + S115 10.0.1 | Archived; absent from current SDK | Pure-CMake experiment pinned in [archive](architecture/s115-archive.md) | Official HIDS oracle PASS; pure baseline stops before advertising | Historical route stopped |
 | nRF54L15 laboratory fixture | Official sources plus locked public reference-peer fixture | Not a consumer target | 1/2/4 Mbit direct, Timeslot, retry, and active-BLE coexistence peer PASS | Test fixture only |
 | Source-tree and installed `find_package` | N/A | Host PASS, offline; firmware and nrfx API included | N/A | Experimental M3 support |
 | Guarded program/reset/serial/GDB workflow | Complete | Maintainer-only | Official oracles and standalone SDK PASS | M2 complete |
@@ -21,7 +21,8 @@ scratch write, System ON GRTC wake, and reset retention. True System OFF wake re
 unclaimed because an attached debug session forces the datasheet-defined emulated
 mode. The completed M6 BLE scope ends at SoftDevice Controller lifecycle and raw HCI;
 Host, ATT/GATT, HID profile, and product pairing policy are outside the plan. Legacy
-S115 assets remain a reproducible historical checkpoint rather than the active route.
+S115 adapter sources are retained at the [archive commit](architecture/s115-archive.md).
+Official S115 reference oracles and immutable evidence remain in the current tree.
 Direct RADIO is not a coexistence claim: with SDC active, proprietary access must be
 inside a granted MPSL Timeslot.
 

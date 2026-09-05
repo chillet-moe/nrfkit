@@ -49,7 +49,5 @@ __attribute__((naked)) void nrfkit_hardfault_entry(void)
         "b nrfkit_capture_fault\n");
 }
 
-#if !defined(NRFKIT_S115_10_0_1)
 void HardFault_Handler(void)
     __attribute__((alias("nrfkit_hardfault_entry")));
-#endif

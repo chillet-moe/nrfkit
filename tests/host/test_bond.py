@@ -18,11 +18,9 @@ from nrfkit_tools.image import parse_ihex
 class BondToolTests(unittest.TestCase):
     def test_only_bond_capable_m6_manifests_are_accepted(self) -> None:
         self.assertTrue(is_m6_bond_manifest("nrf-bm-ble-hids-mouse-s115"))
-        self.assertTrue(is_m6_bond_manifest("sdk-m6_ble_validation"))
-        self.assertTrue(is_m6_bond_manifest("sdk-m6_ble_official_baseline"))
-        for phase in range(4, 7):
-            self.assertTrue(is_m6_bond_manifest(f"sdk-m6_ble_phase{phase}"))
-        for phase in range(1, 4):
+        self.assertFalse(is_m6_bond_manifest("sdk-m6_ble_validation"))
+        self.assertFalse(is_m6_bond_manifest("sdk-m6_ble_official_baseline"))
+        for phase in range(1, 7):
             self.assertFalse(is_m6_bond_manifest(f"sdk-m6_ble_phase{phase}"))
         self.assertFalse(is_m6_bond_manifest("sdk-m6_ble_phase7"))
         self.assertFalse(is_m6_bond_manifest("unrelated"))

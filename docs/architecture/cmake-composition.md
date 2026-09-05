@@ -16,8 +16,6 @@ remain compatible; internal module and target names are implementation details.
   configuration.
 - `NrfKitImage.cmake`: layout validation, linker assertions, and ELF/HEX/BIN/map
   metadata. Consumer linker scripts stay complete and consumer-owned.
-- `NrfKitLegacyS115.cmake`: the stopped opt-in reference integration. Loaded only
-  by its existing explicit entry point, never by ordinary firmware configuration.
 
 Generated headers, JSON, and linker assertions live in `cmake/templates` as
 readable files. Source and installed packages preserve the same module/template
@@ -60,5 +58,5 @@ The contract tests cover source and installed packages, independent nrfx
 configurations in one build, all supported drivers, both USB/SDC declaration
 orders, SDC declared after Timeslot/RRAM, and rejection when it is absent.
 Existing archive hash/ABI, IRQ/resource conflict, ELF/layout, and reproducibility
-checks remain in place. Historical S115 evidence stays immutable; its source
-checks follow the relocated integration module.
+checks remain in place. The historical S115 integration is available only at the
+[pinned archive commit](s115-archive.md); it is absent from current packages.

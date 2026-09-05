@@ -106,16 +106,8 @@ function(_nrfkit_add_image_artifacts target)
   )
 
   get_target_property(consumer_image_layout "${target}" NRFKIT_IMAGE_LAYOUT)
-  get_target_property(layout "${target}" NRFKIT_LAYOUT)
   if(consumer_image_layout)
     file(READ "${consumer_image_layout}" layout_content)
-  elseif(layout STREQUAL "s115-10.0.1")
-    get_target_property(softdevice_hex "${target}" NRFKIT_SOFTDEVICE_HEX)
-    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-      "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../templates/s115-layout.json.in")
-    file(READ "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../templates/s115-layout.json.in" layout_template)
-    string(CONFIGURE "${layout_template}" layout_content @ONLY)
-    _nrfkit_generate_template(softdevice-input.json.in "$<TARGET_FILE_DIR:${target}>/$<TARGET_FILE_BASE_NAME:${target}>.softdevice-input.json")
   else()
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
       "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../templates/standalone-layout.json.in")

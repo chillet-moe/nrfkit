@@ -64,7 +64,8 @@ only after the same identity/hash checks. Official NCS builds remain opt-in exec
 oracles and share the existing safe program, serial, GDB, timeout, lock, cleanup, and
 evidence tooling.
 
-The old S115 artifacts and immutable checkpoint remain useful historical evidence,
+The old S115 implementation is pinned in the [archive](s115-archive.md); its
+immutable checkpoint remains useful historical evidence,
 but they no longer determine milestone order. The project takes on a deliberate
 binary-vendor dependency and must preserve Nordic's license and attribution, while
 gaining a documented Controller boundary and the vendor-supported multiprotocol

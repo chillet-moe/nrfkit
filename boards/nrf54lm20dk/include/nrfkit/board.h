@@ -26,7 +26,4 @@
 #define NRFKIT_VCOM_CTS_PIN 19u
 #define NRFKIT_VCOM_BAUDRATE UARTE_BAUDRATE_BAUDRATE_Baud115200
 
-void nrfkit_board_prepare_s115(void);
-int nrfkit_board_start_s115_grtc(void);
-
 #endif

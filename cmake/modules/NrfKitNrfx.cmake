@@ -331,17 +331,6 @@ function(_nrfkit_finalize_nrfx target)
     string(APPEND config_definitions "#define NRFX_DPPI20_ENABLED 1\n")
   endif()
 
-  get_target_property(softdevice "${target}" NRFKIT_SOFTDEVICE)
-  if(softdevice STREQUAL "s115")
-    # nRF-BM connects the shared IRQs itself.  The standalone nrfx IRQ alias
-    # header would otherwise rename the callable nrfx handlers to vector names
-    # and collide with the audited forwarding shim.
-    set(nrfx_irqs_include "")
-  else()
-    set(nrfx_irqs_include "#include <soc/nrfx_irqs.h>\n")
-  endif()
-
-
   configure_file("${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../templates/nrfx_config.h.in"
     "${config_dir}/nrfx_config.h" @ONLY)
 

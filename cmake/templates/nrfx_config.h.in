@@ -5,5 +5,5 @@
 @config_definitions@
 #include <templates/nrfx_config_common.h>
 #include <bsp/stable/templates/nrfx_config_nrf54lm20a_application.h>
-@nrfx_irqs_include@
+#include <soc/nrfx_irqs.h>
 #endif

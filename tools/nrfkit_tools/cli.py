@@ -43,7 +43,6 @@ from .hci import (
     H4Session, HciContractError, advertising_name, advertising_reports,
     disconnection_complete, le_connection_complete,
 )
-from .equivalence import audit_equivalence
 from .process import atomic_json, run_logged
 from .power import PowerCaptureError, REQUIRED_PROFILES, summarize_capture
 from .reference import (
@@ -288,26 +287,6 @@ def command_build(args: argparse.Namespace) -> int:
         getattr(args, "profile", None),
     )
     print(output)
-    return 0
-
-
-def command_equivalence_audit(args: argparse.Namespace) -> int:
-    project = project_root()
-    app_build = args.build_dir.resolve()
-    output = audit_equivalence(
-        args.root, app_build,
-        app_build / "compile_commands.json",
-        app_build / "zephyr/include/generated/zephyr/autoconf.h",
-        project / "docs/provenance/nrf-bm-hids-s115-equivalence.json",
-        project / "config/nrf-bm-hids-s115-autoconf.h",
-        update=args.update,
-    )
-    print(json.dumps({
-        "status": "ok", "updated": args.update,
-        "compiled_source_count": output["compiled_source_count"],
-        "nrf_bm_source_count": len(output["nrf_bm_sources"]),
-        "autoconf_sha256": output["autoconf"]["sha256"],
-    }, indent=2, sort_keys=True))
     return 0
 
 
@@ -2536,12 +2515,6 @@ def main(argv: list[str] | None = None) -> int:
     reference_build.add_argument("--timeout", type=float, default=900)
     reference_build.add_argument("--west", default=shutil.which("west") or "west")
     reference_build.set_defaults(handler=command_build)
-    reference_audit = reference_commands.add_parser("equivalence-audit")
-    reference_audit.add_argument("--root", type=Path, required=True)
-    reference_audit.add_argument("--build-dir", type=Path, required=True)
-    reference_audit.add_argument("--update", action="store_true")
-    reference_audit.set_defaults(handler=command_equivalence_audit)
-
     sdk = subparsers.add_parser("sdk")
     sdk_commands = sdk.add_subparsers(dest="sdk_command", required=True)
     sdk_manifest = sdk_commands.add_parser("manifest")
