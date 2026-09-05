@@ -995,12 +995,13 @@ update，reset response 不再可能无限等待。
 
 LM20 的非部署 compile probe 也已完成，不增加新的用户配置层：consumer 只需在既有 LM20
 CMake 配置中打开一个选项并构建一个显式 target。删除持久应用签名设计后，Release 链接
-结果占 18,892 bytes RRAM；在暂定 128 KiB boot 区中余 112,180 bytes。boot 自有静态数据按对齐占 6,448 bytes；在低
+结果占 18,940 bytes RRAM；在暂定 128 KiB boot 区中余 112,132 bytes。boot 自有静态数据按对齐占 6,448 bytes；在低
 64 KiB RAM 区中余 59,088 bytes。64 KiB direct-load program 区与顶部 16 KiB stack 由 linker
 断言保持分离，因此 direct load 作为当前工作选择，不同时实现 persistent staging。probe 使用
 无效占位 key，因此不能接受真实签名 maintenance program；它仍不能作为可部署镜像。
 consumer linker script 已把这个全新板的应用迁移到暂定 `0x00020000`，不保留 legacy image
-兼容路径；143,472-byte 应用到既有 settings 边界仍有 1,777,296 bytes 余量。匹配的 image
+兼容路径；143,520-byte 应用到 `0x001f4000` 保护边界仍有 1,773,408 bytes 余量，之后保留
+3840-byte 空隙再进入既有 settings。匹配的 image
 layout 也由 consumer 维护，Release 链接确认 vector 与所有 load segment 均位于新应用范围。
 
 LM20 compile target 启动时只验证 vector 所表达的事务有效性、MSP 对齐/RAM 范围与 reset
@@ -1031,8 +1032,9 @@ signature，不保留 storage-mode 或 EXIP 字段，也不在应用 linker 中�
 启动只依赖 vector-last 事务：更新开始先使首个 16-byte vector data unit 无效，body 与其余
 首个 commit unit 写完且在线 payload hash 成功后，最后恢复该 data unit；bootloader 随后只做
 vector 和范围验证。存储访问和调试保护属于独立产品策略，不在这一层增加未来平台抽象。
-删除持久签名实现后，compile probe 的 RRAM load end 为 `0x000049cc`（18,892 bytes），
-128 KiB boot 区尚余 112,180 bytes；应用 raw image 为 143,472 bytes。16 项 host tests、LM20
+加入易失 MPC 写保护与 reset workaround 后，compile probe 的 RRAM load end 为
+`0x000049fc`（18,940 bytes），128 KiB boot 区尚余 112,132 bytes；应用 raw image 为
+143,520 bytes。16 项 host tests、LM20
 application/bootloader/updater probe 与既有另一 target 的 Release app/bootloader/upgrader
 均重新构建通过。
 
@@ -1048,8 +1050,8 @@ target identity、idle state 和无错误状态；64-byte response 路径也通�
 LM20 RAM updater 也已作为同一 opt-in 下的独立 compile probe 链接，不增加公共 SDK API。
 consumer 自有入口把 handoff 参数保存在 callee-saved registers 中，经过官方 startup 后交给
 既有 updater main，并在启动 timer/USB 前把 VTOR 指向 RAM vector table。Release ELF 的入口为
-`0x20010001`，vector table 位于 `0x20010080`；load image 为 15,432 bytes，BSS 结束于
-`0x2001612c`，在 64 KiB direct-load window 中尚余 40,660 bytes。generic updater 内部也把
+`0x20010001`，vector table 位于 `0x20010080`；load image 为 15,448 bytes，BSS 结束于
+`0x20016139`，在 64 KiB direct-load window 中尚余 40,647 bytes。generic updater 内部也把
 Flash 特有的 `erase_unit` 术语改为 storage-neutral `commit_unit`；既有另一 target 的 Release
 upgrader 重新链接通过。probe 仍使用无效 key，不能生成 bootloader 会接受的签名 RAM program，
 也没有设备烧写 target，因此这里只是链接、布局和入口 ABI 证据。
@@ -1066,6 +1068,14 @@ bootloader 漏洞、已授权签名代码或侵入式物理攻击。MPC normal/m
 errata workaround 必须先经 host/compile 与实板 read-back 门禁证明，所有 UICR/protection
 provisioning 仍需单独明确授权。bootloader 负责的 MPC override 是每次 reset 后的易失运行时
 写保护，不属于上述量产读保护或一次性配置。
+
+compile probe 已按这一结论实现最小运行时路径：应用范围收齐为 MPC 的 4 KiB 粒度
+`0x00020000..0x001f4000`，normal handoff 前直接配置一个 read/execute、禁止 write 的 override，
+先回读地址和权限，再 enable+lock 并回读；任何不一致都进入 maintenance，不启动应用。
+maintenance 路径不设置该 override。nRF54L 的公共 software-reset 实现也在 SYSRESETREQ 前进入
+constant-latency，使应用、bootloader 和 RAM updater 共同覆盖 anomaly 63。Release app、
+bootloader、updater 均重新链接，两个 device manifest inspection 与 16 项 host tests 通过；
+实板 protected-range 写拒绝及独立 settings 写仍需门禁验证，尚不把 compile 结果写成实板结论。
 
 RRAM ECC 只保证每个 128-bit data unit 最多纠正两位并对不可纠正错误产生事件，不能证明
 超过该范围的任意损坏一定被启动前发现或一定不会在应用执行后卡死。因此 M9 不把 ECC 当作
