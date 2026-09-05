@@ -993,18 +993,19 @@ service C ABI；loader 现按 target 声明的入口地址 mask 在 load-begin �
 也已复用 USB session epoch 和有界 terminal-response drain：断线或 bus reset 会 abort 当前
 update，reset response 不再可能无限等待。
 
-LM20 的非部署 compile probe 也已完成，不增加新的用户配置层：consumer 只需在既有 LM20
-CMake 配置中打开一个选项并构建一个显式 target。删除持久应用签名设计后，Release 链接
-结果占 18,940 bytes RRAM；在暂定 128 KiB boot 区中余 112,132 bytes。boot 自有静态数据按对齐占 6,448 bytes；在低
+LM20 的 opt-in bootloader/updater 构建与打包已完成，不增加新的用户配置层：consumer 只需打开
+现有板级 opt-in。删除持久应用签名设计后，
+Release 链接结果占 19,084 bytes RRAM；在暂定 128 KiB boot 区中余 111,988 bytes。boot 自有静态数据按对齐占 6,448 bytes；在低
 64 KiB RAM 区中余 59,088 bytes。64 KiB direct-load program 区与顶部 16 KiB stack 由 linker
-断言保持分离，因此 direct load 作为当前工作选择，不同时实现 persistent staging。probe 使用
-无效占位 key，因此不能接受真实签名 maintenance program；它仍不能作为可部署镜像。
+断言保持分离，因此 direct load 作为当前工作选择，不同时实现 persistent staging。构建读取
+ignored `manufacturing/secrets.toml`，bootloader 只嵌入产品加密密钥和 publisher 公钥；同一
+测试专用 key source 由既有 host packer 生成真实签名加密 `.rprog` 与 `.appimg`，没有跳过认证路径。
 consumer linker script 已把这个全新板的应用迁移到暂定 `0x00020000`，不保留 legacy image
 兼容路径；143,520-byte 应用到 `0x001f4000` 保护边界仍有 1,773,408 bytes 余量，之后保留
 3840-byte 空隙再进入既有 settings。匹配的 image
 layout 也由 consumer 维护，Release 链接确认 vector 与所有 load segment 均位于新应用范围。
 
-LM20 compile target 启动时只验证 vector 所表达的事务有效性、MSP 对齐/RAM 范围与 reset
+LM20 bootloader 启动时只验证 vector 所表达的事务有效性、MSP 对齐/RAM 范围与 reset
 target Thumb bit/应用范围，随后清理 SysTick/NVIC 状态，恢复 mask/control 状态并设置
 VTOR/MSP 后分支。Release disassembly 确认最终 trampoline 是 `LDR` vector、`MSR MSP`、
 `CPSIE I`、`BX` 的固定短序列。应用通过固定的一次性 RAM request 请求 maintenance，
@@ -1020,9 +1021,9 @@ RRAM authenticated floor、硬件 monotonic policy 或明确允许 rollback 三�
 镜像在发布前完成认证、更新事务的有效标志最后写入、写入路径受到约束时普通启动无需重复
 publisher signature。MCUboot 自身也允许关闭 `MCUBOOT_VALIDATE_PRIMARY_SLOT`；其双槽、
 swap/trailer、revert、TLV image header、Zephyr glue 和 serial recovery 不符合当前 LM20
-“单槽明文 RRAM + maintenance 可恢复”的产品选择，不引入。由此停止扩展 MPC/GDB 专用 gate；
-下一项有效工作是用明确的测试 key 完成一次 signed RAM updater 与加密 `.appimg` 的端到端更新，
-而不是继续搭建调试器恢复编排。
+“单槽明文 RRAM + maintenance 可恢复”的产品选择，不引入。由此停止扩展 MPC/GDB 专用 gate。
+测试 key 的完整构建、打包与 host container 传输检查已完成；下一项有效工作是完成 signed RAM
+updater 与加密 `.appimg` 的端到端实板更新，而不是继续搭建调试器恢复编排。
 
 应用更新无需另造一套事务框架：现有 updater 已把首个 update unit 缓存在 RAM，在完整
 image hash 成功后才最后写回。内部 handoff ABI v2 以 application-storage 语义提供
@@ -1041,11 +1042,12 @@ signature，不保留 storage-mode 或 EXIP 字段，也不在应用 linker 中�
 启动只依赖 vector-last 事务：更新开始先使首个 16-byte vector data unit 无效，body 与其余
 首个 commit unit 写完且在线 payload hash 成功后，最后恢复该 data unit；bootloader 随后只做
 vector 和范围验证。存储访问和调试保护属于独立产品策略，不在这一层增加未来平台抽象。
-加入易失 MPC 写保护与 reset workaround 后，compile probe 的 RRAM load end 为
-`0x000049fc`（18,940 bytes），128 KiB boot 区尚余 112,132 bytes；应用 raw image 为
-143,520 bytes。16 项 host tests、LM20
-application/bootloader/updater probe 与既有另一 target 的 Release app/bootloader/upgrader
-均重新构建通过。
+加入易失 MPC 写保护与 reset workaround 后，bootloader 的 RRAM load end 为
+`0x00004a8c`（19,084 bytes），128 KiB boot 区尚余 111,988 bytes；应用 raw image 为
+143,520 bytes。LM20 工具的 18 项 Python tests、完整 16-target host CTest、LM20
+application/bootloader/updater 与既有另一 target 的 Release app/bootloader/upgrader
+均重新构建通过。实际测试容器分别包含 15,448-byte updater 的 16 个密文块和
+143,520-byte application 的 147 个密文块；两份 device manifest 均通过公共地址审计。
 
 同一受控门禁随后补充了 bootloader USBHS maintenance 基本传输证据：实板连续两次接收完整
 1024-byte interrupt OUT request，并在中间 reset/re-enumeration 后都返回 protocol v2、匹配的
@@ -1056,14 +1058,14 @@ target identity、idle state 和无错误状态；64-byte response 路径也通�
 证明 manifest 签名拒绝路径，但不替代后续 ciphertext authentication 与完整 payload hash 实板
 验证。
 
-LM20 RAM updater 也已作为同一 opt-in 下的独立 compile probe 链接，不增加公共 SDK API。
+LM20 RAM updater 也已作为同一 opt-in 下的独立 target 链接并打包，不增加公共 SDK API。
 consumer 自有入口把 handoff 参数保存在 callee-saved registers 中，经过官方 startup 后交给
 既有 updater main，并在启动 timer/USB 前把 VTOR 指向 RAM vector table。Release ELF 的入口为
 `0x20010001`，vector table 位于 `0x20010080`；load image 为 15,448 bytes，BSS 结束于
 `0x20016139`，在 64 KiB direct-load window 中尚余 40,647 bytes。generic updater 内部也把
 Flash 特有的 `erase_unit` 术语改为 storage-neutral `commit_unit`；既有另一 target 的 Release
-upgrader 重新链接通过。probe 仍使用无效 key，不能生成 bootloader 会接受的签名 RAM program，
-也没有设备烧写 target，因此这里只是链接、布局和入口 ABI 证据。
+upgrader 重新链接通过。测试专用 key 已生成 bootloader 可认证的 RAM-program container；实板
+load/data/commit、updater 重枚举和 application update 仍需端到端门禁证明。
 
 LM20 的保护审计选择“阻止未授权写入”而不是依赖启动时重复 hash。正常应用启动前，
 bootloader 应把完整应用 RRAM 配置为 read/execute、禁止 write，并锁定 MPC override 到下次
