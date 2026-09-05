@@ -1,6 +1,6 @@
 # nrfkit：目标与执行计划
 
-> 状态：P0、M0、M1、M2、M3、M6 已完成；M4 仅余但暂缓直连拓扑 remote wake；M5 direct-RADIO 基线已收束；M7 功能、时序、retry 与共存门禁已完成，外部仪器电气功耗测量暂缓；M8 的 0.1.0-rc.1 已完成本地发布验收，仅余经授权的外部发布；M9 正在复用自有 bootloader 的差距审计与主机层加固
+> 状态：P0、M0、M1、M2、M3、M6 已完成；M4 仅余但暂缓直连拓扑 remote wake；M5 direct-RADIO 基线已收束；M7 功能、时序、retry 与共存门禁已完成，外部仪器电气功耗测量暂缓；M8 的 0.1.0-rc.1 已完成本地发布验收，仅余经授权的外部发布；M9 正在复用自有 bootloader，已完成共享主机加固与 LM20 compile-only 容量验证
 > 计划基线：2026-09-05<br>
 > 唯一 SDK 支持目标：nRF54LM20A / nRF54LM20 DK<br>
 > 实验室夹具：nRF54L15 DK（不属于 SDK 支持目标）<br>
@@ -984,10 +984,22 @@ settings 与 scratch 的 linker script 和配套 image-layout 由 consumer 维�
 response 增加 500 ms 有界 drain，超时只重启 transport，不执行尚未可靠回传结果的 reset
 或 launch。另已建立 fail-closed Cortex-M vector contract，主机测试覆盖 image/alignment、
 8-byte MSP、RAM 边界、Thumb bit 与 reset target 范围。共享层 16 项 host tests 通过，既有
-另一目标 Release bootloader 仍能交叉链接。LM20 上实际读取 vector、USB/MPSL/NVIC 清理、
-VTOR/MSP/branch、release map/disassembly 与实板 handoff 尚未完成。rollback policy 会改变
-安全模型，必须在普通 RRAM authenticated floor、硬件 monotonic policy 或明确允许 rollback
-三者中取得用户决定；在此之前继续推进与该选择无关的布局测量和 compile-only target。
+另一目标 Release bootloader 仍能交叉链接。
+
+LM20 的非部署 compile probe 也已完成，不增加新的用户配置层：consumer 只需在既有 LM20
+CMake 配置中打开一个选项并构建一个显式 target。Release 链接结果占 18,028 bytes RRAM；
+在暂定 128 KiB boot 区中余 113,044 bytes。boot 自有静态数据按对齐占 6,448 bytes；在低
+64 KiB RAM 区中余 59,088 bytes。64 KiB direct-load program 区与顶部 16 KiB stack 由 linker
+断言保持分离，因此 direct load 作为当前工作选择，不同时实现 persistent staging。probe 使用
+无效占位 key、始终进入 maintenance、没有 RRAM update service，也没有烧写 target；这些限制
+使它只能证明编译、链接和容量，不能作为可部署镜像。当前应用若由 consumer linker script
+迁移到暂定 `0x00020000`，到既有 settings 边界仍有 1,777,200 bytes 余量；在 boot chain 可
+部署前不实际迁移应用。
+
+LM20 上实际读取 vector、USB/MPSL/NVIC 清理、VTOR/MSP/branch、release map/disassembly
+与实板 handoff 尚未完成。rollback policy 会改变安全模型，必须在普通 RRAM authenticated
+floor、硬件 monotonic policy 或明确允许 rollback 三者中取得用户决定；在此之前继续推进
+与该选择无关且不增加 consumer 配置复杂度的工作。
 
 ## 9. 测试矩阵
 
