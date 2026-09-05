@@ -1060,8 +1060,10 @@ transport 阶段尚未包括真实签名 RAM program 的 load/data/commit、upda
 写入；后续下述 authenticated updater 门禁已补齐全链路。门禁还在两次 maintenance session
 中提交了结构、target、范围和 chunk layout
 均有效但 publisher signature 无效的 manifest，实板均返回 `manifest_signature_invalid`；这已
-证明 manifest 签名拒绝路径，但不替代后续 ciphertext authentication 与完整 payload hash 实板
-验证。
+证明 manifest 签名拒绝路径。后续 restoring gate 又对 application 首个 ciphertext 修改一字节，
+实板返回 `authentication_failed` 并保持 failed state；重新开始合法认证 session 后完整更新和
+原应用恢复均通过。完整 payload hash 的错误路径由 host fault test 覆盖，成功路径已在实板对
+147 个认证 chunk 完整执行。
 
 LM20 RAM updater 也已作为同一 opt-in 下的独立 target 链接并打包，不增加公共 SDK API。
 consumer 自有入口把 handoff 参数保存在 callee-saved registers 中，经过官方 startup 后交给
