@@ -915,7 +915,17 @@ USB configuration/descriptor/reset 事务，不发送私有协议 payload，也�
 保持为未覆盖的产品引脚/扫描链路证据，但不再阻塞 M8 或后续里程碑。M8 下一项实板门禁改为
 普通 RRAM settings 的受控修改、延迟 flush、SDC pause/resume、reset 后读回，以及不依赖
 私有协议的长时间主循环/fault-state 观测。该门禁不得触及配置区、一次性区域或 protection
-状态。settings 持久化和长稳仍待执行，因此 M8 尚不能退出。
+状态。下游于 2026-09-05 已通过自有板级门禁完成 settings 部分：2 秒提前检查仍有一个 dirty
+block 且写入计数为零；正常 15 秒期限后恰有一次普通 RRAM program、一次 SDC pause 和一次
+resume，三类失败计数均为零；临时 profile 经 reset 后读回成功，cleanup 再立即 flush、reset
+并读回原 profile。随后 120 秒内完成 60 次 configurator 协议版本与原 profile 查询，无失联或
+状态漂移。门禁使用公共 manifest guard、`ERASE_NONE`、read-back 和 reset，只覆盖普通应用
+RRAM；ignored local report 记录了中断恢复与最终 cleanup 成功，原始报告不进入公共仓库。
+这组查询仍属于下游协议观测，因此另以公共 GDB workflow 对持续运行中的同一镜像做只 attach、
+不 reset 的独立快照：PC 位于主循环，毫秒时钟已达到 250510 ms，通用 fault record 与 SDC
+fault record 均为零；workflow 随后恢复 target 运行、detach 并确认 GDB server cleanup。至此
+settings 与协议无关长稳/fault-state 门禁均已完成。M8 尚不能退出：仍需从干净下游 checkout
+复现 build，并完成 release-candidate 版本决定与发布前检查。
 RC 版本准备已把 `include/nrfkit/version.h` 设为唯一版本来源；根项目、source-tree
 package 与 installed package 会从同一组 numeric/full version 生成并由离线 consumer
 门禁交叉验证。当前仍保持 `0.0.0`，不会在私有集成验收前伪装成已发布 RC。
