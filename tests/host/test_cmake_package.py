@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
@@ -28,6 +29,19 @@ class CMakePackageTests(unittest.TestCase):
         if cmake is None or ninja is None:
             self.skipTest("CMake and Ninja are required")
         environment = os.environ.copy()
+        version_header = (ROOT / "include/nrfkit/version.h").read_text(encoding="utf-8")
+        components = [
+            re.search(rf"NRFKIT_VERSION_{name}\s+(\d+)", version_header).group(1)
+            for name in ("MAJOR", "MINOR", "PATCH")
+        ]
+        numeric_version = ".".join(components)
+        full_version = re.search(
+            r'NRFKIT_VERSION_STRING\s+"([^"]+)"', version_header,
+        ).group(1)
+        version_options = [
+            f"-DNRFKIT_EXPECTED_VERSION={numeric_version}",
+            f"-DNRFKIT_EXPECTED_VERSION_STRING={full_version}",
+        ]
         for name in (
             "NRF_CONNECT_SDK_ROOT", "WEST_TOPDIR", "ZEPHYR_BASE",
             "ZEPHYR_SDK_INSTALL_DIR",
@@ -39,6 +53,7 @@ class CMakePackageTests(unittest.TestCase):
             self.run_command([
                 cmake, "-S", str(CONSUMER), "-B", str(source_build), "-G", "Ninja",
                 f"-DNrfKit_DIR={ROOT / 'cmake'}",
+                *version_options,
             ], environment)
             self.run_command([cmake, "--build", str(source_build)], environment)
 
@@ -56,6 +71,7 @@ class CMakePackageTests(unittest.TestCase):
             self.run_command([
                 cmake, "-S", str(CONSUMER), "-B", str(installed_build), "-G", "Ninja",
                 f"-DCMAKE_PREFIX_PATH={prefix}",
+                *version_options,
             ], environment)
             self.run_command([cmake, "--build", str(installed_build)], environment)
 

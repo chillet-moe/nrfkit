@@ -13,6 +13,7 @@ This table distinguishes reference evidence from consumer SDK support. “Planne
 | nRF54LM20A direct proprietary RADIO 1/2 Mbit | Complete for current packet/clock inputs | Target-scoped adapter, ownership API, validation images, and two-board runner | Bidirectional compatibility baseline and rate comparison PASS | M5 diagnostic baseline |
 | nRF54LM20A/L15 proprietary RADIO 4 Mbit | Both mode encodings, packet fields, clock, and applicable errata audited | BT=0.6 default and explicit BT=0.4; shared direct/Timeslot packet API | Current negative/rate/Timeslot directions 3/3 and idempotent-retry 20-round soak PASS | M7 functional PASS; electrical power deferred |
 | MPSL Timeslot private radio with active SDC | Complete locked MPSL contract | Pure-CMake backend with bounded grant/deadline/cleanup lifecycle | Disabled lifecycle plus advertising/connected 4 Mbit air gate 3/3 PASS with raw ACL | M7 functional PASS; electrical power pending |
+| Combined LM20 consumer prerequisites | Complete for current USB/SDC/Timeslot/RRAM lifecycle boundary | C++23 source-tree and installed `find_package` builds PASS offline in both CMake declaration orders | SDC/MPSL plus USB control/bulk/HID, 20 reconnects and 20-second stress PASS | M8 public prerequisite PASS; private integration pending |
 
 The firmware API remains experimental and supports only the LM20A application core
 standalone layout. M3 validates the listed nrfx drivers, IRQ/DMA paths, bounded RRAM

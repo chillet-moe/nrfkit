@@ -901,6 +901,9 @@ nrfx CLOCK ISR 与 MPSL handler 冲突，以及协议栈运行时 USBHS 直接�
 首个私有 consumer 的本地只读审计确认其当前仍无 LM20 target 或 NrfKit 接入；根据输入
 契约，本 goal 未获修改该私有仓库的授权，因此下游 clean-build、主工作模式长稳和 0.x
 release candidate 仍未完成，M8 尚不能退出。
+RC 版本准备已把 `include/nrfkit/version.h` 设为唯一版本来源；根项目、source-tree
+package 与 installed package 会从同一组 numeric/full version 生成并由离线 consumer
+门禁交叉验证。当前仍保持 `0.0.0`，不会在私有集成验收前伪装成已发布 RC。
 
 ### M9：boot/DFU 与 production 支持
 

@@ -2,7 +2,9 @@
 
 cmake_minimum_required(VERSION 3.25)
 
-project(NrfKit VERSION 0.0.0 LANGUAGES NONE)
+include(cmake/modules/NrfKitVersion.cmake)
+nrfkit_read_version("${CMAKE_CURRENT_SOURCE_DIR}/include/nrfkit/version.h")
+project(NrfKit VERSION "${NrfKit_VERSION}" LANGUAGES NONE)
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
@@ -54,6 +56,7 @@ install(DIRECTORY cmake/toolchains
   DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/cmake
 )
 install(FILES cmake/modules/NrfKitFirmware.cmake cmake/modules/NrfKitNrfxlib.cmake
+  cmake/modules/NrfKitVersion.cmake
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/NrfKit
 )
 install(EXPORT NrfKitTargets

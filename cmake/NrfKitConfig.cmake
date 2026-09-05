@@ -15,7 +15,8 @@ add_library(NrfKit::core INTERFACE IMPORTED)
 set_target_properties(NrfKit::core PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${_nrfkit_root}/include"
 )
-set(NrfKit_VERSION "0.0.0")
+include("${CMAKE_CURRENT_LIST_DIR}/modules/NrfKitVersion.cmake")
+nrfkit_read_version("${_nrfkit_root}/include/nrfkit/version.h")
 set(NrfKit_ROOT "${_nrfkit_root}")
 
 include("${CMAKE_CURRENT_LIST_DIR}/modules/NrfKitFirmware.cmake")
