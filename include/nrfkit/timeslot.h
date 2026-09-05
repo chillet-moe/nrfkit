@@ -51,7 +51,12 @@ typedef struct nrfkit_timeslot_action (*nrfkit_timeslot_handler_t)(
  */
 int32_t nrfkit_timeslot_open(nrfkit_timeslot_handler_t handler, void *context);
 
-/** Request the first or next idle grant with an accurate crystal HFCLK. */
+/**
+ * Request the first or next idle grant with an accurate crystal HFCLK.
+ * Serialize calls with nrfkit_sdc_process(); pending/active requests return
+ * -NRF_EAGAIN without changing the existing grant. Retry after IDLE, BLOCKED,
+ * or CANCELLED.
+ */
 int32_t nrfkit_timeslot_request_earliest(uint32_t length_us,
                                          uint32_t timeout_us,
                                          uint32_t cleanup_margin_us);

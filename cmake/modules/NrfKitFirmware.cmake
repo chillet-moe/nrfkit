@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 include_guard(GLOBAL)
+include("${CMAKE_CURRENT_LIST_DIR}/NrfKitNrfxlib.cmake")
 
 set(_NRFKIT_NRFX_DRIVERS
   clock power gpio gpiote grtc timer dppi uarte spim twim pwm saadc rramc watchdog
@@ -21,10 +22,10 @@ set(_NRFKIT_SDC_RESOURCES
 )
 
 function(_nrfkit_define_nrfxlib_targets)
+  _nrfkit_validate_nrfxlib(root)
   if(TARGET NrfKit::mpsl)
     return()
   endif()
-  set(root "${NrfKit_ROOT}/external/sdk-nrfxlib")
   _nrfkit_prepare_nrfx(nrfx)
   set(paths
     mpsl/lib/nrf54lm/hard-float/libmpsl.a
@@ -33,32 +34,9 @@ function(_nrfkit_define_nrfxlib_targets)
     softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_peripheral.a
     softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_central.a
   )
-  set(hashes
-    5d6ec178b731b721d519089fa9f2c9adf4fba37e3d77387c8a9c4133752fdb7e
-    e6780c52ba4cd00c894b94f7dbf6802ff37e54fc4a6b8d5d9b0f670eca8f50e0
-    74b04b594ae5593e3b1e8eb4f2408c4ae9c6d96b1e1ff64abfd3e5d1010ead52
-    4ba73318343946c3e2d46825888e09fabce4a11e249905e373ec4cbb802bb3e3
-    f499ee6db94d45be6c8a1c83d8aa7157632b445c1d4fffd59946d49925a1186b
-  )
-  list(LENGTH paths count)
-  math(EXPR last "${count} - 1")
-  foreach(index RANGE 0 ${last})
-    list(GET paths ${index} relative)
-    list(GET hashes ${index} expected_hash)
-    set(path "${root}/${relative}")
-    if(NOT EXISTS "${path}")
-      message(FATAL_ERROR
-        "NrfKit requires the locked sdk-nrfxlib v3.4.0 input: ${relative}"
-      )
-    endif()
-    file(SHA256 "${path}" actual_hash)
-    if(NOT actual_hash STREQUAL expected_hash)
-      message(FATAL_ERROR "NrfKit sdk-nrfxlib input hash mismatch: ${relative}")
-    endif()
-  endforeach()
-
   add_library(NrfKit::mpsl STATIC IMPORTED GLOBAL)
   set_target_properties(NrfKit::mpsl PROPERTIES
+    NRFKIT_NRFXLIB_ROOT "${root}"
     INTERFACE_INCLUDE_DIRECTORIES
       "${root}/mpsl/include;${nrfx};${nrfx}/bsp/stable"
   )
@@ -135,7 +113,7 @@ function(nrfkit_enable_sdc target)
   set(config_dir "${CMAKE_CURRENT_BINARY_DIR}/nrfkit/${target_id}")
   file(MAKE_DIRECTORY "${config_dir}")
   string(REPLACE ";" "\", \"" resources_json "${_NRFKIT_SDC_RESOURCES}")
-  set(root "${NrfKit_ROOT}/external/sdk-nrfxlib")
+  get_target_property(root NrfKit::mpsl NRFKIT_NRFXLIB_ROOT)
   string(CONCAT sdc_target_content
     "{\n"
     "  \"schema\": \"nrfkit-sdc-target/v1\",\n"

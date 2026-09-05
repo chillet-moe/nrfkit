@@ -11,7 +11,7 @@ This table distinguishes reference evidence from consumer SDK support. “Planne
 | Source-tree and installed `find_package` | N/A | Host PASS, offline; firmware and nrfx API included | N/A | Experimental M3 support |
 | Guarded program/reset/serial/GDB workflow | Complete | Maintainer-only | Official oracles and standalone SDK PASS | M2 complete |
 | nRF54LM20A direct proprietary RADIO 1/2 Mbit | Complete for current packet/clock inputs | Target-scoped adapter, ownership API, validation images, and two-board runner | Bidirectional compatibility baseline and rate comparison PASS | M5 diagnostic baseline |
-| nRF54LM20A/L15 proprietary RADIO 4 Mbit | Both mode encodings, packet fields, clock, and applicable errata audited | BT=0.6 default and explicit BT=0.4; shared direct/Timeslot packet API | Both modes bidirectional 3/3; negative, rate, retry, sleep, and 20-round soak PASS | M7 functional PASS; electrical power pending |
+| nRF54LM20A/L15 proprietary RADIO 4 Mbit | Both mode encodings, packet fields, clock, and applicable errata audited | BT=0.6 default and explicit BT=0.4; shared direct/Timeslot packet API | Historical negative/rate/20-round soak PASS; current Timeslot directions 3/3 PASS, retry regression FAIL | M7 retry regression and electrical power pending |
 | MPSL Timeslot private radio with active SDC | Complete locked MPSL contract | Pure-CMake backend with bounded grant/deadline/cleanup lifecycle | Disabled lifecycle plus advertising/connected 4 Mbit air gate 3/3 PASS with raw ACL | M7 functional PASS; electrical power pending |
 
 The firmware API remains experimental and supports only the LM20A application core
@@ -23,3 +23,8 @@ Host, ATT/GATT, HID profile, and product pairing policy are outside the plan. Le
 S115 assets remain a reproducible historical checkpoint rather than the active route.
 Direct RADIO is not a coexistence claim: with SDC active, proprietary access must be
 inside a granted MPSL Timeslot.
+
+The latest review-image retry regression remains unresolved; the unchanged historical
+image passes with the same peer. See the review regression section in
+[`m7-radio-evidence.md`](provenance/m7-radio-evidence.md) for the controlled comparison
+and failed reports. Historical retry/soak results do not validate the current image.

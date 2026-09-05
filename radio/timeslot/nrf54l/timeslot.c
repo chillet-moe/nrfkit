@@ -28,6 +28,7 @@ static uint32_t grant_length_us;
 static uint32_t cleanup_margin_us;
 static uint32_t pending_extension_us;
 static volatile uint8_t session_open;
+static volatile uint8_t session_idle;
 static volatile uint8_t session_closing;
 static volatile uint8_t grant_active;
 
@@ -152,6 +153,7 @@ static mpsl_timeslot_signal_return_param_t *timeslot_callback(
     if (signal == MPSL_TIMESLOT_SIGNAL_SESSION_CLOSED) {
         cleanup_grant();
         session_open = 0U;
+        session_idle = 0U;
         session_closing = 0U;
         if (application_handler != NULL) {
             (void)application_handler(NRFKIT_TIMESLOT_SIGNAL_CLOSED,
@@ -161,6 +163,14 @@ static mpsl_timeslot_signal_return_param_t *timeslot_callback(
         application_context = NULL;
         nrfkit_mpsl_timeslot_release();
         return return_none();
+    }
+    /* MPSL permits a new request after a blocked/cancelled request as well as
+     * after SESSION_IDLE (mpsl/doc/timeslot.rst, blocked/canceled scenarios).
+     */
+    if (signal == MPSL_TIMESLOT_SIGNAL_SESSION_IDLE ||
+        signal == MPSL_TIMESLOT_SIGNAL_BLOCKED ||
+        signal == MPSL_TIMESLOT_SIGNAL_CANCELLED) {
+        session_idle = 1U;
     }
     if (signal == MPSL_TIMESLOT_SIGNAL_START) {
         if (nrfkit_radio_acquire(NRFKIT_RADIO_OWNER_TIMESLOT) != NRFKIT_RADIO_OK) {
@@ -223,6 +233,7 @@ int32_t nrfkit_timeslot_open(nrfkit_timeslot_handler_t handler, void *context)
     application_handler = handler;
     application_context = context;
     session_open = 1U;
+    session_idle = 1U;
     return 0;
 }
 
@@ -238,6 +249,19 @@ int32_t nrfkit_timeslot_request_earliest(uint32_t length_us,
         timeout_us > MPSL_TIMESLOT_EARLIEST_TIMEOUT_MAX_US) {
         return -NRF_EINVAL;
     }
+    /* A pending grant owns these parameters until idle, blocked, or cancelled.
+     * In particular,
+     * an EAGAIN from a second request must not move the first grant's deadline.
+     * Calls are serialized in the same context as mpsl_low_priority_process().
+     */
+    if (session_idle == 0U) {
+        return -NRF_EAGAIN;
+    }
+    uint32_t const previous_length_us = grant_length_us;
+    uint32_t const previous_margin_us = cleanup_margin_us;
+    mpsl_timeslot_request_t const previous_request = next_request;
+    session_idle = 0U;
+    /* START may interrupt the vendor call, so publish the parameters first. */
     grant_length_us = length_us;
     cleanup_margin_us = requested_cleanup_margin_us;
     next_request.request_type = MPSL_TIMESLOT_REQ_TYPE_EARLIEST;
@@ -246,7 +270,14 @@ int32_t nrfkit_timeslot_request_earliest(uint32_t length_us,
     next_request.params.earliest.priority = MPSL_TIMESLOT_PRIORITY_NORMAL;
     next_request.params.earliest.length_us = length_us;
     next_request.params.earliest.timeout_us = timeout_us;
-    return mpsl_timeslot_request(session_id, &next_request);
+    int32_t const result = mpsl_timeslot_request(session_id, &next_request);
+    if (result != 0) {
+        grant_length_us = previous_length_us;
+        cleanup_margin_us = previous_margin_us;
+        next_request = previous_request;
+        session_idle = 1U;
+    }
+    return result;
 }
 
 int32_t nrfkit_timeslot_close(void)

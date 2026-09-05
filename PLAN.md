@@ -1,6 +1,6 @@
 # nrfkit：目标与执行计划
 
-> 状态：P0、M0、M1、M2、M3、M6 已完成；M4 仅余直连拓扑 remote wake；M5 direct-RADIO 基线已收束；M7 功能、时序与共存门禁已完成，仅余外部仪器电气功耗测量<br>
+> 状态：P0、M0、M1、M2、M3、M6 已完成；M4 仅余直连拓扑 remote wake；M5 direct-RADIO 基线已收束；M7 双向 Timeslot 与共存回归通过，retry 回归待修复，外部仪器电气功耗测量仍待完成<br>
 > 计划基线：2026-09-05<br>
 > 唯一 SDK 支持目标：nRF54LM20A / nRF54LM20 DK<br>
 > 实验室夹具：nRF54L15 DK（不属于 SDK 支持目标）<br>
@@ -861,6 +861,11 @@ soak 均通过。4/2/1 Mbit/s 已用同一 DWT/16-byte payload 方法量化。Ti
 `docs/provenance/m7-radio-evidence.md`。M7 尚未标记完成：当前输入与 USB inventory 没有
 PPK2、示波器、电流表或功率分析仪，官方 DK 测量流程要求外部仪器；已有 60.55% retry
 reservation duty 和 11.27% 共存 burst duty 只是功耗代理，不能替代安培/瓦特/焦耳。
+
+2026-09-05 后续审查回归：输入校验和 Timeslot 请求状态修复通过 121 项 host tests；
+双向 Timeslot 与活动 BLE 共存各三轮通过。但当前 retry 镜像两次耗尽重试，历史镜像在
+同一 peer 下连续三轮通过。试验性 ACK 间隔未稳定解决问题，已撤回；不得将历史 20 轮
+soak 结果当成本次修改后的 retry 验收。该回归需要独立定位并修复，详见上述证据文档。
 
 ### M8：首个私有下游集成与 LM20 release candidate
 

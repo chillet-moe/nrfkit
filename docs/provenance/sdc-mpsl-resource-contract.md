@@ -7,6 +7,17 @@ machine-readable companion is `m6-sdc-mpsl-contract.json`; host tests reject
 source drift, resource-mask drift, ABI drift, or a changed public archive link
 closure.
 
+Consumer CMake also validates every selected file in `sources.lock`, including
+the complete exposed SDC/MPSL/FEM header set, manifests, licenses, and archives.
+`NRFKIT_NRFXLIB_ROOT` explicitly selects an alternative input; otherwise the
+package's `external/sdk-nrfxlib` is used. All targets in one build tree use the
+same resolved root, including their generated archive records. Git checkouts
+must match both the locked HEAD and release tag. Installed packages and source
+archives without Git metadata establish input identity through the same file
+hashes. Installation ships this selected set and its lock; consumer configure
+does not require Python or network access. Changes to selected files trigger
+revalidation on the next build.
+
 ## Audit scope
 
 The review covered every RST document, changelog, limitation file, public

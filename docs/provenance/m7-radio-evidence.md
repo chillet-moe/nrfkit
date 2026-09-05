@@ -91,6 +91,36 @@ The connected coexistence envelope reserves 8 milliseconds across each approxima
 71-millisecond finite burst, or 11.27% within-burst reservation duty. These values
 quantify scheduling cost, not electrical current or energy.
 
+## Review regression on 2026-09-05
+
+The input-validation and Timeslot request-state fixes pass 121 host tests, including
+rejected-request deadline preservation, blocked/cancelled retry, source and installed
+package input drift, and explicit input selection. The current working-tree images
+passed three rounds in each Timeslot air direction and three connected BLE rounds:
+
+- LM20 Timeslot TX: `20260905-130812-m7-radio-dual-971775`.
+- LM20 Timeslot RX: `20260905-130853-m7-radio-dual-972410`.
+- Active BLE coexistence: `20260905-130703-m7-coexistence-967962`; each round
+  received sequence 15 and retained bidirectional raw ACL.
+- Independent GDB: `20260905-131828-gdb-smoke-984190`.
+
+The current retry image did **not** pass. Runs
+`20260905-130927-m7-radio-dual-973097` and
+`20260905-131247-m7-radio-dual-974634` completed only two and one packets,
+respectively, before exhausting retries. Programming/read-back and serial transport
+worked; the firmware emitted an explicit FAIL. The original peer image hash matched
+the historical passing peer exactly. The unchanged historical initiator then passed
+one control round (`20260905-131201-m7-radio-dual-974247`) and three consecutive
+control rounds (`20260905-131642-m7-radio-dual-982500`).
+
+An experimental 100-microsecond peer ACK turnaround passed one round but failed the
+next after 61 completed packets (`20260905-131454-m7-radio-dual-976629`). That peer
+change was reverted, including its source-lock hash. ACK timing and retry handling
+remain investigation hypotheses, not an established root cause. This is an unresolved
+review-image regression; the historical 20-round soak must not be reported as current
+acceptance. All hardware runs used guarded application RRAM with read-back verification
+and completed process cleanup. Raw evidence remains in ignored local reports.
+
 ## Remaining electrical power boundary
 
 No current probe, oscilloscope, ampere meter, power analyzer, or Power Profiler Kit

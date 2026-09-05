@@ -182,8 +182,105 @@
         "mpsl/fem/common/lib/nrf54lm/hard-float/libmpsl_fem_common.a": {
           "sha256": "e6780c52ba4cd00c894b94f7dbf6802ff37e54fc4a6b8d5d9b0f670eca8f50e0",
           "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/include/mpsl_cx_abstract_interface.h": {
+          "sha256": "e4bdd289b93b35b08b95e28106009dec3af0fc339f3180cd796c997138ba0fed",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/include/mpsl_ecb.h": {
+          "sha256": "46a69f9ca3ba1853c0d40d63ac76e4825bc4a2a6dcb2138aa70436eb4a170cd2",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/include/mpsl_pm.h": {
+          "sha256": "d0a7fd62cb2befe9d26a4ecdf909c0b4aa3ace2f01dbf30d813d0b7490e072ce",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/include/mpsl_pm_config.h": {
+          "sha256": "e647af939d7e5338415fc70b0279d76e2ca31800e50c2fc478a4eb7be3944cba",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/include/mpsl_radio_notification.h": {
+          "sha256": "c06676c0247794d26685549f1299d4f2dda25f968b1f5603f785daf2572fac14",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/include/mpsl_temp.h": {
+          "sha256": "ea7a87bcc5827632d5d96882bdcf78c693798969604a83c2a8b06c245ac0e0ab",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/include/mpsl_tx_power.h": {
+          "sha256": "e980e674801ff3d93b61400ec6be55a0689cfaf7823efbb214a8cd2ba2f4d895",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/include/nrf_errno.h": {
+          "sha256": "60b27b6537d50d844ea9cd9c658c0f093e55614b6d1707ae10309d8808deab10",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/include/protocol/mpsl_cx_protocol_api.h": {
+          "sha256": "b325bc6aad2ab94bfadd758127e32539555c4b1bdd0408b5ec9510793346e21c",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/include/protocol/mpsl_dppi_protocol_api.h": {
+          "sha256": "2fee4e7e75f76527517349dc501adbfcfc916c6a457d03c08457b4c1b72d2b8d",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/include/protocol/mpsl_rtc_protocol_api.h": {
+          "sha256": "86a00d4b6d023943f2822f5306464040f2bc486e253a13a4c277b6ad917f5db0",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/fem/include/mpsl_fem_config_common.h": {
+          "sha256": "a632d488be1879f19e7bdc7b622c49bacb874750aebaaf143f99915c008f9d6f",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/fem/include/mpsl_fem_config_nrf21540_common.h": {
+          "sha256": "6c905dc5d03fd9883b7f5e268b7e0cb358b0d9c2bd6aa05142a0377e789ad606",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/fem/include/mpsl_fem_init.h": {
+          "sha256": "3b2025fb1e4f24823bd9d0188bb3553bab5ed761e2534b5f93cc77f852b77447",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/fem/include/mpsl_fem_power_model.h": {
+          "sha256": "9367feb0e8752b8f22774face7a63516f77036a9a5795f6d6e6d306a9a30f963",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "mpsl/fem/include/mpsl_fem_types.h": {
+          "sha256": "95c1d4cf41f1b54acd255cda7d053c4a57ad21812a1706bda6c1a000bf9a0d8f",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "softdevice_controller/include/nrf_errno.h": {
+          "sha256": "48d6c2caa96c3979404c500b54818c3b14f1d9c07c5eb89b74487f96a079b2b5",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "softdevice_controller/include/sdc_hci_cmd_controller_baseband.h": {
+          "sha256": "22dda1398555013f04a5e624a54c0ab91e9557c492d575e2eacfda1ef482a44e",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "softdevice_controller/include/sdc_hci_cmd_info_params.h": {
+          "sha256": "e89c38009711e8da374510f0557c5515835d28f593caf7e30a6f43be64fd91f2",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "softdevice_controller/include/sdc_hci_cmd_le.h": {
+          "sha256": "0a604a22b504805e0c9a0355fc207945c55d311880b076c65f616334e8e07fe4",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "softdevice_controller/include/sdc_hci_cmd_link_control.h": {
+          "sha256": "1f3b943e0cbb782da042319856047ccc5b236fcbf4d11a8354b831f7097d6b30",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "softdevice_controller/include/sdc_hci_cmd_status_params.h": {
+          "sha256": "03a3ef88f6bf0181985b6f0c9bac0bd3989e873cd8cb03b0e0ff7c4d7a526381",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "softdevice_controller/include/sdc_hci_evt.h": {
+          "sha256": "89f31af282f2b875b31370b4ed6cf8373e0ca36dd36d7afb54f2ead6a3ee1980",
+          "license": "LicenseRef-Nordic-5-Clause"
+        },
+        "softdevice_controller/include/sdc_hci_vs.h": {
+          "sha256": "264cce13b0b8fd008e5b19974a5e81b7267bfabfcb8b27fe53f5799534c22278",
+          "license": "LicenseRef-Nordic-5-Clause"
         }
-      }
+      },
+      "tag": "v3.4.0"
     },
     "nrfx-4.5.0": {
       "release": "nrfx v4.5.0",

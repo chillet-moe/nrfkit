@@ -37,56 +37,23 @@ install(DIRECTORY external/cherryusb/
   DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/cherryusb
   PATTERN ".git" EXCLUDE
 )
-install(DIRECTORY external/sdk-nrfxlib/mpsl/include
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/mpsl
-)
-install(DIRECTORY external/sdk-nrfxlib/mpsl/fem/include
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/mpsl/fem
-)
-install(DIRECTORY external/sdk-nrfxlib/softdevice_controller/include
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/softdevice_controller
-)
-install(FILES
-  external/sdk-nrfxlib/mpsl/README.rst
-  external/sdk-nrfxlib/mpsl/license.txt
-  external/sdk-nrfxlib/mpsl/LICENSE-ATTRIBUTION.txt
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/mpsl
-)
-install(FILES
-  external/sdk-nrfxlib/softdevice_controller/README.rst
-  external/sdk-nrfxlib/softdevice_controller/license.txt
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/softdevice_controller
-)
-install(FILES
-  external/sdk-nrfxlib/mpsl/lib/nrf54lm/manifest.yaml
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/mpsl/lib/nrf54lm
-)
-install(FILES
-  external/sdk-nrfxlib/softdevice_controller/lib/nrf54lm/manifest.yaml
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/softdevice_controller/lib/nrf54lm
-)
-install(FILES
-  external/sdk-nrfxlib/mpsl/lib/nrf54lm/hard-float/libmpsl.a
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/mpsl/lib/nrf54lm/hard-float
-)
-install(FILES
-  external/sdk-nrfxlib/mpsl/fem/common/lib/nrf54lm/manifest.yaml
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/mpsl/fem/common/lib/nrf54lm
-)
-install(FILES
-  external/sdk-nrfxlib/mpsl/fem/common/lib/nrf54lm/hard-float/libmpsl_fem_common.a
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/mpsl/fem/common/lib/nrf54lm/hard-float
-)
-install(FILES
-  external/sdk-nrfxlib/softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_multirole.a
-  external/sdk-nrfxlib/softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_peripheral.a
-  external/sdk-nrfxlib/softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_central.a
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/softdevice_controller/lib/nrf54lm/hard-float
-)
+# Install exactly the same selected input set that consumer configure validates.
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/docs/provenance/sources.lock" source_lock)
+string(JSON nrfxlib_files GET "${source_lock}" audited_sources sdk-nrfxlib-3.4.0 files)
+string(JSON nrfxlib_file_count LENGTH "${nrfxlib_files}")
+math(EXPR nrfxlib_last_file "${nrfxlib_file_count} - 1")
+foreach(index RANGE 0 ${nrfxlib_last_file})
+  string(JSON relative MEMBER "${nrfxlib_files}" ${index})
+  get_filename_component(directory "${relative}" DIRECTORY)
+  install(FILES "external/sdk-nrfxlib/${relative}"
+    DESTINATION "${CMAKE_INSTALL_DATADIR}/nrfkit/external/sdk-nrfxlib/${directory}")
+endforeach()
+install(FILES docs/provenance/sources.lock
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/docs/provenance)
 install(DIRECTORY cmake/toolchains
   DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/cmake
 )
-install(FILES cmake/modules/NrfKitFirmware.cmake
+install(FILES cmake/modules/NrfKitFirmware.cmake cmake/modules/NrfKitNrfxlib.cmake
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/NrfKit
 )
 install(EXPORT NrfKitTargets

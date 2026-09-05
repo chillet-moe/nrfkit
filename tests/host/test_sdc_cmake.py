@@ -28,14 +28,84 @@ class SdcCmakeTests(unittest.TestCase):
         if not cls.cmake or not cls.ninja or cls.llvm_root is None:
             raise unittest.SkipTest("CMake, Ninja, and locked LLVM are required")
 
-    def configure(self, directory: Path, case: str) -> subprocess.CompletedProcess[str]:
+    def configure(self, directory: Path, case: str,
+                  *options: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run([
             self.cmake, "-S", str(FIXTURE), "-B", str(directory), "-G", "Ninja",
             f"-DNrfKit_DIR={ROOT / 'cmake'}",
             f"-DCMAKE_TOOLCHAIN_FILE={ROOT / 'cmake/toolchains/arm-clang.cmake'}",
             f"-DNRF_LLVM_ROOT={self.llvm_root}",
             f"-DCONTRACT_CASE={case}",
+            *options,
         ], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+
+    def copy_wireless_input(self, destination: Path) -> None:
+        upstream = ROOT / "external/sdk-nrfxlib"
+        source = json.loads((ROOT / "docs/provenance/sources.lock").read_text())[
+            "audited_sources"]["sdk-nrfxlib-3.4.0"]
+        paths = set(source["files"])
+        for include in ("mpsl/include", "mpsl/fem/include",
+                        "softdevice_controller/include"):
+            paths.update(path.relative_to(upstream).as_posix()
+                         for path in (upstream / include).rglob("*.h"))
+        for relative in paths:
+            target = destination / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(upstream / relative, target)
+
+    def test_explicit_wireless_input_is_used_in_link_and_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            upstream = base / "wireless"
+            self.copy_wireless_input(upstream)
+            result = self.configure(base / "build", "valid",
+                                    f"-DNRFKIT_NRFXLIB_ROOT={upstream}")
+            self.assertEqual(result.returncode, 0, result.stdout)
+            contract = json.loads((base / "build/nrfkit/contract/sdc-target.json").read_text())
+            self.assertTrue(all(Path(path).is_relative_to(upstream)
+                                for path in contract["archives"]))
+            result = subprocess.run([self.cmake, "--build", str(base / "build")],
+                                    text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(str(upstream), (base / "build/contract.map").read_text())
+
+    def test_wireless_input_drift_and_missing_override_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            upstream = base / "wireless"
+            result = self.configure(base / "missing", "valid",
+                                    f"-DNRFKIT_NRFXLIB_ROOT={upstream}")
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+            self.copy_wireless_input(upstream)
+            for index, relative in enumerate((
+                "mpsl/include/mpsl_timeslot.h",
+                "softdevice_controller/include/sdc_hci_cmd_le.h",
+                "mpsl/fem/include/protocol/mpsl_fem_protocol_api.h",
+                "mpsl/lib/nrf54lm/manifest.yaml",
+                "mpsl/license.txt",
+                "mpsl/lib/nrf54lm/hard-float/libmpsl.a",
+            )):
+                with self.subTest(relative=relative):
+                    path = upstream / relative
+                    original = path.read_bytes()
+                    path.write_bytes(original + b"\n/* drift */\n")
+                    result = self.configure(base / f"drift-{index}", "valid",
+                                            f"-DNRFKIT_NRFXLIB_ROOT={upstream}")
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                    self.assertIn("hash mismatch", result.stdout)
+                    path.write_bytes(original)
+            extra = upstream / "mpsl/include/unlocked.h"
+            extra.write_text("/* Unexpected public input. */\n")
+            result = self.configure(base / "extra", "valid",
+                                    f"-DNRFKIT_NRFXLIB_ROOT={upstream}")
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+            self.assertIn("header set mismatch", result.stdout)
+            extra.unlink()
+            (upstream / "mpsl/license.txt").unlink()
+            result = self.configure(base / "missing-license", "valid",
+                                    f"-DNRFKIT_NRFXLIB_ROOT={upstream}")
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+            self.assertIn("input is missing: mpsl/license.txt", result.stdout)
 
     def test_multirole_target_locks_archives_and_all_resources(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -107,6 +177,16 @@ class SdcCmakeTests(unittest.TestCase):
                     stderr=subprocess.STDOUT, check=False,
                 )
                 self.assertEqual(result.returncode, 0, result.stdout)
+
+            # Reconfiguration of an installed consumer must also reject drift.
+            header = prefix / "share/nrfkit/external/sdk-nrfxlib/mpsl/include/mpsl_timeslot.h"
+            header.write_text(header.read_text() + "\n/* drift */\n")
+            result = subprocess.run(
+                [self.cmake, "--build", str(consumer)], text=True,
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False,
+            )
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+            self.assertIn("hash mismatch: mpsl/include/mpsl_timeslot.h", result.stdout)
 
     def test_all_controller_variants_reach_real_link_closure(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
