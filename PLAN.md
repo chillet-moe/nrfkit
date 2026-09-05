@@ -973,11 +973,12 @@ bring-up 的阻塞项。
 
 M9 当前检查点：对首个私有 consumer 自有 bootloader 的审计结论是优先复用和修正，
 MCUboot 不是机械键盘首阶段的前置条件。已有实现具备签名并加密的 RAM maintenance
-program、分块认证、完整明文 hash、产品 target 约束、WebHID transport 与受限 platform
+program、分块认证、完整解密 payload hash、产品 target 约束、WebHID transport 与受限 platform
 service ABI；主要缺口是 LM20 RRAM 分区和应用有效性事务、Cortex-M 交接、rollback floor、
 trust-root/provisioning policy、USBHS target 验收及掉电 fault injection。应用、bootloader、
 settings 与 scratch 的 linker script 和配套 image-layout 由 consumer 维护，公共 SDK 只负责
-验证声明的边界与禁止区域，不把产品布局固化为 SDK 默认值。
+验证声明的边界与禁止区域，不把产品布局固化为 SDK 默认值。传输层解密后的 payload 可以
+是明文，也可以是目标平台定义的加密存储镜像；公共在线容器不替目标规定落盘格式。
 
 不依赖 LM20 实板的共享加固已开始完成：USB reset/disconnect 会使 maintenance session
 换代并在中断外清除 loader、manifest、crypto、receive 和 storage transaction；terminal
@@ -991,27 +992,42 @@ service C ABI；loader 现按 target 声明的入口地址 mask 在 load-begin �
 update，reset response 不再可能无限等待。
 
 LM20 的非部署 compile probe 也已完成，不增加新的用户配置层：consumer 只需在既有 LM20
-CMake 配置中打开一个选项并构建一个显式 target。Release 链接结果占 18,028 bytes RRAM；
-在暂定 128 KiB boot 区中余 113,044 bytes。boot 自有静态数据按对齐占 6,448 bytes；在低
+CMake 配置中打开一个选项并构建一个显式 target。Release 链接结果占 19,420 bytes RRAM；
+在暂定 128 KiB boot 区中余 111,652 bytes。boot 自有静态数据按对齐占 6,448 bytes；在低
 64 KiB RAM 区中余 59,088 bytes。64 KiB direct-load program 区与顶部 16 KiB stack 由 linker
 断言保持分离，因此 direct load 作为当前工作选择，不同时实现 persistent staging。probe 使用
-无效占位 key、始终进入 maintenance、没有 RRAM update service，也没有烧写 target；这些限制
-使它只能证明编译、链接和容量，不能作为可部署镜像。当前应用若由 consumer linker script
-迁移到暂定 `0x00020000`，到既有 settings 边界仍有 1,777,200 bytes 余量；在 boot chain 可
-部署前不实际迁移应用。
+无效占位 key，因此没有真实签名应用可以通过校验；它也没有烧写 target，仍不能作为可部署镜像。
+consumer linker script 已把这个全新板的应用迁移到暂定 `0x00020000`，不保留 legacy image
+兼容路径；143,664-byte 应用到既有 settings 边界仍有 1,777,104 bytes 余量。匹配的 image
+layout 也由 consumer 维护，Release 链接确认 vector 与所有 load segment 均位于新应用范围。
 
-LM20 上实际读取 vector、USB/MPSL/NVIC 清理、VTOR/MSP/branch、release map/disassembly
-与实板 handoff 尚未完成。rollback policy 会改变安全模型，必须在普通 RRAM authenticated
-floor、硬件 monotonic policy 或明确允许 rollback 三者中取得用户决定；在此之前继续推进
-与该选择无关且不增加 consumer 配置复杂度的工作。
+LM20 compile target 已在 publisher signature 与完整 image hash 通过后读取并验证 vector，
+清理 SysTick/NVIC 状态，恢复 mask/control 状态并设置 VTOR/MSP 后分支。Release disassembly
+确认最终 trampoline 是 `LDR` vector、`MSR MSP`、`CPSIE I`、`BX` 的固定短序列。应用通过
+固定的一次性 RAM request 请求 maintenance，bootloader 消费前先清除；无效或未签名应用也
+进入 maintenance。实板 handoff 仍待验证。rollback policy 会改变安全模型，必须在普通
+RRAM authenticated floor、硬件 monotonic policy 或明确允许 rollback 三者中取得用户决定；
+在此之前继续推进与该选择无关且不增加 consumer 配置复杂度的工作。
 
-应用更新无需另造一套事务框架：现有 upgrader 已把首个 erase unit 缓存在 RAM，在完整
-image hash 成功后才最后写回。LM20 适配必须把 `flash_erase` 明确定义为“先使首单元失效并
-读回确认”，不能映射为 no-op；最终应用格式还必须持久保留可验证的 publisher signature
-或 signed manifest，因为现有 application-header hash 只证明完整性，不证明发布者身份。
-共享 updater 的 host fault injection 已覆盖 erase 后中断、两个 body program 调用失败和最终
-首单元发布调用失败；四个边界下首单元均保持无效。该结果固定了 LM20 service 必须保留的
-调用级事务语义，但不替代 RRAM service 内部 data-unit fault injection 或实板掉电测试。
+应用更新无需另造一套事务框架：现有 updater 已把首个 update unit 缓存在 RAM，在完整
+image hash 成功后才最后写回。内部 handoff ABI v2 以 application-storage 语义提供
+`prepare_application_update` 与 `program_application`：Flash target 仍擦除完整应用范围，
+LM20 则只覆写并读回首个 16-byte vector data unit，使应用在任何 body write 前不可启动。
+LM20 的板级实现直接检查完整声明范围和 16-byte 对齐，不引入只有一个调用者的通用 RRAM
+service 抽象；bootloader/settings/scratch 和配置区均不可达。最终 4 KiB 写入由板级 service
+按 `+16..+4095`、最后 vector data unit 的次序发布，避免签名 header 尚未落盘时 vector 已
+恢复。官方 Datasheet 要求的 buffered commit、buffer-empty、READY、POF abort、有界等待与
+read-back 继续由既有 RRAM writer 提供；共享 host fault injection 覆盖 prepare、body 和最终
+发布调用边界，硬件 data-unit 掉电注入仍待验证。
+
+全新板应用在固定 offset `0x500` 保存 v1 publisher-signed header，认证 target、地址、大小、
+security/image version、source timestamp 与完整 image hash，不回退到旧
+magic/application-header 格式；v1 格式本身即表示 plaintext storage。在线 `.appimg` 仍是
+所有板共用的签名加密传输容器，解密后得到目标存储镜像。未来若使用芯片加密格式，应提升
+bootloader/application-format 版本，而不是在 v1 中预留一个无法兑现的选项。加入完整校验、
+maintenance request 和 handoff 后，compile probe 的 RRAM load end 为 `0x00004bdc`
+（19,420 bytes），128 KiB boot 区尚余 111,652 bytes；16 项 host tests、迁移后的 LM20
+application、LM20 bootloader probe 与既有另一 target 的 Release bootloader/upgrader 均通过。
 
 ## 9. 测试矩阵
 
