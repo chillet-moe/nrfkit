@@ -69,19 +69,19 @@ function(nrfkit_configure_target target)
   target_sources("${target}" PRIVATE
     "${mdk}/nrf54l/nrf54lm20a/gcc_startup_nrf54lm20a_application.S"
     "${mdk}/nrf54l/system_nrf54l.c"
-    "${sdk_root}/runtime/common/freestanding.c"
-    "${sdk_root}/runtime/cortex-m/fault.c"
-    "${sdk_root}/runtime/cortex-m/reset.c"
+    "${sdk_root}/src/runtime/common/freestanding.c"
+    "${sdk_root}/src/runtime/cortex-m/fault.c"
+    "${sdk_root}/src/runtime/cortex-m/reset.c"
   )
   target_include_directories("${target}" PRIVATE
     "${sdk_root}/include"
-    "${sdk_root}/runtime/freestanding/include"
+    "${sdk_root}/src/runtime/freestanding/include"
     "${sdk_root}/external/cmsis/CMSIS/Core/Include"
     "${mdk}"
   )
   if(ARG_BOARD)
     target_include_directories("${target}" PRIVATE
-      "${sdk_root}/boards/${ARG_BOARD}/include"
+      "${sdk_root}/src/boards/${ARG_BOARD}/include"
     )
   endif()
   target_compile_definitions("${target}" PRIVATE

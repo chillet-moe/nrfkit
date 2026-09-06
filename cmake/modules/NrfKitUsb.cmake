@@ -115,8 +115,8 @@ function(_nrfkit_enable_usb target)
     "${cherryusb}/port/dwc2"
   )
   target_sources("${target}" PRIVATE
-    "${NrfKit_ROOT}/usb/nrf54l/usb_dc.c"
-    "${NrfKit_ROOT}/usb/nrf54l/usb_glue_dwc2.c"
+    "${NrfKit_ROOT}/src/usb/nrf54l/usb_dc.c"
+    "${NrfKit_ROOT}/src/usb/nrf54l/usb_glue_dwc2.c"
   )
   if(NOT ARG_PORT_ONLY)
     target_sources("${target}" PRIVATE "${cherryusb}/core/usbd_core.c")

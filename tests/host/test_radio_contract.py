@@ -31,8 +31,8 @@ class RadioContractTests(unittest.TestCase):
     def test_radio_is_target_scoped_and_owns_no_vendor_tree(self) -> None:
         module = (ROOT / "cmake/modules/NrfKitWireless.cmake").read_text(encoding="utf-8")
         self.assertIn("function(nrfkit_enable_radio target)", module)
-        self.assertIn('radio/nrf54l/radio.c', module)
-        self.assertFalse((ROOT / "radio/vendor").exists())
+        self.assertIn('src/wireless/radio/nrf54l/radio.c', module)
+        self.assertFalse((ROOT / "src/wireless/radio/vendor").exists())
 
     def test_single_board_example_uses_radio_domain_timer_and_dppi(self) -> None:
         source = (ROOT / "examples/m5-radio-validation/main.c").read_text(encoding="utf-8")
@@ -64,7 +64,7 @@ class RadioContractTests(unittest.TestCase):
         self.assertNotIn("timeout--", peer)
 
     def test_packet_configuration_uses_a_four_byte_access_address(self) -> None:
-        source = (ROOT / "radio/nrf54l/radio.c").read_text(encoding="utf-8")
+        source = (ROOT / "src/wireless/radio/nrf54l/radio.c").read_text(encoding="utf-8")
         self.assertIn("packet.balen = 3U", source)
         self.assertIn("config->access_address & UINT32_C(0x00FFFFFF)", source)
         self.assertIn("config->access_address >> 24U", source)
@@ -106,7 +106,7 @@ class RadioContractTests(unittest.TestCase):
 
     def test_timeslot_backend_enforces_grant_and_deadline_contract(self) -> None:
         header = (ROOT / "include/nrfkit/timeslot.h").read_text(encoding="utf-8")
-        source = (ROOT / "radio/timeslot/nrf54l/timeslot.c").read_text(
+        source = (ROOT / "src/wireless/timeslot/nrf54l/timeslot.c").read_text(
             encoding="utf-8"
         )
         module = (ROOT / "cmake/modules/NrfKitWireless.cmake").read_text(

@@ -15,11 +15,11 @@ class RramRuntimeTests(unittest.TestCase):
             executable = Path(directory) / 'rram-test'
             command = [compiler, '-std=c11', '-Wall', '-Wextra', '-Werror',
                        '-Wno-unused-parameter',
-                       f'-I{ROOT}',
+                       f'-I{ROOT / "src/runtime"}',
                        f'-I{ROOT / "tests/host/rram_stubs"}',
                        f'-I{ROOT / "tests/host/timeslot_stubs"}',
                        f'-I{ROOT / "include"}',
-                       f'-I{ROOT / "softdevice/include"}',
+                       f'-I{ROOT / "src/wireless/include"}',
                        f'-I{ROOT / "external/sdk-nrfxlib/mpsl/include"}',
                        str(ROOT / 'tests/host/rram_runtime.c'), '-o', str(executable)]
             for argv in (command, [str(executable)]):

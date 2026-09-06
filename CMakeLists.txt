@@ -23,13 +23,9 @@ install(TARGETS nrfkit_core EXPORT NrfKitTargets)
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(DIRECTORY
   include
-  boards
+  src
   linker
   patches
-  radio
-  runtime
-  softdevice
-  usb
   DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit
 )
 set(nrfx_install_root "${CMAKE_INSTALL_DATADIR}/nrfkit/external/nrfx")

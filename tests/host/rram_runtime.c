@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <sys/mman.h>
-#include <runtime/nrfx/rram.c>
+#include <nrfx/rram.c>
 
 static mpsl_timeslot_callback_t handler;
 static unsigned references, requests, closes;

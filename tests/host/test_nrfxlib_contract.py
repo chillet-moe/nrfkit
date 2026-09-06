@@ -113,7 +113,7 @@ class NrfxlibContractTests(unittest.TestCase):
         )
 
     def test_platform_prepares_grtc_before_enabling_syscounter(self) -> None:
-        platform = (ROOT / "softdevice/sdc/nrf54l/platform.c").read_text(
+        platform = (ROOT / "src/wireless/sdc/nrf54l/platform.c").read_text(
             encoding="utf-8"
         )
         prepare = platform.index("nrfy_grtc_prepare(NRF_GRTC, true)")

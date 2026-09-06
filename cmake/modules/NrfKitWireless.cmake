@@ -84,11 +84,11 @@ function(nrfkit_enable_sdc target)
   _nrfkit_define_nrfxlib_targets()
   nrfkit_enable_nrfx("${target}" DRIVERS cracen)
   target_sources("${target}" PRIVATE
-    "${NrfKit_ROOT}/softdevice/sdc/nrf54l/platform.c"
-    "${NrfKit_ROOT}/softdevice/sdc/nrf54l/hci.c"
+    "${NrfKit_ROOT}/src/wireless/sdc/nrf54l/platform.c"
+    "${NrfKit_ROOT}/src/wireless/sdc/nrf54l/hci.c"
   )
   target_include_directories("${target}" PRIVATE
-    "${NrfKit_ROOT}/softdevice/include"
+    "${NrfKit_ROOT}/src/wireless/include"
   )
   string(TOUPPER "${ARG_VARIANT}" variant_upper)
   target_compile_definitions("${target}" PRIVATE
@@ -113,7 +113,7 @@ function(nrfkit_enable_rram target)
   if(enabled OR ARGN)
     message(FATAL_ERROR "nrfkit_enable_rram: enable once without extra arguments")
   endif()
-  target_sources("${target}" PRIVATE "${NrfKit_ROOT}/runtime/nrfx/rram.c")
+  target_sources("${target}" PRIVATE "${NrfKit_ROOT}/src/runtime/nrfx/rram.c")
   set_target_properties("${target}" PROPERTIES NRFKIT_RRAM_ENABLED TRUE)
 endfunction()
 
@@ -129,9 +129,9 @@ function(nrfkit_enable_mpsl_timeslot target)
     )
   endif()
   target_sources("${target}" PRIVATE
-    "${NrfKit_ROOT}/radio/ownership.c"
-    "${NrfKit_ROOT}/radio/nrf54l/radio.c"
-    "${NrfKit_ROOT}/radio/timeslot/nrf54l/timeslot.c"
+    "${NrfKit_ROOT}/src/wireless/radio/ownership.c"
+    "${NrfKit_ROOT}/src/wireless/radio/nrf54l/radio.c"
+    "${NrfKit_ROOT}/src/wireless/timeslot/nrf54l/timeslot.c"
   )
   set_target_properties("${target}" PROPERTIES NRFKIT_MPSL_TIMESLOT_ENABLED TRUE)
 endfunction()
@@ -147,8 +147,8 @@ function(nrfkit_enable_radio target)
     message(FATAL_ERROR "nrfkit_enable_radio: '${soc}' is not supported")
   endif()
   target_sources("${target}" PRIVATE
-    "${NrfKit_ROOT}/radio/ownership.c"
-    "${NrfKit_ROOT}/radio/nrf54l/radio.c"
+    "${NrfKit_ROOT}/src/wireless/radio/ownership.c"
+    "${NrfKit_ROOT}/src/wireless/radio/nrf54l/radio.c"
   )
   nrfkit_enable_nrfx("${target}" DRIVERS clock)
   set_target_properties("${target}" PROPERTIES NRFKIT_RADIO_ENABLED TRUE)

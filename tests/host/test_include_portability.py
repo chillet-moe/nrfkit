@@ -7,16 +7,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[2]
-PROJECT_SOURCE_DIRS = (
-    "boards",
-    "examples",
-    "include",
-    "radio",
-    "runtime",
-    "softdevice",
-    "tests",
-    "usb",
-)
+PROJECT_SOURCE_DIRS = ("src", "examples", "include", "tests")
 SOURCE_SUFFIXES = {
     ".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".inc", ".S", ".s",
 }
@@ -30,7 +21,7 @@ class IncludePortabilityTests(unittest.TestCase):
         )
         self.assertTrue(
             (
-                ROOT / "softdevice/include/nrfkit/internal/sdc_platform_internal.h"
+                ROOT / "src/wireless/include/nrfkit/internal/sdc_platform_internal.h"
             ).is_file()
         )
 

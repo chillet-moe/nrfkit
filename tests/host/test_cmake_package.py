@@ -67,7 +67,14 @@ class CMakePackageTests(unittest.TestCase):
                 cmake, "--build", str(sdk_build), "--target", "install",
             ], environment)
 
-            installed_vendor = prefix / "share/nrfkit/external"
+            sdk_root = prefix / "share/nrfkit"
+            for source in (ROOT / "src").rglob("*"):
+                if source.is_file():
+                    relative = source.relative_to(ROOT)
+                    self.assertTrue((sdk_root / relative).is_file(), str(relative))
+            for obsolete in ("boards", "runtime", "softdevice", "radio", "usb"):
+                self.assertFalse((sdk_root / obsolete).exists(), obsolete)
+            installed_vendor = sdk_root / "external"
             for required in (
                 "nrfx/nrfx.h", "nrfx/drivers/src/nrfx_rramc.c",
                 "nrfx/bsp/stable/mdk/nrf54l/system_nrf54l.c",
@@ -108,7 +115,6 @@ class CMakePackageTests(unittest.TestCase):
 
             # Changing the selection must regenerate the prepared view even when
             # the upstream revision and patches are unchanged.
-            sdk_root = prefix / "share/nrfkit"
             cache_source = temporary / "cache-consumer"
             cache_source.mkdir()
             (cache_source / "CMakeLists.txt").write_text(
