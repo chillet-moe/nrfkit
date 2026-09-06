@@ -12,7 +12,10 @@ import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 
-from nrfkit_tools.image import parse_elf, parse_ihex, require_allowed
+from nrfkit_tools.image import (
+    ImageContractError, parse_elf, parse_ihex, parse_elf_absolute_symbols,
+    require_allowed,
+)
 from nrfkit_tools.cli import load_manifest
 from nrfkit_tools.sdk import SdkContractError, create_device_manifest
 
@@ -176,7 +179,7 @@ class M1FirmwareTests(unittest.TestCase):
                 require_allowed(elf.ranges, ((0, 0x001FD000),))
                 require_allowed(ihex.ranges, ((0, 0x001FD000),))
                 self.assertTrue((self.build_a / f"{name}.map").is_file())
-                self.assertTrue((self.build_a / f"{name}.image-layout.json").is_file())
+                self.assertFalse((self.build_a / f"{name}.image-layout.json").exists())
 
     def test_nrfx_configuration_and_sources_are_target_scoped(self) -> None:
         ninja = (self.build_a / "build.ninja").read_text(encoding="utf-8")
@@ -212,12 +215,18 @@ class M1FirmwareTests(unittest.TestCase):
         self.assertEqual(manifest["expected_token"], "NRFKIT_TEST build-id")
         self.assertEqual(manifest["images"][0]["domain"], "hardware_validation")
 
-    def test_sdk_manifest_rejects_retired_softdevice_layout(self) -> None:
+    def test_sdk_manifest_requires_elf_boundaries_even_with_old_sidecar(self) -> None:
         build = Path(self.temporary.name) / "retired-softdevice"
         build.mkdir()
-        # Layout validation must reject this before parsing either dummy image.
-        for suffix in ("elf", "hex"):
-            (build / f"legacy.{suffix}").touch()
+        # A valid ELF without linker boundary symbols cannot be rescued by a
+        # retired sidecar layout receipt.
+        shutil.copy2(self.build_a / "empty.elf", build / "legacy.elf")
+        shutil.copy2(self.build_a / "empty.hex", build / "legacy.hex")
+        result = subprocess.run([
+            str(self.llvm_root / "bin/llvm-objcopy"), "--strip-symbol=__nrfkit_rram_start",
+            str(build / "legacy.elf"),
+        ], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+        self.assertEqual(result.returncode, 0, result.stdout)
         (build / "legacy.image-layout.json").write_text(json.dumps({
             "schema": "nrfkit-image-layout/v1", "target": "legacy",
             "soc": "nrf54lm20a", "core": "cpuapp",
@@ -228,7 +237,7 @@ class M1FirmwareTests(unittest.TestCase):
             "ram": {"origin": 0x20002128, "length": 0x0003DED8},
             "configuration_regions_allowed": False,
         }), encoding="utf-8")
-        with self.assertRaisesRegex(SdkContractError, "unsupported fields"):
+        with self.assertRaisesRegex(ImageContractError, "missing absolute symbols"):
             create_device_manifest(ROOT, build, "legacy", "LEGACY")
         self.assertFalse((build / "legacy.device-manifest.json").exists())
 
@@ -310,9 +319,27 @@ class M1FirmwareTests(unittest.TestCase):
     def test_consumer_owned_linker_is_used_without_sdk_image_configuration(self) -> None:
         fixture = ROOT / "tests/consumer/custom-layout"
         build = Path(self.temporary.name) / "custom-layout"
+        script = (ROOT / "linker/layouts/nrf54lm20a-cpuapp-standalone.ld").read_text()
+        script = script.replace("LENGTH = 0x001FCF00", "LENGTH = 0x001F4F00", 1)
+        script = script.replace(
+            "  RRAM_SCRATCH (rw)",
+            "  SETTINGS (rw) : ORIGIN = 0x001F4F00, LENGTH = 0x8000\n  RRAM_SCRATCH (rw)",
+        )
+        script = script.replace("\nSECTIONS\n", "\n" +
+            "__nrfkit_settings_start = ORIGIN(SETTINGS);\n" +
+            "__nrfkit_settings_end = ORIGIN(SETTINGS) + LENGTH(SETTINGS);\nSECTIONS\n")
+        script = script.replace(
+            '== ORIGIN(RRAM_SCRATCH), "RRAM image overlaps scratch"',
+            '== ORIGIN(SETTINGS), "RRAM image overlaps settings"',
+        )
+        script += ('\nASSERT(ORIGIN(SETTINGS) + LENGTH(SETTINGS) == ORIGIN(RRAM_SCRATCH), '
+                   '"settings overlap scratch")\n')
+        custom_script = Path(self.temporary.name) / "reserved-layout.ld"
+        custom_script.write_text(script)
         run([
             self.cmake, "-S", str(fixture), "-B", str(build), "-G", "Ninja",
             f"-DNrfKit_DIR={ROOT / 'cmake'}",
+            f"-DCUSTOM_LINKER={custom_script}",
             f"-DCMAKE_TOOLCHAIN_FILE={ROOT / 'cmake/toolchains/arm-clang.cmake'}",
             f"-DNRF_LLVM_ROOT={self.llvm_root}",
         ])
@@ -325,36 +352,14 @@ class M1FirmwareTests(unittest.TestCase):
         # operations, independent of configuring the executable.
         run([str(self.llvm_root / "bin/llvm-objcopy"), "-O", "ihex",
              str(build / "custom_layout.elf"), str(build / "custom_layout.hex")])
-        reserved_layout = {
-            "schema": "nrfkit-image-layout/v1",
-            "target": "custom_layout",
-            "soc": "nrf54lm20a",
-            "core": "cpuapp",
-            "rram": {"origin": 0, "length": 0x001F4F00},
-            "settings": {"origin": 0x001F4F00, "length": 0x8000, "write_unit": 16},
-            "rram_scratch": {"origin": 0x001FCF00, "length": 0x100, "write_unit": 16},
-            "ram": {"origin": 0x20000000, "length": 0x40000},
-            "configuration_regions_allowed": False,
-        }
-        (Path(self.temporary.name) / "reviewed-layout.json").write_text(
-            json.dumps(reserved_layout), encoding="utf-8"
-        )
         manifest_path = create_device_manifest(
             ROOT, build, "custom_layout", "CUSTOM_LAYOUT_TEST",
-            image_layout=Path(self.temporary.name) / "reviewed-layout.json",
         )
         manifest = load_manifest(manifest_path)
+        self.assertIn("__nrfkit_rram_scratch_start", manifest["image_layout"]["symbols"])
+        self.assertIn("__nrfkit_rram_scratch_end", manifest["image_layout"]["symbols"])
         self.assertEqual(manifest["debug_allowlist"], [[0, 0x001F4F00]])
         self.assertEqual(manifest["images"][0]["allowlist"], [[0, 0x001F4F00]])
-        reserved_layout["settings"]["origin"] = 0x1000
-        (Path(self.temporary.name) / "reviewed-layout.json").write_text(
-            json.dumps(reserved_layout), encoding="utf-8"
-        )
-        with self.assertRaisesRegex(SdkContractError, "regions overlap"):
-            create_device_manifest(
-                ROOT, build, "custom_layout", "CUSTOM_LAYOUT_TEST",
-                image_layout=Path(self.temporary.name) / "reviewed-layout.json",
-            )
 
 
 if __name__ == "__main__":

@@ -24,14 +24,14 @@ choosing a variant implicitly.
 
 The consumer chooses a complete linker script and attaches it with standard
 `target_link_options` and `LINK_DEPENDS`. The optional runtime carries a static
-startup-ABI assertion script, independent of product layout JSON. This retains
+startup-ABI assertion script, independent of the product layout. This retains
 physical bounds and copy/zero/stack checks while leaving narrower reservations to
 the consumer's own linker. Artifact conversion is consumer policy.
 
-The SDK's validation examples opt into their own common firmware helper. Their
-reviewed JSON allowlists serve the hardware guard only; they are not required to
-build a normal consumer. The guard still validates all actual ELF/HEX load ranges
-against declared writable bounds and hard-coded forbidden regions.
+The SDK's validation examples opt into their own common firmware helper. The
+explicit hardware audit reads reviewed region bounds from absolute ELF symbols
+exported by the linker script. It checks actual ELF/HEX load ranges against those
+bounds and hard-coded forbidden regions, without a separate layout JSON.
 
 ## Configuration scope
 

@@ -47,7 +47,7 @@ implicitly linked C++ runtime:
   -DNRF_GNU_ARM_CXX_ROOT=/path/to/arm-gnu-toolchain
 ```
 
-This builds `empty`, `blinky`, `fault`, and the C++ constructor example. Each target produces `.elf`, `.hex`, `.bin`, `.map`, and `.image-layout.json`. The standalone layout uses RRAM at `0x00000000..0x001fd000`, RAM0 only at `0x20000000..0x20040000`, a 16 KiB stack, and no heap. RAM1 remains deliberately unavailable until its reserved top tail is modeled.
+This builds `empty`, `blinky`, `fault`, and the C++ constructor example. Each target produces `.elf`, `.hex`, `.bin`, and `.map`. The standalone linker exports absolute `__nrfkit_*` layout symbols for the explicit hardware audit. The standalone layout uses RRAM at `0x00000000..0x001fd000`, RAM0 only at `0x20000000..0x20040000`, a 16 KiB stack, and no heap. RAM1 remains deliberately unavailable until its reserved top tail is modeled.
 
 The public target API uses ordinary CMake links. Capabilities may also be grouped
 in a consumer-owned INTERFACE library. See the [CMake API](docs/architecture/cmake-api.md)
@@ -70,9 +70,9 @@ The optional freestanding runtime adds startup ABI and conservative physical-mem
 assertions; consumer linker assertions enforce narrower product reservations.
 
 Ordinary compilation does not require a layout JSON. The explicitly invoked
-`tools/nrfkit sdk manifest --image-layout path/to/layout.json` hardware workflow
-still requires a reviewed layout allowlist alongside ELF/HEX and excludes settings, scratch and configuration regions
-from programming. This audit input does not configure the compiler or linker.
+`tools/nrfkit sdk manifest` hardware workflow reads the reviewed layout symbols
+from the ELF alongside ELF/HEX and excludes settings, scratch and configuration
+regions from programming. This audit input does not configure the compiler or linker.
 
 The optional built-in LM20 CherryUSB port is selected with a normal link:
 

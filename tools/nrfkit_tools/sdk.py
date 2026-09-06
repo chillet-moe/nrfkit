@@ -10,7 +10,7 @@ import struct
 from typing import Any
 
 from .device import safe_backend_contract
-from .image import parse_elf, parse_ihex, require_allowed
+from .image import parse_elf, parse_elf_absolute_symbols, parse_ihex, require_allowed
 from .process import atomic_json
 
 
@@ -18,7 +18,6 @@ class SdkContractError(RuntimeError):
     pass
 
 
-STANDALONE_RRAM_ALLOWLIST = [[0x00000000, 0x001FCF00]]
 FREESTANDING_STACK_BYTES = 0x4000
 LM20_SAFE_RRAM_END = 0x001FD000
 LM20_RAM0_ORIGIN = 0x20000000
@@ -85,50 +84,44 @@ def _elf_load_budget(
     }
 
 
-def _validated_custom_allowlist(layout: dict[str, Any], target: str) -> list[list[int]]:
-    required = {
-        "schema": "nrfkit-image-layout/v1",
-        "target": target,
-        "soc": "nrf54lm20a",
-        "core": "cpuapp",
-        "configuration_regions_allowed": False,
-    }
-    if any(layout.get(key) != value for key, value in required.items()):
-        raise SdkContractError("SDK layout manifest identity or safety fields are invalid")
-    allowed_fields = set(required) | {"rram", "ram", "settings", "rram_scratch"}
-    if set(layout) - allowed_fields:
-        raise SdkContractError("custom SDK layout contains unsupported fields")
+def elf_layout_symbols(elf: Path) -> dict[str, int]:
+    return parse_elf_absolute_symbols(
+        elf,
+        ("__nrfkit_rram_start", "__nrfkit_rram_end",
+         "__nrfkit_ram_start", "__nrfkit_ram_end"),
+        optional=("__nrfkit_settings_start", "__nrfkit_settings_end",
+                  "__nrfkit_rram_scratch_start", "__nrfkit_rram_scratch_end"),
+    )
 
-    def region(name: str, low: int, high: int) -> tuple[int, int]:
-        value = layout.get(name)
-        if not isinstance(value, dict) or set(value) - {"origin", "length", "write_unit"}:
-            raise SdkContractError(f"custom SDK layout {name} region is invalid")
-        origin = value.get("origin")
-        length = value.get("length")
-        if (isinstance(origin, bool) or not isinstance(origin, int) or
-                isinstance(length, bool) or not isinstance(length, int) or length <= 0 or
-                origin < low or origin + length > high):
-            raise SdkContractError(f"custom SDK layout {name} range is unsafe")
-        write_unit = value.get("write_unit")
-        if write_unit is not None and (
-            isinstance(write_unit, bool) or not isinstance(write_unit, int) or write_unit <= 0
-        ):
-            raise SdkContractError(f"custom SDK layout {name} write unit is invalid")
-        return origin, origin + length
 
-    rram = region("rram", 0, LM20_SAFE_RRAM_END)
-    region("ram", LM20_RAM0_ORIGIN, LM20_RAM0_END)
-    declared_rram_regions = [("rram", rram)]
-    for name in ("settings", "rram_scratch"):
-        if name in layout:
-            declared_rram_regions.append((name, region(name, 0, LM20_SAFE_RRAM_END)))
-    for index, (first_name, first) in enumerate(declared_rram_regions):
-        for second_name, second in declared_rram_regions[index + 1:]:
-            if first[0] < second[1] and second[0] < first[1]:
-                raise SdkContractError(
-                    f"custom SDK layout regions overlap: {first_name} and {second_name}"
-                )
-    return [[rram[0], rram[1]]]
+def _layout_from_symbols(symbols: dict[str, int]) -> dict[str, dict[str, int]]:
+    layout: dict[str, dict[str, int]] = {}
+    for name, low, high in (
+        ("rram", 0, LM20_SAFE_RRAM_END),
+        ("ram", LM20_RAM0_ORIGIN, LM20_RAM0_END),
+        ("settings", 0, LM20_SAFE_RRAM_END),
+        ("rram_scratch", 0, LM20_SAFE_RRAM_END),
+    ):
+        start = symbols.get(f"__nrfkit_{name}_start")
+        end = symbols.get(f"__nrfkit_{name}_end")
+        if name in ("settings", "rram_scratch") and start is None and end is None:
+            continue
+        if start is None or end is None:
+            raise SdkContractError(f"ELF layout {name} requires both boundary symbols")
+        if not low <= start < end <= high:
+            raise SdkContractError(f"ELF layout {name} range is unsafe")
+        layout[name] = {"origin": start, "length": end - start}
+    regions = [(name, region["origin"], region["origin"] + region["length"])
+               for name, region in layout.items() if name != "ram"]
+    for index, (first_name, start, end) in enumerate(regions):
+        for second_name, second_start, second_end in regions[index + 1:]:
+            if start < second_end and second_start < end:
+                raise SdkContractError(f"ELF layout regions overlap: {first_name} and {second_name}")
+    return layout
+
+
+def read_elf_layout(elf: Path) -> dict[str, dict[str, int]]:
+    return _layout_from_symbols(elf_layout_symbols(elf))
 
 
 def create_device_manifest(
@@ -137,7 +130,6 @@ def create_device_manifest(
     target: str,
     expected_token: str,
     hci_h4_hwfc_1m: bool = False,
-    *, image_layout: Path | None = None,
 ) -> Path:
     if not re.fullmatch(r"[A-Za-z0-9_.-]+", target):
         raise SdkContractError("SDK target is not a safe artifact basename")
@@ -150,33 +142,15 @@ def create_device_manifest(
     build_dir = build_dir.resolve()
     elf = build_dir / f"{target}.elf"
     ihex = build_dir / f"{target}.hex"
-    layout_path = (
-        image_layout.resolve() if image_layout is not None
-        else build_dir / f"{target}.image-layout.json"
-    )
-    for path in (elf, ihex, layout_path):
+    for path in (elf, ihex):
         if not path.is_file():
             raise SdkContractError(f"SDK artifact is missing: {path}")
-    try:
-        layout: dict[str, Any] = json.loads(layout_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
-        raise SdkContractError(f"invalid SDK layout manifest: {error}") from error
-    standalone_layout = {
-        "schema": "nrfkit-image-layout/v1",
-        "target": target,
-        "soc": "nrf54lm20a",
-        "core": "cpuapp",
-        "rram": {"origin": 0, "length": 0x001FCF00},
-        "rram_scratch": {"origin": 0x001FCF00, "length": 0x100, "write_unit": 16},
-        "ram": {"origin": 0x20000000, "length": 0x00040000},
-        "configuration_regions_allowed": False,
-    }
-    if layout == standalone_layout:
-        allowlist = STANDALONE_RRAM_ALLOWLIST
-    else:
-        allowlist = _validated_custom_allowlist(layout, target)
-
     elf_image = parse_elf(elf)
+    symbols = elf_layout_symbols(elf)
+    layout = _layout_from_symbols(symbols)
+    # RAM bounds describe execution, never a programming or debug-write allowance.
+    allowlist = [[layout["rram"]["origin"],
+                  layout["rram"]["origin"] + layout["rram"]["length"]]]
     hex_image = parse_ihex(ihex)
     require_allowed(elf_image.ranges, tuple(tuple(item) for item in allowlist))
     require_allowed(hex_image.ranges, tuple(tuple(item) for item in allowlist))
@@ -208,8 +182,10 @@ def create_device_manifest(
         "vcom": 1,
         "backend": safe_backend_contract(),
         "image_layout": {
-            "path": str(layout_path),
-            "sha256": sha256(layout_path),
+            "source": "elf-symbols",
+            "path": str(elf),
+            "sha256": sha256(elf),
+            "symbols": symbols,
         },
         "debug_allowlist": allowlist,
         "debug_elf": {

@@ -350,7 +350,7 @@ $HOME/Documents/Datasheets/NORDIC/nRF54LM20A_nRF54LM20B_Datasheet_v1.0.pdf
 
 对外只提供稳定入口 `tools/nrfkit`；烧写子命令由内部 `tools/hardware/flash-safe` 实现，并在调用 vendor tool 前完成独立校验：
 
-1. 只接受 ELF/HEX；BIN 必须同时提供由构建生成并签名/校验的 layout manifest；
+1. 只接受具有明确加载地址的 ELF/HEX；BIN 仅作打包产物，不能单独作为烧写输入；
 2. 解析全部 load segment/HEX record；
 3. 拒绝越过当前 image layout allowlist 的任何 byte；
 4. 硬编码拒绝 FICR/UICR/SICR 和系统保留区域，即使 manifest 错误也不能绕过；
@@ -528,8 +528,8 @@ SDK 验证示例显式选择并输出以下产物；普通消费者按自己的�
 
 - `.elf`：含 symbols 和 DWARF，供调试；
 - `.hex`：保留离散目标地址，作为默认烧写产物；
-- `.bin`：仅在同时输出 origin/layout manifest 时提供；
-- `.map`、section summary 和 `image-layout.json`；
+- `.bin`：与带布局绝对符号的 ELF 同时输出，仅用于外部打包；
+- `.map` 和 section summary；布局由 ELF 中直接源于 MEMORY 的绝对符号表达；
 - 可选合并 HEX，但每个输入 image 的来源/hash 可追踪。
 
 ### 7.2 A/B 策略
@@ -1325,6 +1325,18 @@ SDK 验证示例仍显式生成完整产物集；消费者的审计工具通过 
 冲突拒绝、安装包搬迁、GNU smoke、可复现构建与显式镜像审计。28 个 SDK 示例及消费者
 application/bootloader/updater 完成构建，23 项消费者工具测试与应用/bootloader 地址审计
 通过。验证未操作硬件，不新增实板验收结论。
+
+### ELF 布局审计输入（2026-09-06）
+
+当前镜像审计以 linker script 从 MEMORY 导出的全局绝对符号为唯一布局输入，
+不再生成或维护配套 image-layout JSON。RRAM/RAM 边界必须存在，settings/scratch
+可选边界必须成对；审计独立检查物理范围、保留区重叠和 ELF/HEX load ranges。
+RAM 边界不扩大烧写 allowlist。device manifest 绑定 ELF hash 与符号，并在使用时
+重新核对；既有恢复镜像的旧 manifest 仍按原 receipt/hash 规则读取。以上取代早期
+里程碑中的 sidecar 布局输入约定，不改变历史构建或实板证据。
+验收：149 项 SDK host tests 和 28 个示例构建通过；包含自定义保留区、坏 ELF 符号表、
+manifest 篡改拒绝及旧恢复 receipt 校验。消费者构建、host tests 与应用/bootloader
+地址审计通过。本轮未操作硬件。
 
 ## 13. 权威入口
 

@@ -33,6 +33,70 @@ class ParsedImage:
     entry: int | None = None
 
 
+def parse_elf_absolute_symbols(
+    path: Path, names: Iterable[str], *, optional: Iterable[str] = (),
+) -> dict[str, int]:
+    """Read linker-owned absolute symbols from a little-endian ARM ELF32."""
+    required = set(names)
+    wanted = required | set(optional)
+    try:
+        data = path.read_bytes()
+    except OSError as error:
+        raise ImageContractError(f"cannot read ELF {path}: {error}") from error
+    header = struct.Struct("<16sHHIIIIIHHHHHH")
+    section = struct.Struct("<IIIIIIIIII")
+    symbol = struct.Struct("<IIIBBH")
+    if len(data) < header.size or data[:7] != b"\x7fELF\x01\x01\x01":
+        raise ImageContractError("layout requires a little-endian ELF32 image")
+    fields = header.unpack_from(data)
+    if fields[1] != 2 or fields[2] != 40 or fields[3] != 1:
+        raise ImageContractError("layout requires an ARM executable ELF")
+    offset, entry_size, count = fields[6], fields[11], fields[12]
+    if (fields[8] != header.size or entry_size != section.size or not count
+            or offset < header.size or offset + count * entry_size > len(data)):
+        raise ImageContractError("ELF section header table is invalid")
+    sections = [section.unpack_from(data, offset + i * entry_size) for i in range(count)]
+    found: dict[str, int] = {}
+    for section_header in sections:
+        if section_header[1] != 2:  # SHT_SYMTAB: the static linker's symbol table.
+            continue
+        symbol_offset, symbol_size, string_table = section_header[4:7]
+        if (string_table >= count or section_header[9] != symbol.size
+                or symbol_size % symbol.size or symbol_offset < header.size
+                or symbol_offset + symbol_size > len(data)):
+            raise ImageContractError("ELF symbol table is invalid")
+        string_header = sections[string_table]
+        string_offset, string_size = string_header[4:6]
+        if (string_header[1] != 3 or not string_size or string_offset < header.size
+                or string_offset + string_size > len(data)):
+            raise ImageContractError("ELF symbol string table is invalid")
+        strings = data[string_offset:string_offset + string_size]
+        for position in range(symbol_offset, symbol_offset + symbol_size, symbol.size):
+            name_offset, value, unused_size, info, unused_other, section_index = (
+                symbol.unpack_from(data, position)
+            )
+            if name_offset >= len(strings):
+                raise ImageContractError("ELF symbol name offset is invalid")
+            end = strings.find(b"\0", name_offset)
+            if end < 0:
+                raise ImageContractError("ELF symbol name is unterminated")
+            try:
+                name = strings[name_offset:end].decode("utf-8")
+            except UnicodeDecodeError as error:
+                raise ImageContractError("ELF symbol name is not UTF-8") from error
+            if name not in wanted:
+                continue
+            if section_index != 0xFFF1 or info >> 4 != 1:
+                raise ImageContractError(f"ELF symbol {name} must be global and absolute")
+            if name in found:
+                raise ImageContractError(f"ELF symbol {name} is duplicated")
+            found[name] = value
+    missing = sorted(required - found.keys())
+    if missing:
+        raise ImageContractError(f"ELF is missing absolute symbols: {', '.join(missing)}")
+    return found
+
+
 def _ranges(addresses: Iterable[int]) -> tuple[tuple[int, int], ...]:
     ordered = sorted(set(addresses))
     if not ordered:
@@ -117,11 +181,15 @@ def parse_elf(path: Path) -> ParsedImage:
         header = struct.Struct("<16sHHIIIIIHHHHHH")
         program = struct.Struct("<IIIIIIII")
         fields = header.unpack_from(data)
+        if fields[2] != 40:
+            raise ImageContractError("ELF machine is not ARM")
         entry, offset, entry_size, count = fields[4], fields[5], fields[9], fields[10]
     else:
         header = struct.Struct("<16sHHIQQQIHHHHHH")
         program = struct.Struct("<IIQQQQQQ")
         fields = header.unpack_from(data)
+        if fields[2] != 40:
+            raise ImageContractError("ELF machine is not ARM")
         entry, offset, entry_size, count = fields[4], fields[5], fields[9], fields[10]
     if entry_size != program.size or offset + count * entry_size > len(data):
         raise ImageContractError("ELF program header table is invalid")

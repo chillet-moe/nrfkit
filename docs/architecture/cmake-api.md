@@ -72,9 +72,16 @@ not an image layout. Use the startup target alone when providing another runtime
 The SDK runtime's static linker assertions validate the startup ABI, vector size
 and alignment, copy/zero ranges, conservative physical RAM/RRAM and stack overlap.
 Consumer assertions enforce product-specific boot, settings and scratch boundaries.
-A layout JSON is not a build input. Only the explicitly invoked guarded hardware
-workflow requires a reviewed allowlist, supplied with `sdk manifest --image-layout`
-or from the SDK example artifacts; it continues to reject forbidden regions.
+The explicit `sdk manifest` workflow reads global absolute linker symbols
+`__nrfkit_rram_start/end` and `__nrfkit_ram_start/end`, assigned from the
+reviewed MEMORY regions with `ORIGIN` and `LENGTH`. Optional
+`__nrfkit_settings_start/end` and `__nrfkit_rram_scratch_start/end` pairs
+declare reserved RRAM regions. It rejects missing or malformed symbols, unsafe
+physical bounds, overlapping reservations and out-of-range ELF/HEX loads. RAM
+bounds describe execution memory and never authorize programming RAM. The ELF
+hash and layout symbols are rechecked when loading the device manifest; no
+separate layout JSON is generated or required. Stripped ELFs without these
+symbols cannot create a device manifest.
 
 nrfx driver targets supply enable definitions and share an overridable default
 `nrfx_config.h`; instance and IRQ options can be target-scoped compile definitions.

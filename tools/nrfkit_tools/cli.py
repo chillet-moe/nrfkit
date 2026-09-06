@@ -49,7 +49,7 @@ from .reference import (
     ReferenceContractError, build, load_receipt, official_toolchain_compiler,
     oracle, prepare, sha256,
 )
-from .sdk import SdkContractError, create_device_manifest
+from .sdk import SdkContractError, create_device_manifest, elf_layout_symbols, read_elf_layout
 from .usb_validation import (
     UsbValidationError, inspect_standard_descriptors, run_host_resume_validation,
     run_power_validation, run_reconnect_validation,
@@ -93,12 +93,25 @@ def load_manifest(path: Path, *, artifacts: bool = True) -> dict[str, Any]:
         raise ToolError("image manifest backend contract is invalid")
     if "image_layout" in value:
         layout = value["image_layout"]
-        if not isinstance(layout, dict) or set(layout) != {"path", "sha256"}:
-            raise ToolError("image manifest layout receipt is invalid")
+        if not isinstance(layout, dict) or set(layout) not in (
+            {"path", "sha256"}, {"source", "path", "sha256", "symbols"},
+        ):
+            raise ToolError("image manifest layout evidence is invalid")
         layout_path = Path(layout["path"])
         if (not layout_path.is_absolute() or not layout_path.is_file() or
                 sha256(layout_path) != layout["sha256"]):
             raise ToolError("image manifest layout receipt is missing or stale")
+        if "source" in layout:
+            if (layout["source"] != "elf-symbols"
+                    or layout["path"] != value["debug_elf"]["path"]
+                    or layout["sha256"] != value["debug_elf"]["sha256"]
+                    or layout["symbols"] != elf_layout_symbols(layout_path)):
+                raise ToolError("image manifest ELF layout evidence is invalid or stale")
+            rram = read_elf_layout(layout_path)["rram"]
+            allowlist = [[rram["origin"], rram["origin"] + rram["length"]]]
+            if (value["debug_allowlist"] != allowlist or
+                    any(item.get("allowlist") != allowlist for item in value["images"])):
+                raise ToolError("image manifest allowlist differs from the ELF layout")
     if not isinstance(value["debug_allowlist"], list) or not value["debug_allowlist"]:
         raise ToolError("image manifest debug allowlist is invalid")
     if artifacts:
@@ -317,7 +330,7 @@ def command_inspect(args: argparse.Namespace) -> int:
 def command_sdk_manifest(args: argparse.Namespace) -> int:
     output = create_device_manifest(
         project_root(), args.build_dir, args.target, args.expected_token,
-        args.hci_h4_hwfc_1m, image_layout=args.image_layout,
+        args.hci_h4_hwfc_1m,
     )
     print(output)
     return 0
@@ -2521,8 +2534,6 @@ def main(argv: list[str] | None = None) -> int:
     sdk_manifest.add_argument("--build-dir", type=Path, required=True)
     sdk_manifest.add_argument("--target", required=True)
     sdk_manifest.add_argument("--expected-token", required=True)
-    sdk_manifest.add_argument("--image-layout", type=Path,
-                              help="Reviewed audit allowlist; defaults to the build-directory layout")
     sdk_manifest.add_argument("--hci-h4-hwfc-1m", action="store_true")
     sdk_manifest.set_defaults(handler=command_sdk_manifest)
 

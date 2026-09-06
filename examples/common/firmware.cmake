@@ -22,13 +22,4 @@ function(nrfkit_example_firmware target)
     COMMAND "${CMAKE_OBJCOPY}" -O binary "$<TARGET_FILE:${target}>"
       "$<TARGET_FILE_DIR:${target}>/$<TARGET_FILE_BASE_NAME:${target}>.bin"
     VERBATIM)
-  # This explicit fixture allowlist is for the guarded SDK hardware workflow.
-  # Ordinary consumers do not need it to configure or link an ELF.
-  set(template "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/standalone-layout.json.in")
-  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${template}")
-  file(READ "${template}" layout)
-  string(CONFIGURE "${layout}" layout @ONLY)
-  file(GENERATE
-    OUTPUT "$<TARGET_FILE_DIR:${target}>/$<TARGET_FILE_BASE_NAME:${target}>.image-layout.json"
-    CONTENT "${layout}")
 endfunction()

@@ -11,6 +11,12 @@ MEMORY
 
 __rram_scratch_start = ORIGIN(RRAM_SCRATCH);
 __rram_scratch_end = ORIGIN(RRAM_SCRATCH) + LENGTH(RRAM_SCRATCH);
+__nrfkit_rram_start = ORIGIN(RRAM);
+__nrfkit_rram_end = ORIGIN(RRAM) + LENGTH(RRAM);
+__nrfkit_ram_start = ORIGIN(RAM);
+__nrfkit_ram_end = ORIGIN(RAM) + LENGTH(RAM);
+__nrfkit_rram_scratch_start = ORIGIN(RRAM_SCRATCH);
+__nrfkit_rram_scratch_end = ORIGIN(RRAM_SCRATCH) + LENGTH(RRAM_SCRATCH);
 
 SECTIONS
 {
