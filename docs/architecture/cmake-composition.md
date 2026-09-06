@@ -15,8 +15,9 @@ module and target names are implementation details.
   reservations, and each firmware's generated configuration.
 - `NrfKitWireless.cmake` / `NrfKitNrfxlib.cmake`: wireless composition and
   version-locked binary validation, respectively.
-- `NrfKitUsb.cmake`: CherryUSB port or complete device-stack selection and FIFO
-  configuration.
+- `NrfKitUsb.cmake`: optional built-in port source target; `src/usb/` contains the
+  maintained implementation. Consumer-owned core/classes and configuration stay
+  outside the SDK capability graph; examples keep these under `examples/common/usb`.
 - `NrfKitImage.cmake`: layout validation, linker assertions, and ELF/HEX/BIN/map
   metadata. Consumer linker scripts stay complete and consumer-owned.
 
@@ -47,7 +48,8 @@ an audit output, not a separate dependency graph used to decide what to compile.
 `target_link_libraries()` selects capabilities; Timeslot and RRAM declarations may
 precede SDC. `nrfkit_finalize_target()` checks the completed composition, emits
 per-firmware nrfx configuration, and attaches image artifacts. Missing SDC for
-Timeslot/RRAM and a competing nrfx CLOCK owner still fail at configure time.
+Timeslot/RRAM and a competing nrfx CLOCK owner still fail at configure time. USB
+clock-mode selection belongs to the consumer port, not SDK finalization.
 
 This explicit boundary is needed because capability links and reserved-resource
 masks can accumulate over several calls. Finalization follows compile usage
@@ -61,8 +63,8 @@ initialize SDC/MPSL before using USB's shared clock path or submitting RRAM work
 ## Validation
 
 The contract tests cover source and installed packages, independent nrfx
-configurations in one build, all supported drivers, both USB/SDC declaration
-orders, SDC declared after Timeslot/RRAM, and rejection when it is absent.
+configurations in one build, all supported drivers, explicit reference USB/SDC composition, SDC declared after
+Timeslot/RRAM, and rejection when it is absent.
 The linked-target contract additionally covers direct and transitive selection and
 independent firmware configurations. Existing archive hash/ABI, IRQ/resource conflict, ELF/layout, and reproducibility
 checks remain in place. The historical S115 integration is available only at the

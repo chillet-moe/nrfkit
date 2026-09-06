@@ -109,7 +109,6 @@ function(_nrfkit_finalize_sdc target)
 endfunction()
 
 function(_nrfkit_validate_wireless target)
-  get_target_property(usb_stack "${target}" NRFKIT_USB_DEVICE_STACK)
   get_target_property(sdc_variant "${target}" NRFKIT_SDC_VARIANT)
   get_target_property(nrfx_drivers "${target}" NRFKIT_NRFX_DRIVERS)
   get_target_property(timeslot "${target}" NRFKIT_MPSL_TIMESLOT_ENABLED)
@@ -126,10 +125,5 @@ function(_nrfkit_validate_wireless target)
       "nrfkit_finalize_target: '${target}' cannot link the nrfx CLOCK driver "
       "while SDC/MPSL owns CLOCK"
     )
-  endif()
-  if(usb_stack AND sdc_variant)
-    # MPSL owns CLOCK while initialized. Its public clock arbitration API is
-    # therefore the only safe way for USBHS to hold HFCLK24M on this target.
-    target_compile_definitions("${target}" PRIVATE NRFKIT_USBHS_MPSL_CLOCK=1)
   endif()
 endfunction()

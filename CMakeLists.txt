@@ -44,6 +44,10 @@ foreach(relative IN LISTS cmsis_selected_files)
     DESTINATION "${cmsis_install_root}/${directory}")
 endforeach()
 
+# Example-owned USB configurations are separate from the built-in port target.
+install(DIRECTORY examples/common/usb
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/examples/common)
+
 set(cherryusb_install_root "${CMAKE_INSTALL_DATADIR}/nrfkit/external/cherryusb")
 install(FILES external/cherryusb/LICENSE
   DESTINATION "${cherryusb_install_root}"

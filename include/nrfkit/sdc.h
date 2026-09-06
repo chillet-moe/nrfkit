@@ -88,7 +88,7 @@ int32_t nrfkit_sdc_hci_acl_put(const uint8_t *packet);
  * Disable the controller.
  *
  * MPSL remains alive until every SDK client releases it, including open
- * Timeslot sessions and USBHS clock requests on combined targets.
+ * Timeslot sessions and HFCLK24M requests made through nrfkit/mpsl.h.
  */
 int32_t nrfkit_sdc_disable(void);
 

@@ -37,7 +37,7 @@ not substitutes for LM20 facts. The application uses one endpoint maximum packet
 unframed bulk OUT arm, following CherryUSB's documented device API behavior.
 
 CherryUSB is pinned as an immutable submodule. Consumer configure does not download
-it, and `nrfkit_configure_usb(... SOURCE_DIR ...)` permits an explicitly supplied
+it, and the explicit example helper `nrfkit_example_usb(... SOURCE_DIR ...)` permits an explicitly supplied
 compatible tree. NrfKit owns only the LM20 glue and target configuration; upstream
 CherryUSB is not copied into ordinary project-owned source.
 
@@ -115,3 +115,15 @@ TinyUSB remains a viable alternative stack because it also has a portable DCD
 boundary, but it was not selected for this first port. Maintaining two USB stacks
 before one LM20 implementation has complete device and low-power evidence would add
 parallel integration surface without strengthening the hardware facts.
+
+## Consumer ownership
+
+The maintained built-in port lives in `src/usb/nrf54l` and is available as
+`NrfKit::usb_port`. Consumers may use it or copy and maintain their own port,
+linking only one implementation. Core/class selection and USB configuration are
+consumer-owned; the former complete-stack target and public configuration helper
+have been removed. Examples include their own helper explicitly.
+
+Both paths use public `nrfkit/mpsl.h` for HFCLK24M ownership when explicitly built
+in MPSL mode. Existing clock-client lifetime accounting is unchanged. This
+ownership refactor adds no hardware evidence or new support claims.

@@ -63,7 +63,7 @@ class LinkedTargetTests(unittest.TestCase):
             base = Path(directory)
             for case in ("sdc-multirole", "sdc-peripheral", "sdc-central",
                          "radio-direct", "radio-timeslot", "rram",
-                         "usb-port", "usb-device", "usb-default"):
+                         "usb-port", "usb-default", "custom-port"):
                 with self.subTest(case=case):
                     result = self.run_cmake(base / case, case)
                     self.assertEqual(result.returncode, 0, result.stdout)
@@ -72,10 +72,10 @@ class LinkedTargetTests(unittest.TestCase):
                     if case.startswith("sdc-"):
                         archive = "libsoftdevice_controller_" + case[4:] + ".a"
                         self.assertIn(archive, (base / case / "build.ninja").read_text())
-                    if case == "usb-device":
-                        self.assertIn("usbd_core.c", link_map)
-                        usb_config = next((base / case).rglob("usb_config.h"))
-                        self.assertIn("{ 16, 16, 32,", usb_config.read_text())
+                    if case == "custom-port":
+                        custom_ninja = (base / case / "build.ninja").read_text()
+                        self.assertIn("custom_usb.c", custom_ninja)
+                        self.assertNotIn("/src/usb/", custom_ninja)
 
     def test_usb_images_keep_target_local_fifo_configuration(self) -> None:
         with tempfile.TemporaryDirectory(dir=self.tmp_root) as directory:

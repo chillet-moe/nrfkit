@@ -94,31 +94,30 @@ present. Runtime initialization order is a separate constraint. The
 driver targets, per-firmware configuration, and why the explicit finalize step
 remains.
 
-The experimental LM20 USBHS device integration is also target-scoped:
+The optional built-in LM20 CherryUSB port is selected with a normal link:
 
 ```cmake
-nrfkit_configure_usb(firmware CLASSES hid
-  IN_ENDPOINT_MAX_PACKET_SIZES 8 64 32 32)
-target_link_libraries(firmware PRIVATE NrfKit::usb_device)
+target_link_libraries(firmware PRIVATE NrfKit::usb_port cherryusb)
 ```
 
-It uses the pinned CherryUSB tree by default. `SOURCE_DIR` may select an explicitly
-managed compatible CherryUSB checkout. The optional packet-size list describes IN
-endpoints 1 upward; NrfKit derives a minimum-sized TX FIFO for each endpoint and
-rejects allocations beyond the LM20 hardware capacity. If omitted, it preserves the
-validated M4 oracle allocation for endpoints 1 and 2. The port's evidence hierarchy and the exact
-CherryUSB documentation and newer DWC2 glue examples used during its design are
-recorded in [`docs/provenance/usbhs-port.md`](docs/provenance/usbhs-port.md).
-When the same target also enables SDC, enable the Controller at runtime before USB
-initialization and tear USB down before the final Controller disable; NrfKit then
-routes HFCLK24M through MPSL automatically.
+Here `cherryusb` is the consumer's core/class target. The consumer also supplies
+`usb_config.h`, endpoint/FIFO configuration, and the CherryUSB DWC2 include path.
+The [USB support notes](src/usb/README.md) describe these inputs. SDK examples keep
+their own configuration in `examples/common/usb`; no public helper selects the
+stack or generates its configuration.
 
-Applications that already own CherryUSB core and class selection can use
-`NrfKit::usb_port` instead of `NrfKit::usb_device`, with parameters supplied
-through `nrfkit_configure_usb()`. It supplies only the
-LM20 DCD, clock/power glue and configuration. Link exactly one compatible
-CherryUSB core. Standard `usbd_initialize()` performs the platform attachment;
-shared USB application code needs no LM20 connect call.
+If the built-in port needs product-specific modifications, copy it into the
+consumer repository with its license and source commit, then link that local
+port target instead of `NrfKit::usb_port`. Both paths have the same ownership
+boundary; no SDK fork or special override mechanism is required.
+
+For images that initialize SDC/MPSL, explicitly define
+`NRFKIT_USBHS_MPSL_CLOCK=1` on the firmware. Public `nrfkit/mpsl.h` provides HFCLK24M
+request, readiness, and release operations, retaining MPSL while the clock is
+owned. Standalone images omit the macro. Initialize SDC before USB and release
+USB resources before shutdown. Standard `usbd_initialize()` performs hardware
+attachment. See [USBHS provenance](docs/provenance/usbhs-port.md) for hardware
+validation limits.
 
 For settings writes while SDC/MPSL is active, link `NrfKit::rram`
 and submit a snapshot with `nrfkit_rram_submit()` from `nrfkit/rram.h`. Pass the

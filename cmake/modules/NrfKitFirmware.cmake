@@ -227,13 +227,6 @@ function(nrfkit_finalize_target target)
       endif()
       set_target_properties("${target}" PROPERTIES NRFKIT_SDC_VARIANT "${variant}")
 
-    elseif(kind MATCHES "^usb_(port|device)$")
-      get_target_property(configured "${target}" NRFKIT_USB_CONFIGURED)
-      if(NOT configured)
-        nrfkit_configure_usb("${target}")
-      endif()
-      set_target_properties("${target}" PROPERTIES
-        NRFKIT_USB_DEVICE_STACK cherryusb NRFKIT_NRFX_HEADERS_REQUIRED TRUE)
     elseif(kind STREQUAL "rram")
       set_target_properties("${target}" PROPERTIES NRFKIT_RRAM_ENABLED TRUE)
     elseif(kind STREQUAL "radio_timeslot")

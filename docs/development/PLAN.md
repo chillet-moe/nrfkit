@@ -147,7 +147,7 @@ nrfkit/
 ├── src/
 │   ├── boards/
 │   ├── runtime/
-│   ├── usb/
+│   ├── usb/                  # optional built-in port; consumer may maintain a copy
 │   ├── soc/
 │   └── wireless/
 │       ├── include/
@@ -170,6 +170,7 @@ nrfkit/
 ├── patches/
 │   └── nrfx/                  # project-owned, evidence-backed patches
 ├── examples/
+│   └── common/usb/            # example-owned USB configuration
 ├── tests/
 │   ├── host/
 │   ├── link/
@@ -1298,6 +1299,20 @@ ignored cache，Controller/MPSL 仍为锁定的 imported static libraries。
 包含安装包搬迁、直接/间接链接、多固件 nrfx/USB 隔离、补丁缓存来源和冲突拒绝；
 28 个 SDK 示例以及消费者 application/bootloader/updater 构建通过，应用和 bootloader
 镜像地址审计通过。本轮未操作硬件，不新增实板验收结论。
+
+### USB 内置支持与消费者覆盖（2026-09-06）
+
+SDK 在 `src/usb/nrf54l` 维护可选的内置 CherryUSB port，以 `NrfKit::usb_port`
+提供源码 target。消费者可以链接默认 target，也可以复制 port 并链接自己维护的
+本地 target；两条路径二选一，不要求特殊覆盖参数或 SDK fork。
+CherryUSB core/class、端点/FIFO 配置与 MPSL 时钟模式由消费者拥有；删除完整协议栈
+`NrfKit::usb_device` 和公共 `nrfkit_configure_usb`，不再在 finalize 自动推导 USB 配置。
+`examples/common/usb` 只提供示例自身的配置和显式辅助脚本，不承载内置 port 实现。
+现有 HFCLK24M 请求、查询与释放函数公开于 `nrfkit/mpsl.h`，保留原有 MPSL 客户引用
+与延迟 teardown 语义，使消费者的 port 不再依赖 SDK 私有头文件。
+验收：139 项 host tests 通过，包含内置 port、自定义 port 替换、安装包与 USB 配置隔离；
+28 个 SDK 示例及消费者 application/bootloader/updater 构建通过，23 项消费者工具测试
+及应用/bootloader 镜像审计通过。本轮未操作硬件，不新增实板验收结论。
 
 ## 13. 权威入口
 

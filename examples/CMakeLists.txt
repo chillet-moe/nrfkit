@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.25)
 project(nrfkit_m1_examples LANGUAGES C CXX ASM)
 
 find_package(NrfKit CONFIG REQUIRED)
+include("${CMAKE_CURRENT_LIST_DIR}/common/usb/reference.cmake")
 
 function(add_m1_example name source)
   add_executable("${name}" "${source}")
@@ -69,8 +70,7 @@ nrfkit_configure_target(m4_usb_validation
   SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
 )
 nrfkit_claim_resources(m4_usb_validation OWNER usb_validation RESOURCES timer21)
-nrfkit_configure_usb(m4_usb_validation CLASSES hid)
-target_link_libraries(m4_usb_validation PRIVATE NrfKit::usb_device)
+nrfkit_example_usb(m4_usb_validation CLASSES hid)
 target_link_libraries(m4_usb_validation PRIVATE
   NrfKit::nrfx_timer
 )
@@ -82,8 +82,7 @@ nrfkit_configure_target(m8_combined_validation
 )
 nrfkit_claim_resources(m8_combined_validation OWNER usb_validation RESOURCES timer21)
 target_link_libraries(m8_combined_validation PRIVATE "NrfKit::sdc_multirole")
-nrfkit_configure_usb(m8_combined_validation CLASSES hid)
-target_link_libraries(m8_combined_validation PRIVATE NrfKit::usb_device)
+nrfkit_example_usb(m8_combined_validation MPSL CLASSES hid)
 target_link_libraries(m8_combined_validation PRIVATE NrfKit::radio_timeslot)
 target_link_libraries(m8_combined_validation PRIVATE
   NrfKit::nrfx_timer

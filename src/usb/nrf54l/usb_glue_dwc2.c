@@ -14,7 +14,7 @@
 #include <usbd_core.h>
 
 #if defined(NRFKIT_USBHS_MPSL_CLOCK)
-#include <nrfkit/internal/sdc_platform_internal.h>
+#include <nrfkit/mpsl.h>
 #endif
 
 #define USBHS_WAIT_ITERATIONS UINT32_C(10000000)

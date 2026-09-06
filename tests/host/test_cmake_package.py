@@ -74,6 +74,7 @@ class CMakePackageTests(unittest.TestCase):
                     self.assertTrue((sdk_root / relative).is_file(), str(relative))
             for obsolete in ("boards", "runtime", "softdevice", "radio", "usb"):
                 self.assertFalse((sdk_root / obsolete).exists(), obsolete)
+            self.assertTrue((sdk_root / "include/nrfkit/usbhs.h").is_file())
             installed_vendor = sdk_root / "external"
             for required in (
                 "nrfx/nrfx.h", "nrfx/drivers/src/nrfx_rramc.c",
@@ -83,6 +84,20 @@ class CMakePackageTests(unittest.TestCase):
                 "cherryusb/class/hid/usbd_hid.c",
             ):
                 self.assertTrue((installed_vendor / required).is_file(), required)
+            for required in (
+                "reference.cmake", "usb_config.h.in",
+            ):
+                self.assertTrue(
+                    (sdk_root / "examples/common/usb" / required).is_file(), required
+                )
+            self.assertTrue((prefix / "include/nrfkit/mpsl.h").is_file())
+            saw_usb_port = False
+            for cmake_file in prefix.rglob("*.cmake"):
+                cmake_text = cmake_file.read_text(encoding="utf-8")
+                saw_usb_port = saw_usb_port or "NrfKit::usb_port" in cmake_text
+                self.assertNotIn("NrfKit::usb_device", cmake_text, str(cmake_file))
+                self.assertNotIn("nrfkit_configure_usb", cmake_text, str(cmake_file))
+            self.assertTrue(saw_usb_port)
             selected_nrfx = (ROOT / "cmake/nrfx-selection.txt").read_text(
                 encoding="utf-8"
             ).splitlines()

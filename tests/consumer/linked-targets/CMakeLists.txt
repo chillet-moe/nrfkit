@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.25)
 project(nrfkit_linked_targets C CXX ASM)
 
 find_package(NrfKit CONFIG REQUIRED)
+include("${NrfKit_ROOT}/examples/common/usb/reference.cmake")
 
 set(LINKED_CASE "direct" CACHE STRING "link-target contract case")
 
@@ -71,28 +72,35 @@ elseif(LINKED_CASE STREQUAL "radio-timeslot")
 elseif(LINKED_CASE STREQUAL "rram")
   target_link_libraries(linked_firmware PRIVATE NrfKit::sdc_multirole NrfKit::rram)
 elseif(LINKED_CASE STREQUAL "usb-port")
-  nrfkit_configure_usb(linked_firmware CLASSES hid
+  nrfkit_example_usb(linked_firmware PORT_ONLY CLASSES hid
     IN_ENDPOINT_MAX_PACKET_SIZES 64 128)
-  target_link_libraries(linked_firmware PRIVATE NrfKit::usb_port)
   target_sources(linked_firmware PRIVATE
     "${NrfKit_ROOT}/external/cherryusb/core/usbd_core.c"
     "${NrfKit_ROOT}/external/cherryusb/class/hid/usbd_hid.c")
-elseif(LINKED_CASE STREQUAL "usb-device")
-  nrfkit_configure_usb(linked_firmware CLASSES hid
-    IN_ENDPOINT_MAX_PACKET_SIZES 64 128)
-  target_link_libraries(linked_firmware PRIVATE NrfKit::usb_device)
 elseif(LINKED_CASE STREQUAL "usb-default")
-  target_link_libraries(linked_firmware PRIVATE NrfKit::usb_device)
+  # A real consumer owns stack/configuration inputs even when using the SDK port.
+  # This case intentionally does not call the example convenience helper.
+  add_library(consumer_cherryusb INTERFACE)
+  target_sources(consumer_cherryusb INTERFACE
+    "${NrfKit_ROOT}/external/cherryusb/core/usbd_core.c")
+  target_include_directories(consumer_cherryusb INTERFACE
+    "${CMAKE_CURRENT_LIST_DIR}/usb-config"
+    "${NrfKit_ROOT}/external/cherryusb/common"
+    "${NrfKit_ROOT}/external/cherryusb/core"
+    "${NrfKit_ROOT}/external/cherryusb/port/dwc2")
+  target_link_libraries(linked_firmware PRIVATE NrfKit::usb_port consumer_cherryusb)
+elseif(LINKED_CASE STREQUAL "custom-port")
+  add_library(custom_port INTERFACE)
+  target_sources(custom_port INTERFACE "${CMAKE_CURRENT_LIST_DIR}/custom_usb.c")
+  target_link_libraries(linked_firmware PRIVATE custom_port)
 elseif(LINKED_CASE STREQUAL "usb-dual")
-  nrfkit_configure_usb(linked_firmware CLASSES hid
+  nrfkit_example_usb(linked_firmware CLASSES hid
     IN_ENDPOINT_MAX_PACKET_SIZES 64 128)
-  target_link_libraries(linked_firmware PRIVATE NrfKit::usb_device)
   add_executable(linked_usb_alt main.cpp)
   nrfkit_configure_target(linked_usb_alt
     SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding)
-  nrfkit_configure_usb(linked_usb_alt CLASSES hid
+  nrfkit_example_usb(linked_usb_alt CLASSES hid
     IN_ENDPOINT_MAX_PACKET_SIZES 256 512)
-  target_link_libraries(linked_usb_alt PRIVATE NrfKit::usb_device)
   target_compile_definitions(linked_usb_alt PRIVATE LINKED_USB=1)
   nrfkit_finalize_target(linked_usb_alt)
 elseif(LINKED_CASE STREQUAL "multiple")
