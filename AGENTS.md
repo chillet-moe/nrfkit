@@ -17,3 +17,4 @@
 - Hardware support is not complete until the specified real-board tests pass. A compile-only result must be labeled accordingly.
 - Codex sandbox access is insufficient for USB, serial, debug probes, vendor programmers, and real-board debugging. Use the repository hardware workflow and request tool escalation before the first such operation; escalation is an execution requirement, not authorization for any operation forbidden by this file or `PLAN.md`.
 - Preserve unrelated changes. Use English Conventional Commits if creating commits.
+- Repository-local Codex skills live under `.agents/skills/`; load the relevant `SKILL.md` before specialized workflows.
