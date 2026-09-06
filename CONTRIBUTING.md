@@ -1,6 +1,6 @@
 # Contributing
 
-Read `AGENTS.md`, `PLAN.md`, and `docs/development-inputs.md` before changing the project. `PLAN.md` is the normative execution plan; milestone exit conditions are part of the change contract.
+Read `AGENTS.md`, [`docs/development/PLAN.md`](docs/development/PLAN.md), and `docs/development-inputs.md` before changing the project. `docs/development/PLAN.md` is the normative execution plan; milestone exit conditions are part of the change contract.
 
 Keep consumer configure and build paths offline and independent of west, sysbuild, Devicetree, Kconfig, Zephyr, and an installed nRF Connect SDK. Use target-scoped modern CMake and preserve public API and data compatibility unless a change explicitly permits a break.
 

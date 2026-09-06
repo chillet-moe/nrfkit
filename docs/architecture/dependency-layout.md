@@ -28,8 +28,8 @@ Project sources use include names resolved by target-scoped CMake include paths.
 Cross-module dependencies must not be encoded as `../../` traversal in C/C++
 include directives. Private SDC headers stay private to the SDK implementation;
 providing their include path does not make them public consumer API.
-The SDC private header lives in `softdevice/include/nrfkit/internal/`; enabling
-SDC adds `softdevice/include` to the firmware's private include directories.
+The SDC private header lives in `src/wireless/include/nrfkit/internal/`; enabling
+SDC adds `src/wireless/include` to the firmware's private include directories.
 
 Upstream relative includes internal to an unchanged vendor tree retain their
 original layout and bytes. A relative include within a self-contained source tree
@@ -50,3 +50,8 @@ examples produced BIN and HEX files byte-identical to the pre-change baseline.
 The prepared cache and installed nrfx tree match the file selection exactly;
 changing the manifest triggers automatic reconfiguration and cache replacement.
 No board operation was performed for this build-only reorganization.
+
+The source relocation itself was also checked by the 134-test host suite. All
+28 example targets produced 56 BIN and HEX files byte-identical to the
+pre-relocation artifacts. This was a host-only verification; no hardware
+operation was performed for the path reorganization.

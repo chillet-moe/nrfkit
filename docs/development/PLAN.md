@@ -11,12 +11,12 @@
 文档职责必须保持分离：
 
 - `AGENTS.md` 只保存整个项目生命周期内稳定的行为、安全和公开边界，不记录当前里程碑、临时环境状态或本轮任务；
-- `PLAN.md` 保存目标、设计决策、里程碑顺序、动态状态和退出条件；
+- `docs/development/PLAN.md` 保存目标、设计决策、里程碑顺序、动态状态和退出条件；
 - `docs/development-inputs.md` 说明可公开的输入类别、发现顺序和 provenance 契约；
 - `.local/AVAILABLE_INPUTS.md` 保存本机实际路径、私有只读参考、已连接硬件和工具现状，必须由 `.gitignore` 排除；
 - `.work/` 保存构建 receipt、manifest、运行报告和原始日志，必须由 `.gitignore` 排除。
 
-自主 goal 的启动文本只需要求 agent 读取上述文件并持续完成 `PLAN.md`；具体任务不得复制进 `AGENTS.md` 或堆叠在启动文本中。
+自主 goal 的启动文本只需要求 agent 读取上述文件并持续完成 `docs/development/PLAN.md`；具体任务不得复制进 `AGENTS.md` 或堆叠在启动文本中。
 
 ## 1. 最终目标
 
@@ -63,7 +63,7 @@
    archive 必须包含同一固定 checkout。允许显式 `NRFKIT_NRFXLIB_ROOT` 覆盖，但必须通过
    同样的 identity/hash 校验；不得从 `$HOME/ncs` 自动发现或拼装库。
 3. SDC 的 Multirole、Peripheral-only、Central-only archive 与 `libmpsl.a` 必须来自同一锁定 release、`nrf54lm` security domain 和 hard-float ABI，不能跨版本混用。submodule 与其二进制保持原样，项目适配只能位于自有 CMake/platform layer；不得修改、反汇编、反编译或逆向预编译 archive。
-4. 旧 S115 适配实验通过 [归档提交](docs/architecture/s115-archive.md) 保留历史复现能力和原始 license/attribution；当前 SDK 不提供 S115 集成。官方 S115 oracle 仍使用锁定外部输入。
+4. 旧 S115 适配实验通过 [归档提交](../architecture/s115-archive.md) 保留历史复现能力和原始 license/attribution；当前 SDK 不提供 S115 集成。官方 S115 oracle 仍使用锁定外部输入。
 5. SDK 构建不能搜索或隐式借用 `$HOME/ncs`。本机 NCS 目录只允许被显式的开发者对照测试使用。缺失或 commit 不匹配的上游输入必须给出明确诊断；普通 configure/build 不得自行联网更新它。
 6. Python 可以用于维护者工具、HEX 检查和硬件测试，但不得成为编译一个普通应用的必需依赖。核心构建只要求 CMake、构建器、编译器及 binutils 等效工具。
 7. 不引入 west manifest 的替代品，也不实现 Kconfig 或 Devicetree 的小型克隆。
@@ -140,10 +140,19 @@ cmake --build build/lm20 --target gdbserver
 ```text
 nrfkit/
 ├── AGENTS.md
-├── PLAN.md
 ├── LICENSE
 ├── README.md
 ├── CMakeLists.txt
+├── src/
+│   ├── boards/
+│   ├── runtime/
+│   ├── usb/
+│   ├── soc/
+│   └── wireless/
+│       ├── include/
+│       ├── radio/
+│       ├── sdc/
+│       └── timeslot/
 ├── cmake/
 │   ├── NrfKitConfig.cmake
 │   ├── modules/
@@ -154,26 +163,11 @@ nrfkit/
 │   ├── nrfx/                  # immutable, version-locked submodule
 │   └── sdk-nrfxlib/           # fixed read-only official submodule
 ├── include/nrfkit/
-├── runtime/
-│   ├── common/
-│   └── cortex-m/
-├── soc/
-│   ├── nrf54l/common/
-│   ├── nrf54l/nrf54lm20a/
-│   └── nrf54l/nrf54l15/
-├── boards/
-│   ├── nrf54lm20dk/
-│   └── nrf54l15dk/
 ├── linker/
 │   ├── common/
 │   └── layouts/
 ├── patches/
 │   └── nrfx/                  # project-owned, evidence-backed patches
-├── wireless/
-│   ├── mpsl/
-│   ├── sdc/
-│   └── proprietary/
-├── usb/
 ├── examples/
 ├── tests/
 │   ├── host/
@@ -186,6 +180,8 @@ nrfkit/
 │   └── reference/
 ├── docs/
 │   ├── architecture/
+│   ├── development/
+│   │   └── PLAN.md
 │   ├── provenance/
 │   └── porting/
 └── .agents/skills/
@@ -826,7 +822,7 @@ shim/patch 清单以及唯一实板结果。最终分歧定位在官方 `irq_ini
 `docs/architecture/m6-official-baseline-failure.md`、
 `docs/provenance/nrf-bm-hids-s115-equivalence.json` 和
 `docs/provenance/m6-s115-equivalence-checkpoint.json`。compatibility layer 与专用审计工具仅在
-[归档提交](docs/architecture/s115-archive.md) 中保留；L15 central 与有界 BlueZ 工具
+[归档提交](../architecture/s115-archive.md) 中保留；L15 central 与有界 BlueZ 工具
 继续作为诊断资产保留，不进入当前完成定义。
 历史 JSON 保持不可变；新方向由 ADR 与本 PLAN 覆盖。该检查点既不证明 S115 不可用，
 也不是 SDC/MPSL 路线的失败证据。
@@ -1264,7 +1260,7 @@ INTERFACE target 组合；SDC imported target 自己携带 FEM/MPSL 链接依赖
 头文件、JSON、链接断言改用模板。随后按用户授权清退历史 S115 集成：删除专用
 CMake、适配层、配置、链接布局和等价审计命令；固定此前完整提交用于历史复现。
 历史 JSON 不变，官方 reference 工作流保留，旧 SoftDevice layout 由现有字段白名单拒绝。
-详见 [CMake 组织说明](docs/architecture/cmake-composition.md)。本轮不改变运行时初始化、
+详见 [CMake 组织说明](../architecture/cmake-composition.md)。本轮不改变运行时初始化、
 寄存器行为、驱动选择范围或硬件验收结论。
 
 ### 消费者边界修正（2026-09-06）
@@ -1275,7 +1271,7 @@ CMake、适配层、配置、链接布局和等价审计命令；固定此前完
   完成硬件 attach，不要求共享业务代码包含 SoC 专用调用。
 - 消费者继续拥有完整 linker script；SDK 额外验证启动 ABI、声明地址边界和栈重叠。
 - 以 Engineering B v1.1 / Revision 1 v1.0 勘误为输入统一 anomaly 63 复位处理；
-  [勘误覆盖表](docs/provenance/lm20-errata.md) 区分实现、产品约束和未验证条件。
+  [勘误覆盖表](../provenance/lm20-errata.md) 区分实现、产品约束和未验证条件。
 
 ### 依赖目录与头文件边界整理（2026-09-06）
 
@@ -1283,7 +1279,7 @@ CMake、适配层、配置、链接布局和等价审计命令；固定此前完
 HAL/driver 共用同一上游，删除重复 MDK 快照；CMSIS Core 保留原版本与逐文件 hash。
 nrfx 缓存和安装使用同一文件选择清单，两个已有补丁继续在 ignored cache 应用。
 项目跨模块头文件改由 target-scoped include 路径解析，仓库技能迁至 `.agents/skills/`。
-设计说明见 [依赖目录](docs/architecture/dependency-layout.md)。本轮是来源组织和构建
+设计说明见 [依赖目录](../architecture/dependency-layout.md)。本轮是来源组织和构建
 边界修改，不更改硬件行为或扩大已声明的实板支持范围。
 验收：134 项 host tests 通过，带空格的独立源码路径构建 28 个 ELF；7 个核心示例的
 BIN/HEX 与修改前逐字节一致。安装包搬迁、缓存清单失效和可复现归档测试通过。

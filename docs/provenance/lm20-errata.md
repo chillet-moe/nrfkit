@@ -28,7 +28,7 @@ nrfx input locked in `sources.lock`.
 | 50 | RRAM writes do not infer DMA capability from SPU00 PERIPH[11]. No DMA writer is introduced. |
 | 54 | SPIS board configuration must give idle SDO a defined electrical state. This is a board/pin constraint, not a universal driver default. |
 | 59 | EGU and DPPI channel 0 must have consistent security attribution. Mixed-security operation remains outside this platform's validation. |
-| 63 | `runtime/cortex-m/reset.c` enters CONSTLAT before SYSRESETREQ; SDC fatal reset and SDK examples use it. Device CLI defaults to pin reset. Fault handlers must avoid secondary faults/lockup; the diagnostic capture handler is not a proof against arbitrary stack corruption. |
+| 63 | `src/runtime/cortex-m/reset.c` enters CONSTLAT before SYSRESETREQ; SDC fatal reset and SDK examples use it. Device CLI defaults to pin reset. Fault handlers must avoid secondary faults/lockup; the diagnostic capture handler is not a proof against arbitrary stack corruption. |
 | 102 | CCM MAC length zero is unsupported; do not infer support from the register field. Current BLE controller owns CCM configuration. |
 | 104 | Analog-capable pins can short during power-on reset. Board electrical design must tolerate this; software startup cannot prevent it. |
 | 105 | Do not disable TWIM mid-transaction while clock stretching. Recovery requires device reset; generic nrfx availability is not proof of safe asynchronous teardown. |

@@ -5,7 +5,7 @@ This document defines the kinds of input available to maintainers and autonomous
 ## Read order
 
 1. `AGENTS.md` for stable safety and publication constraints.
-2. `PLAN.md` for the current milestone, accepted design, and completion gates.
+2. [`docs/development/PLAN.md`](development/PLAN.md) for the current milestone, accepted design, and completion gates.
 3. This document for input discovery and provenance rules.
 4. `.local/AVAILABLE_INPUTS.md`, when present, for the current machine only.
 
@@ -47,7 +47,7 @@ Vendor libraries are implementation evidence, not hardware specifications. For r
 
 ## Official reference inputs
 
-The active reference versions, samples, board targets, and expected runtime observations are defined by the earliest incomplete milestone in `PLAN.md`. Reference preparation must:
+The active reference versions, samples, board targets, and expected runtime observations are defined by the earliest incomplete milestone in [`docs/development/PLAN.md`](development/PLAN.md). Reference preparation must:
 
 - leave official workspaces unchanged;
 - validate all required module commits and source hashes;
@@ -91,7 +91,7 @@ Connected hardware is always runtime state. The repository must never assume tha
 
 Probe serial numbers, USB topology, local device paths, and unsanitized logs may be stored in `.local/` or `.work/`, but never in tracked files or public artifacts.
 
-Hardware authorization is defined in `PLAN.md`; the existence of a local device does not authorize mass erase, recover, protection changes, provisioning, or writes to one-time/configuration regions.
+Hardware authorization is defined in [`docs/development/PLAN.md`](development/PLAN.md); the existence of a local device does not authorize mass erase, recover, protection changes, provisioning, or writes to one-time/configuration regions.
 
 ## Local implementation references
 
