@@ -4,11 +4,10 @@ cmake_minimum_required(VERSION 3.25)
 project(nrfx_contract C ASM)
 
 find_package(NrfKit CONFIG REQUIRED)
+include("${CMAKE_CURRENT_LIST_DIR}/../platform.cmake")
 
 add_executable(contract main.c)
-nrfkit_configure_target(contract
-  SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
-)
+nrfkit_test_firmware(contract)
 
 if(CONTRACT_CASE STREQUAL "conflict")
   nrfkit_claim_resources(contract OWNER first RESOURCES dppi20.channel.3)
@@ -23,4 +22,3 @@ endif()
 
 target_link_libraries(contract PRIVATE
   NrfKit::nrfx_gpiote NrfKit::nrfx_dppi NrfKit::nrfx_timer)
-nrfkit_finalize_target(contract)

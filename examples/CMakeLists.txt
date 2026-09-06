@@ -5,21 +5,17 @@ project(nrfkit_m1_examples LANGUAGES C CXX ASM)
 
 find_package(NrfKit CONFIG REQUIRED)
 include("${CMAKE_CURRENT_LIST_DIR}/common/usb/reference.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/common/firmware.cmake")
 
 function(add_m1_example name source)
   add_executable("${name}" "${source}")
-  nrfkit_configure_target("${name}"
-    SOC nrf54lm20a
-    CORE cpuapp
-    BOARD nrf54lm20dk
-    RUNTIME freestanding
-  )
+  nrfkit_example_firmware("${name}")
   if(ARGN)
     foreach(driver IN LISTS ARGN)
       target_link_libraries("${name}" PRIVATE "NrfKit::nrfx_${driver}")
     endforeach()
   endif()
-  nrfkit_finalize_target("${name}")
+
 endfunction()
 
 add_m1_example(empty empty/main.c)
@@ -36,50 +32,40 @@ add_m1_example(nrfx_all nrfx-all/main.c
 )
 
 add_executable(m3_core_validation m3-core-validation/main.c)
-nrfkit_configure_target(m3_core_validation
-  SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
-)
+nrfkit_example_firmware(m3_core_validation)
 nrfkit_claim_resources(m3_core_validation OWNER validation RESOURCES
   timer21
 )
 target_link_libraries(m3_core_validation PRIVATE
   NrfKit::nrfx_clock NrfKit::nrfx_gpio NrfKit::nrfx_gpiote NrfKit::nrfx_grtc NrfKit::nrfx_timer NrfKit::nrfx_dppi NrfKit::nrfx_uarte NrfKit::nrfx_reset NrfKit::nrfx_retention
 )
-nrfkit_finalize_target(m3_core_validation)
+
 
 add_executable(m3_peripheral_validation m3-peripheral-validation/main.c)
-nrfkit_configure_target(m3_peripheral_validation
-  SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
-)
+nrfkit_example_firmware(m3_peripheral_validation)
 target_link_libraries(m3_peripheral_validation PRIVATE
   NrfKit::nrfx_spim NrfKit::nrfx_twim NrfKit::nrfx_pwm NrfKit::nrfx_saadc NrfKit::nrfx_rramc NrfKit::nrfx_watchdog
 )
-nrfkit_finalize_target(m3_peripheral_validation)
+
 
 add_executable(m3_power_validation m3-power-validation/main.c)
-nrfkit_configure_target(m3_power_validation
-  SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
-)
+nrfkit_example_firmware(m3_power_validation)
 target_link_libraries(m3_power_validation PRIVATE
   NrfKit::nrfx_clock NrfKit::nrfx_grtc NrfKit::nrfx_reset NrfKit::nrfx_retention
 )
-nrfkit_finalize_target(m3_power_validation)
+
 
 add_executable(m4_usb_validation m4-usb-validation/main.c)
-nrfkit_configure_target(m4_usb_validation
-  SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
-)
+nrfkit_example_firmware(m4_usb_validation)
 nrfkit_claim_resources(m4_usb_validation OWNER usb_validation RESOURCES timer21)
 nrfkit_example_usb(m4_usb_validation CLASSES hid)
 target_link_libraries(m4_usb_validation PRIVATE
   NrfKit::nrfx_timer
 )
-nrfkit_finalize_target(m4_usb_validation)
+
 
 add_executable(m8_combined_validation m4-usb-validation/main.c)
-nrfkit_configure_target(m8_combined_validation
-  SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
-)
+nrfkit_example_firmware(m8_combined_validation)
 nrfkit_claim_resources(m8_combined_validation OWNER usb_validation RESOURCES timer21)
 target_link_libraries(m8_combined_validation PRIVATE "NrfKit::sdc_multirole")
 nrfkit_example_usb(m8_combined_validation MPSL CLASSES hid)
@@ -88,17 +74,15 @@ target_link_libraries(m8_combined_validation PRIVATE
   NrfKit::nrfx_timer
 )
 target_compile_definitions(m8_combined_validation PRIVATE NRFKIT_M8_COMBINED=1)
-nrfkit_finalize_target(m8_combined_validation)
+
 
 add_executable(m5_radio_validation m5-radio-validation/main.c)
-nrfkit_configure_target(m5_radio_validation
-  SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
-)
+nrfkit_example_firmware(m5_radio_validation)
 nrfkit_claim_resources(m5_radio_validation OWNER radio_validation RESOURCES
   dppi10.channel.0 timer10
 )
 target_link_libraries(m5_radio_validation PRIVATE NrfKit::radio_direct)
-nrfkit_finalize_target(m5_radio_validation)
+
 
 foreach(variant IN ITEMS multirole peripheral central)
   if(variant STREQUAL "multirole")
@@ -107,28 +91,22 @@ foreach(variant IN ITEMS multirole peripheral central)
     set(target "m6_sdc_${variant}_validation")
   endif()
   add_executable("${target}" m6-sdc-validation/main.c)
-  nrfkit_configure_target("${target}"
-    SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
-  )
+  nrfkit_example_firmware("${target}")
   target_link_libraries("${target}" PRIVATE "NrfKit::sdc_${variant}")
   target_link_libraries("${target}" PRIVATE
   NrfKit::nrfx_uarte
 )
-  nrfkit_finalize_target("${target}")
+
 endforeach()
 
 add_executable(m7_timeslot_retry m7-timeslot-retry/main.c)
-nrfkit_configure_target(m7_timeslot_retry
-  SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
-)
+nrfkit_example_firmware(m7_timeslot_retry)
 target_link_libraries(m7_timeslot_retry PRIVATE "NrfKit::sdc_multirole")
 target_link_libraries(m7_timeslot_retry PRIVATE NrfKit::radio_timeslot)
-nrfkit_finalize_target(m7_timeslot_retry)
+
 
 add_executable(m7_timeslot_validation m6-sdc-validation/main.c)
-nrfkit_configure_target(m7_timeslot_validation
-  SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
-)
+nrfkit_example_firmware(m7_timeslot_validation)
 target_link_libraries(m7_timeslot_validation PRIVATE "NrfKit::sdc_multirole")
 target_link_libraries(m7_timeslot_validation PRIVATE NrfKit::radio_timeslot)
 target_link_libraries(m7_timeslot_validation PRIVATE NrfKit::rram)
@@ -136,42 +114,36 @@ target_link_libraries(m7_timeslot_validation PRIVATE
   NrfKit::nrfx_uarte
 )
 target_compile_definitions(m7_timeslot_validation PRIVATE NRFKIT_M7_TIMESLOT=1)
-nrfkit_finalize_target(m7_timeslot_validation)
+
 
 foreach(role IN ITEMS tx rx)
   set(target "m7_timeslot_radio_${role}")
   add_executable("${target}" m7-timeslot-radio-link/main.c)
-  nrfkit_configure_target("${target}"
-    SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
-  )
+  nrfkit_example_firmware("${target}")
   string(TOUPPER "${role}" role_upper)
   target_compile_definitions("${target}" PRIVATE
     "NRFKIT_M7_TIMESLOT_LINK_${role_upper}=1"
   )
   target_link_libraries("${target}" PRIVATE "NrfKit::sdc_multirole")
   target_link_libraries("${target}" PRIVATE NrfKit::radio_timeslot)
-  nrfkit_finalize_target("${target}")
+
 endforeach()
 
 foreach(role IN ITEMS tx rx)
   set(target "m5_radio_${role}")
   add_executable("${target}" m5-radio-link/main.c)
-  nrfkit_configure_target("${target}"
-    SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
-  )
+  nrfkit_example_firmware("${target}")
   string(TOUPPER "${role}" role_upper)
   target_compile_definitions("${target}" PRIVATE "NRFKIT_M5_LINK_${role_upper}=1")
   target_link_libraries("${target}" PRIVATE NrfKit::radio_direct)
-  nrfkit_finalize_target("${target}")
+
 endforeach()
 
 foreach(mode IN ITEMS bt_0_6 bt_0_4)
   foreach(role IN ITEMS tx rx)
     set(target "m7_radio_${role}_4m_${mode}")
     add_executable("${target}" m5-radio-link/main.c)
-    nrfkit_configure_target("${target}"
-      SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
-    )
+    nrfkit_example_firmware("${target}")
     string(TOUPPER "${role}" role_upper)
     target_compile_definitions("${target}" PRIVATE
       "NRFKIT_M5_LINK_${role_upper}=1" NRFKIT_M7_PHY_4MBIT=1)
@@ -179,21 +151,19 @@ foreach(mode IN ITEMS bt_0_6 bt_0_4)
       target_compile_definitions("${target}" PRIVATE NRFKIT_M7_4MBIT_BT_0_4=1)
     endif()
     target_link_libraries("${target}" PRIVATE NrfKit::radio_direct)
-    nrfkit_finalize_target("${target}")
+
   endforeach()
 endforeach()
 
 foreach(role IN ITEMS tx rx)
   set(target "m5_radio_${role}_1m")
   add_executable("${target}" m5-radio-link/main.c)
-  nrfkit_configure_target("${target}"
-    SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
-  )
+  nrfkit_example_firmware("${target}")
   string(TOUPPER "${role}" role_upper)
   target_compile_definitions("${target}" PRIVATE
     "NRFKIT_M5_LINK_${role_upper}=1" NRFKIT_M5_PHY_1MBIT=1)
   target_link_libraries("${target}" PRIVATE NrfKit::radio_direct)
-  nrfkit_finalize_target("${target}")
+
 endforeach()
 
 set(NRFKIT_BUILD_ID "development" CACHE STRING
@@ -208,12 +178,7 @@ target_compile_definitions(hardware_validation PRIVATE
 )
 
 add_executable(linker_overlap EXCLUDE_FROM_ALL linker-overlap/main.c)
-nrfkit_configure_target(linker_overlap
-  SOC nrf54lm20a
-  CORE cpuapp
-  BOARD nrf54lm20dk
-  RUNTIME freestanding
-)
+nrfkit_example_firmware(linker_overlap)
 
 option(NRFKIT_ENABLE_HARDWARE_TESTS
   "Register the guarded M2 and M3 real-board gates" OFF

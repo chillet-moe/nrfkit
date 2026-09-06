@@ -1,71 +1,52 @@
 # CMake composition
 
-NrfKit's build layer assembles ordinary CMake targets. It is not a second
-configuration language or an application lifecycle manager. Capability selection uses public `NrfKit::` targets; the previous `enable`
-functions have been removed. See the [consumer API](cmake-api.md). Internal
-module and target names are implementation details.
+The SDK provides platform and capability targets. The consumer assembles the
+firmware and owns image policy. See the [consumer API](cmake-api.md).
 
-## Ownership
+## Responsibilities
 
-- `NrfKitFirmware.cmake`: firmware identity, runtime/compiler setup, and the public
-  configure/finalize entry points.
-- `NrfKitDependencies.cmake`: shared file-selection manifests for prepared nrfx
-  inputs and dependency installation.
-- `NrfKitNrfx.cmake`: immutable nrfx cache, selected driver targets, resource
-  reservations, and each firmware's generated configuration.
-- `NrfKitWireless.cmake` / `NrfKitNrfxlib.cmake`: wireless composition and
-  version-locked binary validation, respectively.
-- `NrfKitUsb.cmake`: optional built-in port source target; `src/usb/` contains the
-  maintained implementation. Consumer-owned core/classes and configuration stay
-  outside the SDK capability graph; examples keep these under `examples/common/usb`.
-- `NrfKitImage.cmake`: layout validation, linker assertions, and ELF/HEX/BIN/map
-  metadata. Consumer linker scripts stay complete and consumer-owned.
+- `NrfKitPlatform.cmake`: SoC, official startup, optional freestanding runtime and
+  DK targets. It does not mutate a consumer executable or choose its layout.
+- `NrfKitDependencies.cmake`: immutable file selections for caches and installation.
+- `NrfKitNrfx.cmake`: patched nrfx input, driver source targets and resource claims.
+- `NrfKitWireless.cmake`: source/Controller/MPSL dependency composition and conflicts.
+- `NrfKitNrfxlib.cmake`: locked binary/header/license identity validation.
+- `NrfKitUsb.cmake`: optional built-in port; consumer owns core/classes and config.
 
-Generated headers, JSON, and linker assertions live in `cmake/templates` as
-readable files. Source and installed packages preserve the same module/template
-layout. Templates are configure inputs, so editing one triggers regeneration.
-Normal configuration remains offline and does not require Python or an NCS tree.
+`NrfKitFirmware.cmake` and `NrfKitImage.cmake` were removed. There is no custom
+configure/finalize state machine, manually traversed dependency graph, or hidden
+DEFER pass. CMake propagates sources, includes, definitions and archive dependencies.
+Driver configuration is evaluated by the preprocessor in each compilation context.
+Resource ownership, CLOCK ownership, RADIO mode and Controller variant use native
+`COMPATIBLE_INTERFACE_STRING` checks at generation time. Timeslot/RRAM require an
+explicit Controller target; a compile-time contract rejects its absence without
+choosing a variant implicitly.
 
-## Native targets and per-firmware configuration
+The consumer chooses a complete linker script and attaches it with standard
+`target_link_options` and `LINK_DEPENDS`. The optional runtime carries a static
+startup-ABI assertion script, independent of product layout JSON. This retains
+physical bounds and copy/zero/stack checks while leaving narrower reservations to
+the consumer's own linker. Artifact conversion is consumer policy.
 
-nrfx and SDK capability source sets are INTERFACE targets: sources are compiled in the consuming
-firmware's context, with its own nrfx configuration and compiler options. They
-are not shared precompiled objects. Serial drivers link a shared PRS target;
-CMake carries that dependency and deduplicates shared source files. The header
-target deliberately preserves normal include-directory semantics.
+The SDK's validation examples opt into their own common firmware helper. Their
+reviewed JSON allowlists serve the hardware guard only; they are not required to
+build a normal consumer. The guard still validates all actual ELF/HEX load ranges
+against declared writable bounds and hard-coded forbidden regions.
 
-SDC interface targets carry their SDK platform/HCI sources, CRACEN driver, and
-imported FEM/MPSL/Controller archive dependencies. Firmware does not
-need to repeat that link closure. Version, security domain, and ABI checks remain
-at the binary-input boundary.
+## Configuration scope
 
-The target report records the selected sources and resource reservations. It is
-an audit output, not a separate dependency graph used to decide what to compile.
+SDK and nrfx INTERFACE sources compile in the consuming target's context. Serial
+drivers carry PRS as an ordinary dependency. Controller/MPSL remain immutable
+imported static archives with matching security and float ABI. Application claims are attached to executable targets. Each claim updates target
+properties; compile definitions read their final accumulated masks. The default
+nrfx header ORs those masks with the documented SDC reservations, preserving both
+owners without a generated per-image configuration file. Runtime initialization
+and clock ownership remain explicit application obligations, independent of link order.
 
-## Why finalize remains
+Shared source bundles should use INTERFACE libraries. A separately compiled library
+owns its own settings; a consumer cannot retroactively change them. Native conditional
+links are supported, without a second partial evaluator of generator expressions.
 
-`nrfkit_configure_target()` binds an executable to LM20 and its image layout.
-`target_link_libraries()` selects capabilities; Timeslot and RRAM declarations may
-precede SDC. `nrfkit_finalize_target()` checks the completed composition, emits
-per-firmware nrfx configuration, and attaches image artifacts. Missing SDC for
-Timeslot/RRAM and a competing nrfx CLOCK owner still fail at configure time. USB
-clock-mode selection belongs to the consumer port, not SDK finalization.
-
-This explicit boundary is needed because capability links and reserved-resource
-masks can accumulate over several calls. Finalization follows compile usage
-requirements through consumer INTERFACE libraries and aliases; CMake itself
-propagates sources, include directories, definitions, and archive dependencies. An automatic deferred pass would add
-hidden execution order, and one global configuration would break builds containing
-several independently configured firmware images. Neither is a simplification.
-The boundary does not impose the runtime initialization order: applications still
-initialize SDC/MPSL before using USB's shared clock path or submitting RRAM work.
-
-## Validation
-
-The contract tests cover source and installed packages, independent nrfx
-configurations in one build, all supported drivers, explicit reference USB/SDC composition, SDC declared after
-Timeslot/RRAM, and rejection when it is absent.
-The linked-target contract additionally covers direct and transitive selection and
-independent firmware configurations. Existing archive hash/ABI, IRQ/resource conflict, ELF/layout, and reproducibility
-checks remain in place. The historical S115 integration is available only at the
-[pinned archive commit](s115-archive.md); it is absent from current packages.
+Normal configure is offline and does not require Python, NCS or Zephyr. Immutable
+input preparation and validation happen when the package defines its targets;
+unused driver sources and Controller archives are not linked into an image.

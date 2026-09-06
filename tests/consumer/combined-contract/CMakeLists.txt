@@ -5,12 +5,11 @@ project(nrfkit_combined_contract C CXX ASM)
 
 find_package(NrfKit CONFIG REQUIRED)
 include("${NrfKit_ROOT}/examples/common/usb/reference.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/../platform.cmake")
 
 add_executable(contract main.cpp)
 target_compile_features(contract PRIVATE cxx_std_23)
-nrfkit_configure_target(contract
-  SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
-)
+nrfkit_test_firmware(contract)
 
 set(usb_args CLASSES hid)
 if(COMBINED_PORT_ONLY)
@@ -45,4 +44,3 @@ target_link_libraries(contract PRIVATE NrfKit::nrfx_rramc)
 if(COMBINED_NRFX_CLOCK)
   target_link_libraries(contract PRIVATE NrfKit::nrfx_clock)
 endif()
-nrfkit_finalize_target(contract)

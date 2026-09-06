@@ -55,44 +55,24 @@ for available targets and configuration rules:
 
 ```cmake
 add_executable(firmware main.cpp)
-nrfkit_configure_target(firmware
-  SOC nrf54lm20a
-  CORE cpuapp
-  BOARD nrf54lm20dk
-  RUNTIME freestanding
-)
-target_link_libraries(firmware PRIVATE NrfKit::nrfx_gpio)
-nrfkit_finalize_target(firmware)
+target_link_libraries(firmware PRIVATE
+  NrfKit::runtime_freestanding NrfKit::board_nrf54lm20dk
+  NrfKit::nrfx_gpio)
+target_compile_definitions(firmware PRIVATE __STACK_SIZE=0x4000 __HEAP_SIZE=0)
+set(linker_script "${CMAKE_CURRENT_SOURCE_DIR}/image/application.ld")
+target_link_options(firmware PRIVATE "LINKER:-T,${linker_script}")
+set_property(TARGET firmware APPEND PROPERTY LINK_DEPENDS "${linker_script}")
 ```
 
-Applications that reserve product-owned ordinary RRAM, such as settings, may
-provide a reviewed linker script and its matching guarded image-layout contract:
+The consumer owns the complete linker script, stack/heap choices, C++ policy,
+output suffix and HEX/BIN/map generation. There is no configure/finalize lifecycle.
+The optional freestanding runtime adds startup ABI and conservative physical-memory
+assertions; consumer linker assertions enforce narrower product reservations.
 
-```cmake
-nrfkit_configure_target(firmware
-  SOC nrf54lm20a CORE cpuapp RUNTIME freestanding
-  LINKER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/image/application.ld"
-  IMAGE_LAYOUT "${CMAKE_CURRENT_SOURCE_DIR}/image/application-layout.json"
-)
-```
-
-The two files are inseparable: configuration rejects either one alone, a layout
-for another target/SoC/core, or any layout that permits configuration-region writes.
-The consumer linker script remains responsible for asserting that code, data,
-settings, stack, and other product reservations cannot overlap. NrfKit adds a
-separate assertion-only linker input that checks vector size/alignment, startup
-copy/zero symbols, declared load/RAM bounds, and stack overlap; complete consumer
-linker scripts do not need to be split into SDK-specific fragments.
-`tools/nrfkit sdk manifest` validates that layout again and derives the guarded
-application-RRAM allowlist from it; settings and scratch reservations are never
-included in the programming allowlist.
-
-Component declarations between configure and finalize may be ordered freely:
-Timeslot and RRAM may be declared before SDC, but finalization requires SDC to be
-present. Runtime initialization order is a separate constraint. The
-[CMake composition notes](docs/architecture/cmake-composition.md) explain native
-driver targets, per-firmware configuration, and why the explicit finalize step
-remains.
+Ordinary compilation does not require a layout JSON. The explicitly invoked
+`tools/nrfkit sdk manifest --image-layout path/to/layout.json` hardware workflow
+still requires a reviewed layout allowlist alongside ELF/HEX and excludes settings, scratch and configuration regions
+from programming. This audit input does not configure the compiler or linker.
 
 The optional built-in LM20 CherryUSB port is selected with a normal link:
 

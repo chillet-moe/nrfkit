@@ -1,12 +1,11 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 include_guard(GLOBAL)
-
 include("${CMAKE_CURRENT_LIST_DIR}/NrfKitDependencies.cmake")
 
 set(_NRFKIT_NRFX_DRIVERS
   clock power gpio gpiote grtc timer dppi uarte spim twim pwm saadc rramc watchdog
-  reset retention cracen
+  reset retention cracen prs
 )
 
 function(_nrfkit_prepare_nrfx out_var)
@@ -87,7 +86,13 @@ function(_nrfkit_prepare_nrfx out_var)
 endfunction()
 
 function(nrfkit_claim_resources target)
-  _nrfkit_require_open_target("${target}" nrfkit_claim_resources)
+  if(NOT TARGET "${target}")
+    message(FATAL_ERROR "nrfkit_claim_resources: unknown target '${target}'")
+  endif()
+  get_target_property(type "${target}" TYPE)
+  if(NOT type STREQUAL "EXECUTABLE")
+    message(FATAL_ERROR "nrfkit_claim_resources requires an executable target")
+  endif()
   cmake_parse_arguments(PARSE_ARGV 1 ARG "" "OWNER" "RESOURCES")
   if(ARG_UNPARSED_ARGUMENTS OR NOT ARG_OWNER OR NOT ARG_RESOURCES)
     message(FATAL_ERROR
@@ -152,223 +157,125 @@ function(nrfkit_claim_resources target)
     endif()
     string(MAKE_C_IDENTIFIER "${resource}" resource_id)
     get_target_property(existing_owner "${target}"
-      "NRFKIT_RESOURCE_${resource_id}_OWNER"
+      "NRFKIT_RESOURCE_${resource_id}"
     )
     if(existing_owner)
       message(FATAL_ERROR
         "nrfkit_claim_resources: '${resource}' is already owned by '${existing_owner}'"
       )
     endif()
-    set_target_properties("${target}" PROPERTIES
-      "NRFKIT_RESOURCE_${resource_id}_OWNER" "${ARG_OWNER}"
-    )
+    # Native compatible interfaces compare application ownership with the
+    # requirements of linked libraries, including transitive/conditional links.
+    set_property(TARGET "${target}" PROPERTY "NRFKIT_RESOURCE_${resource_id}" "${ARG_OWNER}")
     list(APPEND resource_keys "${resource}")
   endforeach()
   list(REMOVE_DUPLICATES resource_keys)
   set_target_properties("${target}" PROPERTIES
     NRFKIT_RESOURCE_KEYS "${resource_keys}"
   )
-endfunction()
-
-# Declare stable names before any firmware selects a component. Sources are
-# populated from the validated patched view at the first nrfx finalization.
-foreach(driver IN LISTS _NRFKIT_NRFX_DRIVERS ITEMS prs)
-  add_library("NrfKit::nrfx_${driver}" INTERFACE IMPORTED GLOBAL)
-  set_target_properties("NrfKit::nrfx_${driver}" PROPERTIES
-    SYSTEM FALSE NRFKIT_CAPABILITY nrfx NRFKIT_NRFX_DRIVER "${driver}")
-endforeach()
-foreach(driver IN ITEMS uarte spim twim)
-  target_link_libraries("NrfKit::nrfx_${driver}" INTERFACE NrfKit::nrfx_prs)
-endforeach()
-
-function(_nrfkit_define_nrfx_targets nrfx)
-  if(TARGET _nrfkit_nrfx_headers)
-    return()
-  endif()
-  add_library(_nrfkit_nrfx_headers INTERFACE IMPORTED GLOBAL)
-  set_target_properties(_nrfkit_nrfx_headers PROPERTIES SYSTEM FALSE)
-  target_include_directories(_nrfkit_nrfx_headers INTERFACE
-    "${nrfx}" "${nrfx}/bsp/stable" "${nrfx}/drivers/include"
-    "${nrfx}/drivers/src" "${nrfx}/bsp/stable/soc/interconnect")
-
-  # Most drivers are one source file; list only the multi-source/renamed cases.
-  set(clock_sources
-    drivers/src/nrfx_clock.c
-    drivers/src/nrfx_clock_hfclk.c
-    drivers/src/nrfx_clock_hfclk192m.c
-    drivers/src/nrfx_clock_hfclkaudio.c
-    drivers/src/nrfx_clock_lfclk.c
-    drivers/src/nrfx_clock_xo.c
-    drivers/src/nrfx_clock_xo24m.c)
-  set(gpiote_sources drivers/src/nrfx_gpiote.c helpers/nrfx_flag32_allocator.c)
-  set(grtc_sources drivers/src/nrfx_grtc.c helpers/nrfx_flag32_allocator.c)
-  set(dppi_sources
-    helpers/nrfx_gppi_dppi.c helpers/nrfx_flag32_allocator.c
-    bsp/stable/soc/interconnect/nrfx_gppi_d2ppi.c)
-  set(watchdog_sources drivers/src/nrfx_wdt.c)
-  set(retention_sources helpers/nrfx_ram_ctrl.c)
-  set(gpio_sources "")
-  set(reset_sources "")
-  set(prs_sources drivers/src/prs/nrfx_prs.c)
-  foreach(driver IN LISTS _NRFKIT_NRFX_DRIVERS ITEMS prs)
-    if(DEFINED ${driver}_sources)
-      set(sources "${${driver}_sources}")
-    else()
-      set(sources "drivers/src/nrfx_${driver}.c")
-    endif()
-    list(TRANSFORM sources PREPEND "${nrfx}/")
-    target_sources("NrfKit::nrfx_${driver}" INTERFACE ${sources})
-    target_link_libraries("NrfKit::nrfx_${driver}" INTERFACE _nrfkit_nrfx_headers)
-    set_target_properties("NrfKit::nrfx_${driver}" PROPERTIES
-      NRFKIT_CAPABILITY nrfx NRFKIT_NRFX_DRIVER "${driver}")
-  endforeach()
-  target_sources(NrfKit::nrfx_dppi INTERFACE "${NrfKit_ROOT}/src/runtime/nrfx/gppi.c")
-endfunction()
-
-function(_nrfkit_finalize_nrfx target)
-  get_target_property(drivers "${target}" NRFKIT_NRFX_DRIVERS)
-  get_target_property(headers_required "${target}" NRFKIT_NRFX_HEADERS_REQUIRED)
-  if(NOT drivers AND NOT headers_required)
-    return()
-  endif()
-  if(NOT drivers)
-    set(drivers "")
-  endif()
-
-  set(sdk_root "${NrfKit_ROOT}")
-  _nrfkit_prepare_nrfx(nrfx)
-  string(MAKE_C_IDENTIFIER "${target}" target_id)
-  set(config_dir "${CMAKE_CURRENT_BINARY_DIR}/nrfkit/${target_id}")
-  file(MAKE_DIRECTORY "${config_dir}")
-
-  set(config_definitions
-    "#define NRFX_DEFAULT_IRQ_PRIORITY 7\n#define NRFX_PRS_ENABLED 0\n"
-  )
-
   foreach(instance IN ITEMS 00 10 20 30)
     set(dppi_${instance}_channels 0)
     set(dppi_${instance}_groups 0)
   endforeach()
   set(gpiote_20_channels 0)
   set(gpiote_30_channels 0)
-  get_target_property(resource_keys "${target}" NRFKIT_RESOURCE_KEYS)
-  if(NOT resource_keys)
-    set(resource_keys "")
-  endif()
   foreach(resource IN LISTS resource_keys)
     if(resource MATCHES "^dppi(00|10|20|30)\\.channel\\.([0-9]+)$")
       set(instance "${CMAKE_MATCH_1}")
       set(index "${CMAKE_MATCH_2}")
-      math(EXPR dppi_${instance}_channels
-        "${dppi_${instance}_channels} | (1 << ${index})" OUTPUT_FORMAT HEXADECIMAL
-      )
+      math(EXPR dppi_${instance}_channels "${dppi_${instance}_channels} | (1 << ${index})")
     elseif(resource MATCHES "^dppi(00|10|20|30)\\.group\\.([0-9]+)$")
       set(instance "${CMAKE_MATCH_1}")
       set(index "${CMAKE_MATCH_2}")
-      math(EXPR dppi_${instance}_groups
-        "${dppi_${instance}_groups} | (1 << ${index})" OUTPUT_FORMAT HEXADECIMAL
-      )
+      math(EXPR dppi_${instance}_groups "${dppi_${instance}_groups} | (1 << ${index})")
     elseif(resource MATCHES "^gpiote(20|30)\\.channel\\.([0-9]+)$")
       set(instance "${CMAKE_MATCH_1}")
       set(index "${CMAKE_MATCH_2}")
-      math(EXPR gpiote_${instance}_channels
-        "${gpiote_${instance}_channels} | (1 << ${index})" OUTPUT_FORMAT HEXADECIMAL
-      )
+      math(EXPR gpiote_${instance}_channels "${gpiote_${instance}_channels} | (1 << ${index})")
     endif()
   endforeach()
+  set(masks "")
   foreach(instance IN ITEMS 00 10 20 30)
-    string(APPEND config_definitions
-      "#define NRFKIT_DPPI${instance}_CHANNELS_RESERVED ${dppi_${instance}_channels}U\n"
-      "#define NRFKIT_DPPI${instance}_GROUPS_RESERVED ${dppi_${instance}_groups}U\n"
-    )
-  endforeach()
-  string(APPEND config_definitions
-    "#define NRFX_GPIOTE20_CHANNELS_USED ${gpiote_20_channels}U\n"
-    "#define NRFX_GPIOTE30_CHANNELS_USED ${gpiote_30_channels}U\n"
-    "#ifdef CONFIG_NRFX_GPIOTE_NUM_OF_EVT_HANDLERS\n"
-    "#define NRFX_GPIOTE_CONFIG_NUM_OF_EVT_HANDLERS CONFIG_NRFX_GPIOTE_NUM_OF_EVT_HANDLERS\n"
-    "#endif\n"
-  )
-  foreach(driver IN LISTS drivers)
-    if(driver STREQUAL "prs")
-      continue()
-    elseif(driver STREQUAL "watchdog")
-      set(config_name WDT)
-    elseif(driver STREQUAL "dppi")
-      set(config_name DPPI)
-    elseif(driver MATCHES "^(gpio|reset|retention)$")
-      continue()
-    else()
-      string(TOUPPER "${driver}" config_name)
-    endif()
-    string(APPEND config_definitions "#define NRFX_${config_name}_ENABLED 1\n")
-  endforeach()
-
-  set(serial_drivers spim twim uarte)
-  set(has_serial_driver FALSE)
-  foreach(serial_driver IN LISTS serial_drivers)
-    if(serial_driver IN_LIST drivers)
-      set(has_serial_driver TRUE)
-    endif()
-  endforeach()
-  if(has_serial_driver)
-    string(APPEND config_definitions "#undef NRFX_PRS_ENABLED\n#define NRFX_PRS_ENABLED 1\n")
-    foreach(box RANGE 0 6)
-      string(APPEND config_definitions "#define NRFX_PRS_BOX_${box}_ENABLED 1\n")
+    foreach(kind IN ITEMS channels groups)
+      string(TOUPPER "${kind}" upper)
+      set(key "NRFKIT_APP_DPPI${instance}_${upper}_RESERVED")
+      set_property(TARGET "${target}" PROPERTY "${key}" "${dppi_${instance}_${kind}}")
+      list(APPEND masks "${key}")
     endforeach()
-  endif()
-  if("dppi" IN_LIST drivers)
-    string(APPEND config_definitions "#define NRFX_DPPI20_ENABLED 1\n")
-  endif()
-
-  configure_file("${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../templates/nrfx_config.h.in"
-    "${config_dir}/nrfx_config.h" @ONLY)
-
-  _nrfkit_define_nrfx_targets("${nrfx}")
-  target_include_directories("${target}" PRIVATE "${config_dir}")
-  target_link_libraries("${target}" PRIVATE _nrfkit_nrfx_headers)
-  set(sources "")
-  foreach(driver IN LISTS drivers)
-    get_target_property(driver_sources "NrfKit::nrfx_${driver}" INTERFACE_SOURCES)
-    if(driver_sources)
-      list(APPEND sources ${driver_sources})
-    endif()
   endforeach()
-  if(has_serial_driver)
-    get_target_property(prs_sources NrfKit::nrfx_prs INTERFACE_SOURCES)
-    list(APPEND sources ${prs_sources})
-  endif()
-  list(REMOVE_DUPLICATES sources)
-  # Reports retain stable SDK-relative names, independently of native target names.
-  set(relative_sources "")
-  foreach(source IN LISTS sources)
-    cmake_path(IS_PREFIX nrfx "${source}" NORMALIZE upstream_source)
-    if(upstream_source)
-      file(RELATIVE_PATH relative "${nrfx}" "${source}")
-    else()
-      file(RELATIVE_PATH relative "${sdk_root}" "${source}")
-      string(PREPEND relative "sdk:")
-    endif()
-    list(APPEND relative_sources "${relative}")
+  foreach(instance IN ITEMS 20 30)
+    set(key "NRFKIT_APP_GPIOTE${instance}_CHANNELS_RESERVED")
+    set_property(TARGET "${target}" PROPERTY "${key}" "${gpiote_${instance}_channels}")
+    list(APPEND masks "${key}")
   endforeach()
-  set(sources "${relative_sources}")
-
-  string(REPLACE ";" "\", \"" drivers_json "${drivers}")
-  string(REPLACE ";" "\", \"" sources_json "${sources}")
-  string(REPLACE ";" "\", \"" resources_json "${resource_keys}")
-  if(drivers_json)
-    set(drivers_json "\"${drivers_json}\"")
+  get_target_property(registered "${target}" NRFKIT_RESOURCE_MASKS_REGISTERED)
+  if(NOT registered)
+    foreach(key IN LISTS masks)
+      # Evaluate the final accumulated value without a finalize call.
+      target_compile_definitions("${target}" PRIVATE "${key}=$<TARGET_PROPERTY:${target},${key}>U")
+    endforeach()
+    set_property(TARGET "${target}" PROPERTY NRFKIT_RESOURCE_MASKS_REGISTERED TRUE)
   endif()
-  if(sources_json)
-    set(sources_json "\"${sources_json}\"")
-  endif()
-  if(resources_json)
-    set(resources_json "\"${resources_json}\"")
-  endif()
-  configure_file("${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../templates/nrfx-target.json.in"
-    "${config_dir}/nrfx-target.json" @ONLY)
-  set_target_properties("${target}" PROPERTIES
-    NRFKIT_NRFX_CONFIG "${config_dir}/nrfx_config.h"
-    NRFKIT_NRFX_SOURCES "${sources}"
-  )
 endfunction()
+
+_nrfkit_prepare_nrfx(_nrfkit_nrfx_root)
+add_library(_nrfkit_nrfx_headers INTERFACE IMPORTED GLOBAL)
+target_include_directories(_nrfkit_nrfx_headers INTERFACE
+  "${_nrfkit_nrfx_root}" "${_nrfkit_nrfx_root}/bsp/stable" "${_nrfkit_nrfx_root}/drivers/include"
+  "${_nrfkit_nrfx_root}/drivers/src"
+  "${_nrfkit_nrfx_root}/bsp/stable/soc/interconnect"
+  "${NrfKit_ROOT}/src/runtime/nrfx/include" "${NrfKit_ROOT}/include")
+set_target_properties(_nrfkit_nrfx_headers PROPERTIES SYSTEM FALSE)
+target_link_libraries(_nrfkit_nrfx_headers INTERFACE NrfKit::soc_nrf54lm20a)
+
+# Most drivers use one source; keep renamed and multi-source components explicit.
+set(_nrfkit_clock_sources
+  drivers/src/nrfx_clock.c drivers/src/nrfx_clock_hfclk.c
+  drivers/src/nrfx_clock_hfclk192m.c drivers/src/nrfx_clock_hfclkaudio.c
+  drivers/src/nrfx_clock_lfclk.c drivers/src/nrfx_clock_xo.c
+  drivers/src/nrfx_clock_xo24m.c)
+set(_nrfkit_gpiote_sources drivers/src/nrfx_gpiote.c helpers/nrfx_flag32_allocator.c)
+set(_nrfkit_grtc_sources drivers/src/nrfx_grtc.c helpers/nrfx_flag32_allocator.c)
+set(_nrfkit_dppi_sources
+  helpers/nrfx_gppi_dppi.c helpers/nrfx_flag32_allocator.c
+  bsp/stable/soc/interconnect/nrfx_gppi_d2ppi.c)
+set(_nrfkit_watchdog_sources drivers/src/nrfx_wdt.c)
+set(_nrfkit_retention_sources helpers/nrfx_ram_ctrl.c)
+set(_nrfkit_prs_sources drivers/src/prs/nrfx_prs.c)
+foreach(driver IN LISTS _NRFKIT_NRFX_DRIVERS)
+  add_library("NrfKit::nrfx_${driver}" INTERFACE IMPORTED GLOBAL)
+  set_target_properties("NrfKit::nrfx_${driver}" PROPERTIES SYSTEM FALSE)
+  if(DEFINED _nrfkit_${driver}_sources)
+    set(sources "${_nrfkit_${driver}_sources}")
+  elseif(driver STREQUAL "gpio" OR driver STREQUAL "reset")
+    set(sources "")
+  else()
+    set(sources "drivers/src/nrfx_${driver}.c")
+  endif()
+  list(TRANSFORM sources PREPEND "${_nrfkit_nrfx_root}/")
+  if(sources)
+    target_sources("NrfKit::nrfx_${driver}" INTERFACE ${sources})
+  endif()
+  target_link_libraries("NrfKit::nrfx_${driver}" INTERFACE _nrfkit_nrfx_headers)
+  string(TOUPPER "${driver}" upper)
+  if(driver STREQUAL "watchdog")
+    set(upper WDT)
+  endif()
+  if(NOT driver MATCHES "^(gpio|reset|retention)$")
+    target_compile_definitions("NrfKit::nrfx_${driver}" INTERFACE "NRFX_${upper}_ENABLED=1")
+  endif()
+endforeach()
+set_property(TARGET NrfKit::nrfx_prs APPEND PROPERTY INTERFACE_COMPILE_DEFINITIONS
+  NRFX_PRS_BOX_0_ENABLED=1 NRFX_PRS_BOX_1_ENABLED=1 NRFX_PRS_BOX_2_ENABLED=1
+  NRFX_PRS_BOX_3_ENABLED=1 NRFX_PRS_BOX_4_ENABLED=1 NRFX_PRS_BOX_5_ENABLED=1
+  NRFX_PRS_BOX_6_ENABLED=1)
+set_property(TARGET NrfKit::nrfx_dppi APPEND PROPERTY INTERFACE_COMPILE_DEFINITIONS
+  NRFX_DPPI20_ENABLED=1)
+foreach(driver IN ITEMS uarte spim twim)
+  target_link_libraries("NrfKit::nrfx_${driver}" INTERFACE NrfKit::nrfx_prs)
+endforeach()
+target_sources(NrfKit::nrfx_dppi INTERFACE "${NrfKit_ROOT}/src/runtime/nrfx/gppi.c")
+set_property(TARGET NrfKit::nrfx_clock APPEND PROPERTY COMPATIBLE_INTERFACE_STRING NRFKIT_CLOCK_OWNER)
+set_property(TARGET NrfKit::nrfx_clock PROPERTY INTERFACE_NRFKIT_CLOCK_OWNER nrfx)
+
+unset(_nrfkit_nrfx_root)

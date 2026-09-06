@@ -1,7 +1,0 @@
-{
-  "schema": "nrfkit-nrfx-target/v1",
-  "target": "@target@",
-  "drivers": [@drivers_json@],
-  "sources": [@sources_json@],
-  "reserved_resources": [@resources_json@]
-}

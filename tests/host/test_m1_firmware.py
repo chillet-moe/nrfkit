@@ -179,28 +179,12 @@ class M1FirmwareTests(unittest.TestCase):
                 self.assertTrue((self.build_a / f"{name}.image-layout.json").is_file())
 
     def test_nrfx_configuration_and_sources_are_target_scoped(self) -> None:
-        import json
-
-        minimal_dir = self.build_a / "nrfkit/nrfx_minimal"
-        all_dir = self.build_a / "nrfkit/nrfx_all"
-        minimal_config = (minimal_dir / "nrfx_config.h").read_text(encoding="utf-8")
-        all_config = (all_dir / "nrfx_config.h").read_text(encoding="utf-8")
-        self.assertNotEqual(minimal_config, all_config)
-        self.assertNotIn("NRFX_TIMER_ENABLED 1", minimal_config)
-        self.assertIn("NRFX_TIMER_ENABLED 1", all_config)
-        self.assertIn(
-            "#define NRFX_GPIOTE_CONFIG_NUM_OF_EVT_HANDLERS "
-            "CONFIG_NRFX_GPIOTE_NUM_OF_EVT_HANDLERS",
-            all_config,
-        )
-
-        minimal = json.loads((minimal_dir / "nrfx-target.json").read_text())
-        complete = json.loads((all_dir / "nrfx-target.json").read_text())
-        self.assertEqual(minimal["drivers"], ["gpio", "reset"])
-        self.assertEqual(minimal["sources"], [])
-        self.assertIn("drivers/src/nrfx_timer.c", complete["sources"])
-        self.assertNotIn("drivers/src/nrfx_timer.c", minimal["sources"])
-        self.assertTrue(all("zephyr" not in source.lower() for source in complete["sources"]))
+        ninja = (self.build_a / "build.ninja").read_text(encoding="utf-8")
+        self.assertIn("NRFX_TIMER_ENABLED=1", ninja)
+        self.assertIn("nrfx_timer.c", ninja)
+        self.assertIn("nrfx_uarte.c", ninja)
+        self.assertIn("nrfx_prs.c", ninja)
+        self.assertNotIn("zephyr", ninja.lower())
 
     def test_nrfx_resource_conflicts_and_bounds_fail_at_configure_time(self) -> None:
         fixture = ROOT / "tests/consumer/nrfx-contract"
@@ -296,7 +280,7 @@ class M1FirmwareTests(unittest.TestCase):
 
     def test_custom_layout_checks_reject_startup_abi_and_declared_range_drift(self) -> None:
         for case, expected in (("symbol", "nrfkit: data copy source"),
-                               ("range", "nrfkit: vector outside layout")):
+                               ("range", "RRAM image overlaps scratch")):
             with self.subTest(case=case):
                 source = Path(self.temporary.name) / f"bad-layout-{case}"
                 shutil.copytree(ROOT / "tests/consumer/custom-layout", source)
@@ -305,10 +289,9 @@ class M1FirmwareTests(unittest.TestCase):
                     script = script.replace("__data_load_start = LOADADDR(.data);",
                                             "__data_load_start = LOADADDR(.data) + 4;")
                 else:
-                    layout = json.loads((source / "image-layout.json").read_text())
-                    layout["rram"]["origin"] = 0x800
-                    layout["rram"]["length"] -= 0x800
-                    (source / "image-layout.json").write_text(json.dumps(layout))
+                    script = script.replace(
+                        "LENGTH = 0x001FCF00", "LENGTH = 0x001FCE00", 1
+                    )
                 (source / "custom.ld").write_text(script)
                 cmake_file = source / "CMakeLists.txt"
                 cmake_file.write_text(cmake_file.read_text().replace(
@@ -324,7 +307,7 @@ class M1FirmwareTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(expected, result.stdout + result.stderr)
 
-    def test_consumer_owned_linker_and_image_layout_are_used_together(self) -> None:
+    def test_consumer_owned_linker_is_used_without_sdk_image_configuration(self) -> None:
         fixture = ROOT / "tests/consumer/custom-layout"
         build = Path(self.temporary.name) / "custom-layout"
         run([
@@ -334,10 +317,14 @@ class M1FirmwareTests(unittest.TestCase):
             f"-DNRF_LLVM_ROOT={self.llvm_root}",
         ])
         run([self.cmake, "--build", str(build)])
-        self.assertEqual(
-            (build / "custom_layout.image-layout.json").read_text(encoding="utf-8"),
-            (fixture / "image-layout.json").read_text(encoding="utf-8"),
-        )
+        self.assertTrue((build / "custom_layout.elf").is_file())
+        self.assertTrue((build / "custom_layout.map").is_file())
+        self.assertFalse((build / "custom_layout.image-layout.json").exists())
+
+        # Artifact conversion and audit allowlists are explicit consumer/tool
+        # operations, independent of configuring the executable.
+        run([str(self.llvm_root / "bin/llvm-objcopy"), "-O", "ihex",
+             str(build / "custom_layout.elf"), str(build / "custom_layout.hex")])
         reserved_layout = {
             "schema": "nrfkit-image-layout/v1",
             "target": "custom_layout",
@@ -349,21 +336,25 @@ class M1FirmwareTests(unittest.TestCase):
             "ram": {"origin": 0x20000000, "length": 0x40000},
             "configuration_regions_allowed": False,
         }
-        (build / "custom_layout.image-layout.json").write_text(
+        (Path(self.temporary.name) / "reviewed-layout.json").write_text(
             json.dumps(reserved_layout), encoding="utf-8"
         )
         manifest_path = create_device_manifest(
-            ROOT, build, "custom_layout", "CUSTOM_LAYOUT_TEST"
+            ROOT, build, "custom_layout", "CUSTOM_LAYOUT_TEST",
+            image_layout=Path(self.temporary.name) / "reviewed-layout.json",
         )
         manifest = load_manifest(manifest_path)
         self.assertEqual(manifest["debug_allowlist"], [[0, 0x001F4F00]])
         self.assertEqual(manifest["images"][0]["allowlist"], [[0, 0x001F4F00]])
         reserved_layout["settings"]["origin"] = 0x1000
-        (build / "custom_layout.image-layout.json").write_text(
+        (Path(self.temporary.name) / "reviewed-layout.json").write_text(
             json.dumps(reserved_layout), encoding="utf-8"
         )
         with self.assertRaisesRegex(SdkContractError, "regions overlap"):
-            create_device_manifest(ROOT, build, "custom_layout", "CUSTOM_LAYOUT_TEST")
+            create_device_manifest(
+                ROOT, build, "custom_layout", "CUSTOM_LAYOUT_TEST",
+                image_layout=Path(self.temporary.name) / "reviewed-layout.json",
+            )
 
 
 if __name__ == "__main__":

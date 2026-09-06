@@ -61,12 +61,6 @@ function(nrfkit_example_usb target)
     )
   endif()
   string(JOIN ", " tx_fifo_initializer ${tx_fifo_words})
-  get_target_property(soc "${target}" NRFKIT_SOC)
-  if(NOT soc STREQUAL "nrf54lm20a")
-    message(FATAL_ERROR
-      "nrfkit_example_usb: '${soc}' has no supported NrfKit USBHS port"
-    )
-  endif()
   if(ARG_SOURCE_DIR)
     get_filename_component(cherryusb "${ARG_SOURCE_DIR}" ABSOLUTE
       BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"

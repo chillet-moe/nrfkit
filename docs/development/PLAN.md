@@ -95,18 +95,14 @@ project(example C CXX ASM)
 list(PREPEND CMAKE_PREFIX_PATH "${NRFKIT_ROOT}")
 find_package(NrfKit CONFIG REQUIRED)
 
-add_executable(firmware src/main.cpp)
-nrfkit_configure_target(firmware
-  SOC nrf54lm20a
-  CORE cpuapp
-  BOARD nrf54lm20dk
-  RUNTIME freestanding
-)
+add_executable(firmware main.cpp)
 target_link_libraries(firmware PRIVATE
-  NrfKit::nrfx_clock NrfKit::nrfx_gpio NrfKit::nrfx_gpiote
-  NrfKit::nrfx_grtc NrfKit::nrfx_dppi NrfKit::nrfx_uarte
-)
-nrfkit_finalize_target(firmware)
+  NrfKit::runtime_freestanding NrfKit::board_nrf54lm20dk
+  NrfKit::nrfx_gpio)
+target_compile_definitions(firmware PRIVATE __STACK_SIZE=0x4000 __HEAP_SIZE=0)
+set(linker_script "${CMAKE_CURRENT_SOURCE_DIR}/image/application.ld")
+target_link_options(firmware PRIVATE "LINKER:-T,${linker_script}")
+set_property(TARGET firmware APPEND PROPERTY LINK_DEPENDS "${linker_script}")
 ```
 
 必须遵守的 API 原则：
@@ -116,8 +112,8 @@ nrfkit_finalize_target(firmware)
 - 链接 `NrfKit::nrfx_<driver>` 只把所选 driver 及依赖加入当前固件；
 - 同一个构建树可以包含多个不同配置的 firmware target，不使用全局 `NRFX_CONFIG_*` 污染；
 - 应用可以只链接 CMSIS/MDK/HAL，而不强制使用 SDK runtime 或 nrfx driver；
-- 所有自动选择都要能打印为一份确定的 target report；
-- 未知 SoC、不可用外设、冲突的 IRQ/DPPI 资源和越界内存必须在 configure/link 阶段失败，不能静默退化。
+- 能力选择与配置由实际编译命令、预处理结果和最终 link map 审计；
+- 未知 SoC、不可用外设、冲突的 IRQ/DPPI 资源和越界内存必须在 configure/compile/link 阶段失败，不能静默退化。
 
 预期命令行保持普通 CMake 形态：
 
@@ -528,7 +524,7 @@ packet-format 和计数逻辑，以便做可信差分。
 
 ### 7.1 普通镜像
 
-每个 firmware target 输出：
+SDK 验证示例显式选择并输出以下产物；普通消费者按自己的构建与发布流程选择：
 
 - `.elf`：含 symbols 和 DWARF，供调试；
 - `.hex`：保留离散目标地址，作为默认烧写产物；
@@ -1313,6 +1309,22 @@ CherryUSB core/class、端点/FIFO 配置与 MPSL 时钟模式由消费者拥有
 验收：139 项 host tests 通过，包含内置 port、自定义 port 替换、安装包与 USB 配置隔离；
 28 个 SDK 示例及消费者 application/bootloader/updater 构建通过，23 项消费者工具测试
 及应用/bootloader 镜像审计通过。本轮未操作硬件，不新增实板验收结论。
+
+### 平台 target 与镜像策略分离（2026-09-06）
+
+按用户决定移除 configure/finalize、手工能力图和 Firmware/Image 模块，覆盖前述历史
+CMake API 决策。SoC、官方 startup、可选 freestanding runtime 与 DK 支持改由普通
+INTERFACE targets 提供。nrfx 使用编译定义和默认配置头，在各消费 target 上下文求值；
+驱动/无线依赖与资源约束由对应模块负责。
+消费者拥有栈/heap、C++ 策略、完整 linker script 和产物转换。runtime 保留静态启动 ABI
+与物理边界断言，消费者 linker 保留产品范围断言。普通构建不再要求布局 JSON；它仅作为
+显式硬件审计的 allowlist 输入，既有禁止区域、实际 ELF/HEX 范围校验不变。
+SDK 验证示例仍显式生成完整产物集；消费者的审计工具通过 `sdk manifest --image-layout`
+提供 reviewed allowlist，不将 JSON 加入普通 ELF 的构建依赖。
+验收：141 项 host tests 通过，包含原生条件链接、多固件资源掩码隔离、默认 IRQ 覆盖、
+冲突拒绝、安装包搬迁、GNU smoke、可复现构建与显式镜像审计。28 个 SDK 示例及消费者
+application/bootloader/updater 完成构建，23 项消费者工具测试与应用/bootloader 地址审计
+通过。验证未操作硬件，不新增实板验收结论。
 
 ## 13. 权威入口
 

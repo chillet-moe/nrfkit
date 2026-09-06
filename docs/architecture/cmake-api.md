@@ -1,23 +1,18 @@
 # Consumer CMake API
 
-Use `find_package(NrfKit CONFIG REQUIRED)`, create an executable, configure its
-image, link capabilities, and finalize it. The same API is available from a source
-checkout and an installed SDK. Configuration does not fetch dependencies.
+`find_package(NrfKit CONFIG REQUIRED)` supplies ordinary targets in both source
+and installed packages. Link the capabilities you need. Configuration is offline;
+there is no firmware configure/finalize function or deferred graph traversal.
 
 ```cmake
-add_executable(app main.cpp)
-nrfkit_configure_target(app
-  SOC nrf54lm20a CORE cpuapp
-  LINKER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/image/app.ld"
-  IMAGE_LAYOUT "${CMAKE_CURRENT_SOURCE_DIR}/image/app-layout.json"
-)
-target_link_libraries(app PRIVATE
-  NrfKit::sdc_multirole
-  NrfKit::radio_timeslot
-  NrfKit::rram
-  NrfKit::nrfx_gpio
-)
-nrfkit_finalize_target(app)
+add_executable(firmware main.cpp)
+target_link_libraries(firmware PRIVATE
+  NrfKit::runtime_freestanding NrfKit::board_nrf54lm20dk
+  NrfKit::nrfx_gpio)
+target_compile_definitions(firmware PRIVATE __STACK_SIZE=0x4000 __HEAP_SIZE=0)
+set(linker_script "${CMAKE_CURRENT_SOURCE_DIR}/image/application.ld")
+target_link_options(firmware PRIVATE "LINKER:-T,${linker_script}")
+set_property(TARGET firmware APPEND PROPERTY LINK_DEPENDS "${linker_script}")
 ```
 
 ## Capability targets
@@ -25,6 +20,10 @@ nrfkit_finalize_target(app)
 | Target | Contents and requirements |
 | --- | --- |
 | `NrfKit::core` | Public SDK headers; usable without a firmware runtime. |
+| `NrfKit::soc_nrf54lm20a` | Chip macros, CMSIS/MDK headers, SystemInit, Cortex-M33 and hard-float ABI requirements. |
+| `NrfKit::startup` | Official LM20 startup and the SoC target; consumer supplies runtime entry conventions. |
+| `NrfKit::runtime_freestanding` | Optional minimal runtime, fault/reset support and startup; no application linker layout. |
+| `NrfKit::board_nrf54lm20dk` | DK headers and the SoC target. |
 | `NrfKit::nrfx_<driver>` | Selected nrfx driver and its source dependencies. |
 | `NrfKit::sdc_multirole` | Multirole Controller, SDK platform/HCI implementation, and locked MPSL/FEM dependencies. |
 | `NrfKit::sdc_peripheral` | Peripheral-only version of the same integration. |
@@ -55,37 +54,40 @@ target_link_libraries(wireless_features INTERFACE
 target_link_libraries(app PRIVATE wireless_features)
 ```
 
-Group these capabilities in INTERFACE libraries, not precompiled STATIC/OBJECT
-libraries: a single compiled library cannot inherit different configuration from
-multiple firmware executables. Compile reusable firmware sources through an
-INTERFACE library when they depend on per-image SDK configuration.
+SDK source targets compile in each consuming target's context. Use INTERFACE
+libraries for source bundles that must share each firmware's configuration.
+A STATIC/OBJECT library has its own compilation context; executable-private
+options do not configure already compiled sources. Standard CMake conditional
+links and generator expressions retain their native meaning.
 
-Capability links must be configuration-independent. `BUILD_INTERFACE` and
-`TARGET_NAME_IF_EXISTS` wrappers are supported. Arbitrary conditional expressions
-that hide a capability, including through a bundle, are rejected; use an ordinary
-CMake `if()` to select features before finalization. An `INSTALL_INTERFACE` edge
-does not contribute build-tree compile usage requirements.
+## Consumer policy and configuration
 
-## Per-image configuration
+The consumer owns MEMORY/SECTIONS, stack/heap sizes, optimization, language
+policy (exceptions/RTTI), section garbage collection, map files, output suffixes,
+and conversion to HEX/BIN. `runtime_freestanding` supplies `-ffreestanding`,
+`-nostdlib`, its entry-point definitions and minimal compiler-runtime closure.
+It does not provide a hosted C++ runtime. The SoC target supplies ABI requirements,
+not an image layout. Use the startup target alone when providing another runtime.
 
-`nrfkit_configure_target(target ...)` binds an executable to `SOC nrf54lm20a` and
-`CORE cpuapp` (the default). Optional `BOARD nrf54lm20dk` adds SDK board headers. The supported
-runtime is `freestanding`, also the default. Supply `LINKER_SCRIPT` and `IMAGE_LAYOUT` together to
-use a consumer-owned memory layout; omit both for the SDK standalone layout.
-Configure each executable exactly once.
+The SDK runtime's static linker assertions validate the startup ABI, vector size
+and alignment, copy/zero ranges, conservative physical RAM/RRAM and stack overlap.
+Consumer assertions enforce product-specific boot, settings and scratch boundaries.
+A layout JSON is not a build input. Only the explicitly invoked guarded hardware
+workflow requires a reviewed allowlist, supplied with `sdk manifest --image-layout`
+or from the SDK example artifacts; it continues to reject forbidden regions.
 
-`nrfkit_claim_resources(target OWNER name RESOURCES ...)` is an advanced interface
-for declaring application-owned hardware resources. It rejects duplicate ownership
-and invalid channel indices. SDC reserves its documented resources automatically.
-It does not allocate peripherals or initialize hardware.
+nrfx driver targets supply enable definitions and share an overridable default
+`nrfx_config.h`; instance and IRQ options can be target-scoped compile definitions.
+No generated per-firmware header or capability graph is needed. Resource claims
+remain explicit through `nrfkit_claim_resources(target OWNER name RESOURCES ...)`;
+the target must be an executable. Calls accumulate application reservations,
+which are combined with the selected SDC's documented masks. Ownership, variant,
+RADIO and CLOCK conflicts fail during CMake generation; a missing SDC dependency
+for Timeslot/RRAM fails compilation. Claims do not initialize peripherals.
+See the implementation notes for conflict checks and reservation behavior.
 
-`nrfkit_finalize_target(target)` resolves the selected capabilities, checks
-conflicts, generates that firmware's nrfx configuration and reports, and
-attaches ELF/HEX/BIN/map/layout artifacts. Finish capability selection and
-configuration before this call. Runtime initialization remains application-owned;
-link order does not replace SDC/MPSL lifecycle requirements.
+SDK examples explicitly include `examples/common/firmware.cmake` for their own
+standalone layout and artifacts. It is a validation-fixture helper, not a public
+application API. USB configuration likewise stays with the consumer.
 
-Capability selection uses `target_link_libraries`; the earlier `nrfkit_enable_*`
-functions, `NrfKit::usb_device`, and the public USB configuration helper have
-been removed. `NrfKit::usb_port` remains an optional source target. Names beginning `_nrfkit_`, raw
-archive plumbing, and generated configuration paths are implementation details.
+Names beginning `_nrfkit_`, raw archive targets and prepared-cache paths are private.

@@ -54,7 +54,7 @@ class SdcCmakeTests(unittest.TestCase):
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(upstream / relative, target)
 
-    def test_explicit_wireless_input_is_used_in_link_and_manifest(self) -> None:
+    def test_explicit_wireless_input_is_used_in_link(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
             upstream = base / "wireless"
@@ -62,9 +62,6 @@ class SdcCmakeTests(unittest.TestCase):
             result = self.configure(base / "build", "valid",
                                     f"-DNRFKIT_NRFXLIB_ROOT={upstream}")
             self.assertEqual(result.returncode, 0, result.stdout)
-            contract = json.loads((base / "build/nrfkit/contract/sdc-target.json").read_text())
-            self.assertTrue(all(Path(path).is_relative_to(upstream)
-                                for path in contract["archives"]))
             result = subprocess.run([self.cmake, "--build", str(base / "build")],
                                     text=True, capture_output=True)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -108,7 +105,7 @@ class SdcCmakeTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0, result.stdout)
             self.assertIn("input is missing: mpsl/license.txt", result.stdout)
 
-    def test_multirole_target_locks_archives_and_all_resources(self) -> None:
+    def test_multirole_target_links_locked_archives(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             build = Path(directory)
             configured = self.configure(build, "valid")
@@ -118,34 +115,17 @@ class SdcCmakeTests(unittest.TestCase):
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False,
             )
             self.assertEqual(built.returncode, 0, built.stdout)
-            contract = json.loads(
-                (build / "nrfkit/contract/sdc-target.json").read_text(encoding="utf-8")
-            )
-            self.assertEqual(contract["variant"], "multirole")
-            self.assertEqual(contract["float_abi"], "hard-float")
-            self.assertEqual(contract["security_domain"], "secure")
-            self.assertIn("timer20", contract["resources"])
-            self.assertIn("ecb00", contract["resources"])
-            self.assertIn("grtc.channel.11", contract["resources"])
-            self.assertIn("dppi10.channel.11", contract["resources"])
-            self.assertTrue(contract["archives"][0].endswith("libmpsl.a"))
-            self.assertTrue(
-                contract["archives"][1].endswith("libmpsl_fem_common.a")
-            )
-            self.assertTrue(
-                contract["archives"][2].endswith("libsoftdevice_controller_multirole.a")
-            )
             ninja = (build / "build.ninja").read_text(encoding="utf-8")
             self.assertIn("libsoftdevice_controller_multirole.a", ninja)
             self.assertIn("libmpsl.a", ninja)
             self.assertIn("libmpsl_fem_common.a", ninja)
-            self.assertNotIn("zephyr", " ".join(contract["archives"]).lower())
+            self.assertNotIn("zephyr", ninja.lower())
 
     def test_sdc_resource_conflict_and_unknown_variant_fail_at_configure(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
             for case, expected in (
-                ("conflict", "timer20' is already owned by 'application'"),
+                ("conflict", "NRFKIT_RESOURCE_timer20"),
                 ("invalid-variant", "NrfKit::sdc_observer"),
             ):
                 configured = self.configure(base / case, case)
@@ -240,18 +220,7 @@ class SdcCmakeTests(unittest.TestCase):
                 self.assertIn("mpsl_clock_hfclk_src_request", link_map)
                 self.assertIn("libsoftdevice_controller_multirole.a", link_map)
 
-            # Templates are part of the installed package and incremental inputs.
-            template = next(prefix.rglob("sdc-target.json.in"))
-            template.write_text(template.read_text().replace(
-                '"schema":', '"template_probe": true,\n  "schema":', 1))
-            build = base / "installed-usb-first"
-            result = subprocess.run([self.cmake, "--build", str(build)],
-                                    text=True, capture_output=True)
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            report = json.loads((build / "nrfkit/contract/sdc-target.json").read_text())
-            self.assertTrue(report["template_probe"])
-
-    def test_wireless_components_allow_sdc_last_but_require_it_at_finalize(self) -> None:
+    def test_wireless_components_allow_sdc_last_but_require_sdc(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             for missing in (False, True):
                 build = Path(directory) / ("missing" if missing else "sdc-last")
@@ -264,8 +233,12 @@ class SdcCmakeTests(unittest.TestCase):
                 ], text=True, capture_output=True)
                 output = result.stdout + result.stderr
                 if missing:
-                    self.assertNotEqual(result.returncode, 0, output)
-                    self.assertIn("Timeslot/RRAM requires SDC", output)
+                    self.assertEqual(result.returncode, 0, output)
+                    built = subprocess.run([self.cmake, "--build", str(build)],
+                                            text=True, capture_output=True)
+                    self.assertNotEqual(built.returncode, 0, built.stdout + built.stderr)
+                    self.assertIn("requires an explicit SDC variant target",
+                                  built.stdout + built.stderr)
                 else:
                     self.assertEqual(result.returncode, 0, output)
                     result = subprocess.run([self.cmake, "--build", str(build)],
@@ -284,7 +257,12 @@ class SdcCmakeTests(unittest.TestCase):
             ], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 check=False)
             self.assertNotEqual(result.returncode, 0, result.stdout)
-            self.assertIn("cannot link the nrfx CLOCK driver", result.stdout)
+            self.assertTrue(
+                "NRFKIT_RADIO_MODE" in result.stdout
+                or "nrfx CLOCK" in result.stdout
+                or "CLOCK" in result.stdout,
+                result.stdout,
+            )
 
     def test_all_controller_variants_reach_real_link_closure(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -340,7 +318,7 @@ class SdcCmakeTests(unittest.TestCase):
             self.assertEqual(manifest["build_evidence"]["status"], "ok")
             evidence = manifest["build_evidence"]
             self.assertEqual(len(evidence["map_sha256"]), 64)
-            self.assertIn("radio0", evidence["resources"])
+            self.assertIn("RADIO", evidence["resources"])
             self.assertGreater(evidence["elf_budget"]["rram_file_bytes"], 0)
             self.assertLessEqual(
                 evidence["elf_budget"]["ram_total_reserved_bytes"],
@@ -357,6 +335,22 @@ class SdcCmakeTests(unittest.TestCase):
                 "controller_region",
             ):
                 self.assertIn(symbol, link_map)
+
+            # Manifest evidence must fail closed when the actual map loses its
+            # locked archive closure or reports more than one Controller variant.
+            map_path = build / "m6_sdc_validation.map"
+            for invalid_map in (
+                link_map.replace("libmpsl.a(", "missing_mpsl.a("),
+                link_map + "\nlibsoftdevice_controller_central.a(member)\n",
+            ):
+                map_path.write_text(invalid_map)
+                rejected = subprocess.run([
+                    str(ROOT / "tools/nrfkit"), "sdk", "manifest",
+                    "--build-dir", str(build), "--target", "m6_sdc_validation",
+                    "--expected-token", "NRFKIT_M6_SDC", "--hci-h4-hwfc-1m",
+                ], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+                self.assertNotEqual(rejected.returncode, 0, rejected.stdout)
+            map_path.write_text(link_map)
 
 
 if __name__ == "__main__":

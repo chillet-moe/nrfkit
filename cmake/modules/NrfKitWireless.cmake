@@ -62,26 +62,47 @@ function(_nrfkit_define_nrfxlib_targets)
   endforeach()
 endfunction()
 
+# Validate and expose the immutable archives at package import time.  Each
+# public target below is complete by itself; consumers only link the variant
+# they need.
+_nrfkit_define_nrfxlib_targets()
+
 # Source capabilities compile in each consuming firmware's own context.
 foreach(variant IN ITEMS multirole peripheral central)
   add_library("NrfKit::sdc_${variant}" INTERFACE IMPORTED GLOBAL)
   string(TOUPPER "${variant}" variant_upper)
   set_target_properties("NrfKit::sdc_${variant}" PROPERTIES
-    SYSTEM FALSE NRFKIT_CAPABILITY sdc NRFKIT_SDC_VARIANT "${variant}")
+    SYSTEM FALSE)
   target_sources("NrfKit::sdc_${variant}" INTERFACE
     "${NrfKit_ROOT}/src/wireless/sdc/nrf54l/platform.c"
     "${NrfKit_ROOT}/src/wireless/sdc/nrf54l/hci.c")
   target_include_directories("NrfKit::sdc_${variant}" INTERFACE
     "${NrfKit_ROOT}/src/wireless/include")
   target_compile_definitions("NrfKit::sdc_${variant}" INTERFACE
-    "NRFKIT_SDC_VARIANT_${variant_upper}=1")
+    "NRFKIT_SDC_VARIANT_${variant_upper}=1" NRFKIT_SDC_ENABLED=1)
+  set_property(TARGET "NrfKit::sdc_${variant}" APPEND PROPERTY
+    COMPATIBLE_INTERFACE_STRING NRFKIT_SDC_VARIANT NRFKIT_RADIO_MODE)
+  set_property(TARGET "NrfKit::sdc_${variant}" PROPERTY
+    INTERFACE_NRFKIT_SDC_VARIANT "${variant}")
+  set_property(TARGET "NrfKit::sdc_${variant}" PROPERTY
+    INTERFACE_NRFKIT_RADIO_MODE sdc)
   target_link_libraries("NrfKit::sdc_${variant}" INTERFACE
     "_nrfkit_sdc_binary_${variant}" NrfKit::nrfx_cracen)
+  foreach(resource IN LISTS _NRFKIT_SDC_RESOURCES)
+    string(MAKE_C_IDENTIFIER "${resource}" id)
+    set_property(TARGET "NrfKit::sdc_${variant}" APPEND PROPERTY
+      COMPATIBLE_INTERFACE_STRING "NRFKIT_RESOURCE_${id}")
+    set_property(TARGET "NrfKit::sdc_${variant}" PROPERTY
+      "INTERFACE_NRFKIT_RESOURCE_${id}" sdc_mpsl)
+  endforeach()
+  set_property(TARGET "NrfKit::sdc_${variant}" APPEND PROPERTY COMPATIBLE_INTERFACE_STRING NRFKIT_CLOCK_OWNER)
+  set_property(TARGET "NrfKit::sdc_${variant}" PROPERTY INTERFACE_NRFKIT_CLOCK_OWNER sdc)
 endforeach()
 
 foreach(name IN ITEMS radio_direct radio_timeslot rram)
   add_library("NrfKit::${name}" INTERFACE IMPORTED GLOBAL)
-  set_target_properties("NrfKit::${name}" PROPERTIES SYSTEM FALSE NRFKIT_CAPABILITY "${name}")
+  set_target_properties("NrfKit::${name}" PROPERTIES SYSTEM FALSE)
+  set_property(TARGET "NrfKit::${name}" APPEND PROPERTY COMPATIBLE_INTERFACE_STRING NRFKIT_RADIO_MODE)
 endforeach()
 target_sources(NrfKit::rram INTERFACE "${NrfKit_ROOT}/src/runtime/nrfx/rram.c")
 foreach(name IN ITEMS radio_direct radio_timeslot)
@@ -90,40 +111,15 @@ foreach(name IN ITEMS radio_direct radio_timeslot)
     "${NrfKit_ROOT}/src/wireless/radio/nrf54l/radio.c")
 endforeach()
 target_link_libraries(NrfKit::radio_direct INTERFACE NrfKit::nrfx_clock)
+set_property(TARGET NrfKit::radio_direct PROPERTY INTERFACE_NRFKIT_RADIO_MODE direct)
 target_sources(NrfKit::radio_timeslot INTERFACE
   "${NrfKit_ROOT}/src/wireless/timeslot/nrf54l/timeslot.c")
-
-function(_nrfkit_finalize_sdc target)
-  get_target_property(ARG_VARIANT "${target}" NRFKIT_SDC_VARIANT)
-  if(NOT ARG_VARIANT)
-    return()
-  endif()
-  _nrfkit_define_nrfxlib_targets()
-  nrfkit_claim_resources("${target}" OWNER sdc_mpsl RESOURCES ${_NRFKIT_SDC_RESOURCES})
-  string(MAKE_C_IDENTIFIER "${target}" target_id)
-  set(config_dir "${CMAKE_CURRENT_BINARY_DIR}/nrfkit/${target_id}")
-  file(MAKE_DIRECTORY "${config_dir}")
-  string(REPLACE ";" "\", \"" resources_json "${_NRFKIT_SDC_RESOURCES}")
-  get_target_property(root _nrfkit_mpsl NRFKIT_NRFXLIB_ROOT)
-  _nrfkit_generate_template(sdc-target.json.in "${config_dir}/sdc-target.json")
-endfunction()
-
-function(_nrfkit_validate_wireless target)
-  get_target_property(sdc_variant "${target}" NRFKIT_SDC_VARIANT)
-  get_target_property(nrfx_drivers "${target}" NRFKIT_NRFX_DRIVERS)
-  get_target_property(timeslot "${target}" NRFKIT_MPSL_TIMESLOT_ENABLED)
-  get_target_property(rram "${target}" NRFKIT_RRAM_ENABLED)
-  if((timeslot OR rram) AND NOT sdc_variant)
-    message(FATAL_ERROR "nrfkit_finalize_target: Timeslot/RRAM requires SDC on '${target}'")
-  endif()
-  get_target_property(direct "${target}" NRFKIT_RADIO_ENABLED)
-  if(direct AND (sdc_variant OR timeslot))
-    message(FATAL_ERROR "nrfkit_finalize_target: direct RADIO cannot coexist with SDC/Timeslot")
-  endif()
-  if(sdc_variant AND "clock" IN_LIST nrfx_drivers)
-    message(FATAL_ERROR
-      "nrfkit_finalize_target: '${target}' cannot link the nrfx CLOCK driver "
-      "while SDC/MPSL owns CLOCK"
-    )
-  endif()
-endfunction()
+set_property(TARGET NrfKit::radio_timeslot PROPERTY INTERFACE_NRFKIT_RADIO_MODE sdc)
+# Neither service chooses a Controller variant on the application's behalf.
+# A tiny compile-time contract gives a direct error if no SDC target is linked.
+foreach(name IN ITEMS radio_timeslot rram)
+  target_sources("NrfKit::${name}" INTERFACE
+    "${NrfKit_ROOT}/src/wireless/sdc/nrf54l/require_sdc.c")
+  target_link_libraries("NrfKit::${name}" INTERFACE _nrfkit_nrfx_headers)
+  target_include_directories("NrfKit::${name}" INTERFACE "${NrfKit_ROOT}/src/wireless/include")
+endforeach()

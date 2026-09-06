@@ -45,7 +45,7 @@ foreach(relative IN LISTS cmsis_selected_files)
 endforeach()
 
 # Example-owned USB configurations are separate from the built-in port target.
-install(DIRECTORY examples/common/usb
+install(DIRECTORY examples/common/
   DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/examples/common)
 
 set(cherryusb_install_root "${CMAKE_INSTALL_DATADIR}/nrfkit/external/cherryusb")
@@ -83,7 +83,7 @@ install(DIRECTORY cmake/toolchains
 )
 install(FILES cmake/nrfx-selection.txt cmake/cmsis-selection.txt
   DESTINATION ${CMAKE_INSTALL_DATADIR}/nrfkit/cmake)
-install(DIRECTORY cmake/modules cmake/templates
+install(DIRECTORY cmake/modules
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/NrfKit
 )
 install(EXPORT NrfKitTargets

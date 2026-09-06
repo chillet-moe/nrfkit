@@ -317,7 +317,7 @@ def command_inspect(args: argparse.Namespace) -> int:
 def command_sdk_manifest(args: argparse.Namespace) -> int:
     output = create_device_manifest(
         project_root(), args.build_dir, args.target, args.expected_token,
-        args.hci_h4_hwfc_1m,
+        args.hci_h4_hwfc_1m, image_layout=args.image_layout,
     )
     print(output)
     return 0
@@ -2521,6 +2521,8 @@ def main(argv: list[str] | None = None) -> int:
     sdk_manifest.add_argument("--build-dir", type=Path, required=True)
     sdk_manifest.add_argument("--target", required=True)
     sdk_manifest.add_argument("--expected-token", required=True)
+    sdk_manifest.add_argument("--image-layout", type=Path,
+                              help="Reviewed audit allowlist; defaults to the build-directory layout")
     sdk_manifest.add_argument("--hci-h4-hwfc-1m", action="store_true")
     sdk_manifest.set_defaults(handler=command_sdk_manifest)
 

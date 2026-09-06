@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## Unreleased
+
+- Replace firmware configure/finalize functions with composable SoC, startup,
+  runtime, board and driver targets. Consumers own linker layouts and artifacts.
+- Configure nrfx through target usage requirements and retain native resource,
+  wireless ownership and startup ABI checks without a custom capability graph.
+- Keep reviewed image allowlists in the explicit hardware audit workflow; ordinary
+  builds no longer require layout JSON or generated capability reports.
+
 ## 0.1.0-rc.2 - 2026-09-05
 
 - Fix cold-start SDC initialization by preparing GRTC before enabling

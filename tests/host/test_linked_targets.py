@@ -29,12 +29,13 @@ class LinkedTargetTests(unittest.TestCase):
         cls.tmp_root = ROOT / ".work/link-targets/tmp"
         cls.tmp_root.mkdir(parents=True, exist_ok=True)
 
-    def run_cmake(self, build: Path, case: str, build_target: bool = True):
+    def run_cmake(self, build: Path, case: str, build_target: bool = True, config: str = "Release"):
         result = subprocess.run([
             self.cmake, "-S", str(FIXTURE), "-B", str(build), "-G", "Ninja",
             f"-DNrfKit_DIR={ROOT / 'cmake'}",
             f"-DCMAKE_TOOLCHAIN_FILE={ROOT / 'cmake/toolchains/arm-clang.cmake'}",
             f"-DNRF_LLVM_ROOT={self.llvm_root}", f"-DLINKED_CASE={case}",
+            f"-DCMAKE_BUILD_TYPE={config}",
         ], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
         if result.returncode == 0 and build_target:
             result = subprocess.run(
@@ -103,25 +104,33 @@ class LinkedTargetTests(unittest.TestCase):
             self.assertIn("radio.c", radio_map)
             self.assertNotIn("nrfx_timer.c", radio_map)
 
-    def test_invalid_compositions_fail_during_configuration(self) -> None:
-        expected = {
-            "duplicate-configure": "already configured",
-            "duplicate-finalize": "already finalized",
-            "missing-sdc-rram": "requires SDC",
-            "conflict-sdc-variants": "SDC",
-            "conflict-direct-radio": "RADIO",
-            "conflict-clock": "CLOCK",
-            "config-genex": "conditional",
-            "compiled-public": "INTERFACE",
-        }
+    def test_native_conditional_links_select_only_the_active_capability(self) -> None:
         with tempfile.TemporaryDirectory(dir=self.tmp_root) as directory:
-            base = Path(directory)
-            for case, message in expected.items():
-                with self.subTest(case=case):
-                    result = self.run_cmake(base / case, case, build_target=False)
-                    self.assertNotEqual(result.returncode, 0, result.stdout)
-                    self.assertIn(message.lower(), result.stdout.lower())
+            for config in ("Debug", "Release"):
+                build = Path(directory) / config
+                result = self.run_cmake(build, "native-conditional", config=config)
+                self.assertEqual(result.returncode, 0, result.stdout)
+                ninja = (build / "build.ninja").read_text()
+                self.assertEqual("NRFKIT_SDC_ENABLED=1" in ninja, config == "Debug")
+                self.assertEqual("NRFX_CLOCK_ENABLED=1" in ninja, config == "Release")
 
+    def test_resource_masks_accumulate_and_remain_per_firmware(self) -> None:
+        with tempfile.TemporaryDirectory(dir=self.tmp_root) as directory:
+            result = self.run_cmake(Path(directory), "resource-masks")
+            self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_native_composition_rejects_incompatible_or_missing_dependencies(self) -> None:
+        with tempfile.TemporaryDirectory(dir=self.tmp_root) as directory:
+            for case, expected in (
+                ("conflict-sdc-variants", "NRFKIT_SDC_VARIANT"),
+                ("conflict-direct-radio", "NRFKIT_RADIO_MODE"),
+                ("conflict-clock", "NRFKIT_CLOCK_OWNER"),
+                ("missing-sdc-rram", "requires an explicit SDC"),
+            ):
+                with self.subTest(case=case):
+                    result = self.run_cmake(Path(directory) / case, case)
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                    self.assertIn(expected, result.stdout)
 
 if __name__ == "__main__":
     unittest.main()

@@ -127,7 +127,13 @@ class RadioContractTests(unittest.TestCase):
         ):
             self.assertIn(token, source)
         self.assertIn("NrfKit::radio_timeslot", module)
-        self.assertIn("Timeslot/RRAM requires SDC", module)
+        require_sdc = (ROOT / "src/wireless/sdc/nrf54l/require_sdc.c").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("require_sdc.c", module)
+        self.assertIn(
+            "NrfKit Timeslot/RRAM requires an explicit SDC variant target", require_sdc
+        )
         link = (ROOT / "examples/m7-timeslot-radio-link/main.c").read_text(
             encoding="utf-8"
         )

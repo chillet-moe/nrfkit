@@ -137,6 +137,7 @@ def create_device_manifest(
     target: str,
     expected_token: str,
     hci_h4_hwfc_1m: bool = False,
+    *, image_layout: Path | None = None,
 ) -> Path:
     if not re.fullmatch(r"[A-Za-z0-9_.-]+", target):
         raise SdkContractError("SDK target is not a safe artifact basename")
@@ -149,7 +150,10 @@ def create_device_manifest(
     build_dir = build_dir.resolve()
     elf = build_dir / f"{target}.elf"
     ihex = build_dir / f"{target}.hex"
-    layout_path = build_dir / f"{target}.image-layout.json"
+    layout_path = (
+        image_layout.resolve() if image_layout is not None
+        else build_dir / f"{target}.image-layout.json"
+    )
     for path in (elf, ihex, layout_path):
         if not path.is_file():
             raise SdkContractError(f"SDK artifact is missing: {path}")
@@ -217,43 +221,55 @@ def create_device_manifest(
         "images": images,
     }
     if hci_h4_hwfc_1m:
-        sdc_target_path = build_dir / "nrfkit" / target / "sdc-target.json"
         map_path = build_dir / f"{target}.map"
+        contract_path = project / "docs/provenance/m6-sdc-mpsl-contract.json"
         try:
-            sdc_target = json.loads(sdc_target_path.read_text(encoding="utf-8"))
             link_map = map_path.read_text(encoding="utf-8")
+            contract = json.loads(contract_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as error:
             raise SdkContractError(f"invalid SDC build evidence: {error}") from error
-        variant = sdc_target.get("variant")
+        # Audit the actual link result, not a configure-time capability report.
+        variants = set(re.findall(
+            r"libsoftdevice_controller_(multirole|peripheral|central)\.a\(", link_map,
+        ))
+        if len(variants) != 1:
+            raise SdkContractError("SDC link map must contain exactly one Controller variant")
+        variant = variants.pop()
         required_archives = {
             "libmpsl.a", "libmpsl_fem_common.a",
             f"libsoftdevice_controller_{variant}.a",
         }
-        archive_names = {Path(value).name for value in sdc_target.get("archives", [])}
-        resources = sdc_target.get("resources")
-        if (
-            sdc_target.get("schema") != "nrfkit-sdc-target/v1"
-            or sdc_target.get("target") != target
-            or variant not in {"multirole", "peripheral", "central"}
-            or sdc_target.get("security_domain") != "secure"
-            or sdc_target.get("float_abi") != "hard-float"
-            or not isinstance(sdc_target.get("timeslot"), bool)
-            or archive_names != required_archives
-            or not isinstance(resources, list)
-            or not resources
-            or any(not isinstance(resource, str) for resource in resources)
-            or not all(name in link_map for name in required_archives)
-        ):
+        if not all(f"{name}(" in link_map for name in required_archives):
             raise SdkContractError("SDC build evidence does not match the locked link contract")
+        if (
+            contract.get("schema") != "nrfkit-m6-sdc-mpsl-contract/v1"
+            or contract.get("source", {}).get("security_domain") != "secure"
+            or contract.get("source", {}).get("float_abi") != "hard-float"
+        ):
+            raise SdkContractError("SDC provenance has an invalid binary contract")
+        resources = contract.get("lm20_resources", {})
+        owned_resources = []
+        for group in (
+            "mpsl_interrupt_peripherals", "mpsl_non_interrupt_peripherals",
+            "sdc_owned_peripherals",
+        ):
+            entries = resources.get(group)
+            if not isinstance(entries, list) or not entries or any(
+                not isinstance(entry, str) or not entry for entry in entries
+            ):
+                raise SdkContractError("SDC provenance has an invalid resource contract")
+            owned_resources.extend(entries)
+        timeslot = re.search(r"\bnrfkit_timeslot_open\s*$", link_map, re.MULTILINE) is not None
         manifest["hci_transport"] = {
             "type": "H4", "baud": 1000000, "hardware_flow_control": True,
         }
         manifest["build_evidence"] = {
             "status": "ok", "variant": variant,
-            "timeslot": sdc_target.get("timeslot") is True,
+            "timeslot": timeslot,
             "security_domain": "secure", "float_abi": "hard-float",
             "archives": sorted(required_archives),
-            "resources": sorted(resources),
+            "resources": sorted(owned_resources),
+            "resource_contract_sha256": sha256(contract_path),
             "map_sha256": sha256(map_path),
             "elf_budget": _elf_load_budget(
                 elf,
