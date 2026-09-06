@@ -14,7 +14,9 @@ function(add_m1_example name source)
     RUNTIME freestanding
   )
   if(ARGN)
-    nrfkit_enable_nrfx("${name}" DRIVERS ${ARGN})
+    foreach(driver IN LISTS ARGN)
+      target_link_libraries("${name}" PRIVATE "NrfKit::nrfx_${driver}")
+    endforeach()
   endif()
   nrfkit_finalize_target("${name}")
 endfunction()
@@ -39,8 +41,8 @@ nrfkit_configure_target(m3_core_validation
 nrfkit_claim_resources(m3_core_validation OWNER validation RESOURCES
   timer21
 )
-nrfkit_enable_nrfx(m3_core_validation DRIVERS
-  clock gpio gpiote grtc timer dppi uarte reset retention
+target_link_libraries(m3_core_validation PRIVATE
+  NrfKit::nrfx_clock NrfKit::nrfx_gpio NrfKit::nrfx_gpiote NrfKit::nrfx_grtc NrfKit::nrfx_timer NrfKit::nrfx_dppi NrfKit::nrfx_uarte NrfKit::nrfx_reset NrfKit::nrfx_retention
 )
 nrfkit_finalize_target(m3_core_validation)
 
@@ -48,8 +50,8 @@ add_executable(m3_peripheral_validation m3-peripheral-validation/main.c)
 nrfkit_configure_target(m3_peripheral_validation
   SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
 )
-nrfkit_enable_nrfx(m3_peripheral_validation DRIVERS
-  spim twim pwm saadc rramc watchdog
+target_link_libraries(m3_peripheral_validation PRIVATE
+  NrfKit::nrfx_spim NrfKit::nrfx_twim NrfKit::nrfx_pwm NrfKit::nrfx_saadc NrfKit::nrfx_rramc NrfKit::nrfx_watchdog
 )
 nrfkit_finalize_target(m3_peripheral_validation)
 
@@ -57,8 +59,8 @@ add_executable(m3_power_validation m3-power-validation/main.c)
 nrfkit_configure_target(m3_power_validation
   SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
 )
-nrfkit_enable_nrfx(m3_power_validation DRIVERS
-  clock grtc reset retention
+target_link_libraries(m3_power_validation PRIVATE
+  NrfKit::nrfx_clock NrfKit::nrfx_grtc NrfKit::nrfx_reset NrfKit::nrfx_retention
 )
 nrfkit_finalize_target(m3_power_validation)
 
@@ -67,8 +69,11 @@ nrfkit_configure_target(m4_usb_validation
   SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
 )
 nrfkit_claim_resources(m4_usb_validation OWNER usb_validation RESOURCES timer21)
-nrfkit_enable_usb_device(m4_usb_validation STACK cherryusb CLASSES hid)
-nrfkit_enable_nrfx(m4_usb_validation DRIVERS timer)
+nrfkit_configure_usb(m4_usb_validation CLASSES hid)
+target_link_libraries(m4_usb_validation PRIVATE NrfKit::usb_device)
+target_link_libraries(m4_usb_validation PRIVATE
+  NrfKit::nrfx_timer
+)
 nrfkit_finalize_target(m4_usb_validation)
 
 add_executable(m8_combined_validation m4-usb-validation/main.c)
@@ -76,10 +81,13 @@ nrfkit_configure_target(m8_combined_validation
   SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
 )
 nrfkit_claim_resources(m8_combined_validation OWNER usb_validation RESOURCES timer21)
-nrfkit_enable_sdc(m8_combined_validation VARIANT multirole)
-nrfkit_enable_usb_device(m8_combined_validation STACK cherryusb CLASSES hid)
-nrfkit_enable_mpsl_timeslot(m8_combined_validation)
-nrfkit_enable_nrfx(m8_combined_validation DRIVERS timer)
+target_link_libraries(m8_combined_validation PRIVATE "NrfKit::sdc_multirole")
+nrfkit_configure_usb(m8_combined_validation CLASSES hid)
+target_link_libraries(m8_combined_validation PRIVATE NrfKit::usb_device)
+target_link_libraries(m8_combined_validation PRIVATE NrfKit::radio_timeslot)
+target_link_libraries(m8_combined_validation PRIVATE
+  NrfKit::nrfx_timer
+)
 target_compile_definitions(m8_combined_validation PRIVATE NRFKIT_M8_COMBINED=1)
 nrfkit_finalize_target(m8_combined_validation)
 
@@ -90,7 +98,7 @@ nrfkit_configure_target(m5_radio_validation
 nrfkit_claim_resources(m5_radio_validation OWNER radio_validation RESOURCES
   dppi10.channel.0 timer10
 )
-nrfkit_enable_radio(m5_radio_validation)
+target_link_libraries(m5_radio_validation PRIVATE NrfKit::radio_direct)
 nrfkit_finalize_target(m5_radio_validation)
 
 foreach(variant IN ITEMS multirole peripheral central)
@@ -103,8 +111,10 @@ foreach(variant IN ITEMS multirole peripheral central)
   nrfkit_configure_target("${target}"
     SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
   )
-  nrfkit_enable_sdc("${target}" VARIANT "${variant}")
-  nrfkit_enable_nrfx("${target}" DRIVERS uarte)
+  target_link_libraries("${target}" PRIVATE "NrfKit::sdc_${variant}")
+  target_link_libraries("${target}" PRIVATE
+  NrfKit::nrfx_uarte
+)
   nrfkit_finalize_target("${target}")
 endforeach()
 
@@ -112,18 +122,20 @@ add_executable(m7_timeslot_retry m7-timeslot-retry/main.c)
 nrfkit_configure_target(m7_timeslot_retry
   SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
 )
-nrfkit_enable_sdc(m7_timeslot_retry VARIANT multirole)
-nrfkit_enable_mpsl_timeslot(m7_timeslot_retry)
+target_link_libraries(m7_timeslot_retry PRIVATE "NrfKit::sdc_multirole")
+target_link_libraries(m7_timeslot_retry PRIVATE NrfKit::radio_timeslot)
 nrfkit_finalize_target(m7_timeslot_retry)
 
 add_executable(m7_timeslot_validation m6-sdc-validation/main.c)
 nrfkit_configure_target(m7_timeslot_validation
   SOC nrf54lm20a CORE cpuapp BOARD nrf54lm20dk RUNTIME freestanding
 )
-nrfkit_enable_sdc(m7_timeslot_validation VARIANT multirole)
-nrfkit_enable_mpsl_timeslot(m7_timeslot_validation)
-nrfkit_enable_rram(m7_timeslot_validation)
-nrfkit_enable_nrfx(m7_timeslot_validation DRIVERS uarte)
+target_link_libraries(m7_timeslot_validation PRIVATE "NrfKit::sdc_multirole")
+target_link_libraries(m7_timeslot_validation PRIVATE NrfKit::radio_timeslot)
+target_link_libraries(m7_timeslot_validation PRIVATE NrfKit::rram)
+target_link_libraries(m7_timeslot_validation PRIVATE
+  NrfKit::nrfx_uarte
+)
 target_compile_definitions(m7_timeslot_validation PRIVATE NRFKIT_M7_TIMESLOT=1)
 nrfkit_finalize_target(m7_timeslot_validation)
 
@@ -137,8 +149,8 @@ foreach(role IN ITEMS tx rx)
   target_compile_definitions("${target}" PRIVATE
     "NRFKIT_M7_TIMESLOT_LINK_${role_upper}=1"
   )
-  nrfkit_enable_sdc("${target}" VARIANT multirole)
-  nrfkit_enable_mpsl_timeslot("${target}")
+  target_link_libraries("${target}" PRIVATE "NrfKit::sdc_multirole")
+  target_link_libraries("${target}" PRIVATE NrfKit::radio_timeslot)
   nrfkit_finalize_target("${target}")
 endforeach()
 
@@ -150,7 +162,7 @@ foreach(role IN ITEMS tx rx)
   )
   string(TOUPPER "${role}" role_upper)
   target_compile_definitions("${target}" PRIVATE "NRFKIT_M5_LINK_${role_upper}=1")
-  nrfkit_enable_radio("${target}")
+  target_link_libraries("${target}" PRIVATE NrfKit::radio_direct)
   nrfkit_finalize_target("${target}")
 endforeach()
 
@@ -167,7 +179,7 @@ foreach(mode IN ITEMS bt_0_6 bt_0_4)
     if(mode STREQUAL "bt_0_4")
       target_compile_definitions("${target}" PRIVATE NRFKIT_M7_4MBIT_BT_0_4=1)
     endif()
-    nrfkit_enable_radio("${target}")
+    target_link_libraries("${target}" PRIVATE NrfKit::radio_direct)
     nrfkit_finalize_target("${target}")
   endforeach()
 endforeach()
@@ -181,7 +193,7 @@ foreach(role IN ITEMS tx rx)
   string(TOUPPER "${role}" role_upper)
   target_compile_definitions("${target}" PRIVATE
     "NRFKIT_M5_LINK_${role_upper}=1" NRFKIT_M5_PHY_1MBIT=1)
-  nrfkit_enable_radio("${target}")
+  target_link_libraries("${target}" PRIVATE NrfKit::radio_direct)
   nrfkit_finalize_target("${target}")
 endforeach()
 

@@ -21,5 +21,6 @@ else()
   )
 endif()
 
-nrfkit_enable_nrfx(contract DRIVERS gpiote dppi timer)
+target_link_libraries(contract PRIVATE
+  NrfKit::nrfx_gpiote NrfKit::nrfx_dppi NrfKit::nrfx_timer)
 nrfkit_finalize_target(contract)

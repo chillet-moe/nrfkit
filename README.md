@@ -49,7 +49,9 @@ implicitly linked C++ runtime:
 
 This builds `empty`, `blinky`, `fault`, and the C++ constructor example. Each target produces `.elf`, `.hex`, `.bin`, `.map`, and `.image-layout.json`. The standalone layout uses RRAM at `0x00000000..0x001fd000`, RAM0 only at `0x20000000..0x20040000`, a 16 KiB stack, and no heap. RAM1 remains deliberately unavailable until its reserved top tail is modeled.
 
-The public target API is target-scoped:
+The public target API uses ordinary CMake links. Capabilities may also be grouped
+in a consumer-owned INTERFACE library. See the [CMake API](docs/architecture/cmake-api.md)
+for available targets and configuration rules:
 
 ```cmake
 add_executable(firmware main.cpp)
@@ -59,6 +61,7 @@ nrfkit_configure_target(firmware
   BOARD nrf54lm20dk
   RUNTIME freestanding
 )
+target_link_libraries(firmware PRIVATE NrfKit::nrfx_gpio)
 nrfkit_finalize_target(firmware)
 ```
 
@@ -94,8 +97,9 @@ remains.
 The experimental LM20 USBHS device integration is also target-scoped:
 
 ```cmake
-nrfkit_enable_usb_device(firmware STACK cherryusb CLASSES hid
+nrfkit_configure_usb(firmware CLASSES hid
   IN_ENDPOINT_MAX_PACKET_SIZES 8 64 32 32)
+target_link_libraries(firmware PRIVATE NrfKit::usb_device)
 ```
 
 It uses the pinned CherryUSB tree by default. `SOURCE_DIR` may select an explicitly
@@ -110,12 +114,13 @@ initialization and tear USB down before the final Controller disable; NrfKit the
 routes HFCLK24M through MPSL automatically.
 
 Applications that already own CherryUSB core and class selection can use
-`nrfkit_enable_usb_port()` with the same arguments instead. It supplies only the
+`NrfKit::usb_port` instead of `NrfKit::usb_device`, with parameters supplied
+through `nrfkit_configure_usb()`. It supplies only the
 LM20 DCD, clock/power glue and configuration. Link exactly one compatible
 CherryUSB core. Standard `usbd_initialize()` performs the platform attachment;
 shared USB application code needs no LM20 connect call.
 
-For settings writes while SDC/MPSL is active, call `nrfkit_enable_rram(firmware)`
+For settings writes while SDC/MPSL is active, link `NrfKit::rram`
 and submit a snapshot with `nrfkit_rram_submit()` from `nrfkit/rram.h`. Pass the
 consumer's writable settings region, then pump `nrfkit_rram_process()` alongside
 `nrfkit_sdc_process()` in serialized main context. Keep dirty state until
@@ -132,12 +137,12 @@ anomaly 63; device tools default to pin reset. See the versioned
 The experimental proprietary RADIO adapter is enabled independently:
 
 ```cmake
-nrfkit_enable_radio(firmware)
+target_link_libraries(firmware PRIVATE NrfKit::radio_direct)
 ```
 
 It provides cooperative RADIO ownership and explicit Nordic 1, 2, and 4 Mbit packet
 configurations. Direct RADIO remains an exclusive diagnostic baseline. Multiprotocol
-applications must enable SDC first and use `nrfkit_enable_mpsl_timeslot()`; RADIO is
+applications must link an SDC variant and `NrfKit::radio_timeslot`; RADIO is
 then accessible only inside a granted Timeslot. The public dual-board gates cover both
 4 Mbit modes, CRC/whitening rejection, bounded retry, 20-round soak, 4/2/1 rate
 comparison, and active-BLE coexistence. See
@@ -150,7 +155,7 @@ The experimental SoftDevice Controller integration is also target-scoped and sel
 exactly one locked archive variant:
 
 ```cmake
-nrfkit_enable_sdc(firmware VARIANT multirole) # or peripheral / central
+target_link_libraries(firmware PRIVATE NrfKit::sdc_multirole) # or sdc_peripheral / sdc_central
 ```
 
 It supplies Controller lifecycle and raw HCI only—there is no BLE Host, ATT/GATT,

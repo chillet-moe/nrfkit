@@ -2,37 +2,39 @@
 
 include_guard(GLOBAL)
 
-function(nrfkit_enable_usb_port target)
-  _nrfkit_enable_usb("${target}" PORT_ONLY ${ARGN})
-endfunction()
+add_library(NrfKit::usb_port INTERFACE IMPORTED GLOBAL)
+set_target_properties(NrfKit::usb_port PROPERTIES SYSTEM FALSE NRFKIT_CAPABILITY usb_port)
+target_sources(NrfKit::usb_port INTERFACE
+  "${NrfKit_ROOT}/src/usb/nrf54l/usb_dc.c"
+  "${NrfKit_ROOT}/src/usb/nrf54l/usb_glue_dwc2.c")
+add_library(NrfKit::usb_device INTERFACE IMPORTED GLOBAL)
+set_target_properties(NrfKit::usb_device PROPERTIES SYSTEM FALSE NRFKIT_CAPABILITY usb_device)
+# Device includes the same port; finalization distinguishes this dependency from
+# selecting both ownership modes explicitly.
+target_link_libraries(NrfKit::usb_device INTERFACE NrfKit::usb_port)
+target_sources(NrfKit::usb_device INTERFACE
+  "$<TARGET_PROPERTY:NRFKIT_USB_DEVICE_SOURCE>/core/usbd_core.c"
+  "$<$<IN_LIST:hid,$<TARGET_PROPERTY:NRFKIT_USB_DEVICE_CLASSES>>:$<TARGET_PROPERTY:NRFKIT_USB_DEVICE_SOURCE>/class/hid/usbd_hid.c>")
 
-function(nrfkit_enable_usb_device target)
-  _nrfkit_enable_usb("${target}" ${ARGN})
-endfunction()
+function(nrfkit_configure_usb target)
+  _nrfkit_require_open_target("${target}" nrfkit_configure_usb)
 
-function(_nrfkit_enable_usb target)
-  _nrfkit_require_open_target("${target}" nrfkit_enable_usb_device)
-
-  cmake_parse_arguments(PARSE_ARGV 1 ARG "PORT_ONLY" "STACK;SOURCE_DIR"
+  get_target_property(configured "${target}" NRFKIT_USB_CONFIGURED)
+  if(configured)
+    message(FATAL_ERROR "nrfkit_configure_usb: '${target}' is already configured")
+  endif()
+  cmake_parse_arguments(PARSE_ARGV 1 ARG "" "SOURCE_DIR"
     "CLASSES;IN_ENDPOINT_MAX_PACKET_SIZES"
   )
   if(ARG_UNPARSED_ARGUMENTS)
     message(FATAL_ERROR
-      "nrfkit_enable_usb_device: unknown arguments: ${ARG_UNPARSED_ARGUMENTS}"
-    )
-  endif()
-  if(NOT ARG_STACK)
-    set(ARG_STACK cherryusb)
-  endif()
-  if(NOT ARG_STACK STREQUAL "cherryusb")
-    message(FATAL_ERROR
-      "nrfkit_enable_usb_device: unsupported STACK '${ARG_STACK}'; supported: cherryusb"
+      "nrfkit_configure_usb: unknown arguments: ${ARG_UNPARSED_ARGUMENTS}"
     )
   endif()
   foreach(class IN LISTS ARG_CLASSES)
     if(NOT class STREQUAL "hid")
       message(FATAL_ERROR
-        "nrfkit_enable_usb_device: unsupported CLASS '${class}'; supported: hid"
+        "nrfkit_configure_usb: unsupported CLASS '${class}'; supported: hid"
       )
     endif()
   endforeach()
@@ -44,7 +46,7 @@ function(_nrfkit_enable_usb target)
   list(LENGTH ARG_IN_ENDPOINT_MAX_PACKET_SIZES in_endpoint_count)
   if(in_endpoint_count GREATER 15)
     message(FATAL_ERROR
-      "nrfkit_enable_usb_device: at most 15 IN endpoint packet sizes are supported"
+      "nrfkit_configure_usb: at most 15 IN endpoint packet sizes are supported"
     )
   endif()
   set(tx_fifo_words 16)
@@ -52,7 +54,7 @@ function(_nrfkit_enable_usb target)
   foreach(packet_size IN LISTS ARG_IN_ENDPOINT_MAX_PACKET_SIZES)
     if(NOT packet_size MATCHES "^[1-9][0-9]*$" OR packet_size GREATER 1024)
       message(FATAL_ERROR
-        "nrfkit_enable_usb_device: invalid IN endpoint max packet size '${packet_size}'"
+        "nrfkit_configure_usb: invalid IN endpoint max packet size '${packet_size}'"
       )
     endif()
     math(EXPR words "(${packet_size} + 3) / 4")
@@ -69,14 +71,14 @@ function(_nrfkit_enable_usb target)
   math(EXPR configured_fifo_words "760 + ${tx_fifo_total}")
   if(configured_fifo_words GREATER 3040)
     message(FATAL_ERROR
-      "nrfkit_enable_usb_device: RX/TX FIFO allocation exceeds the LM20 3040-word capacity"
+      "nrfkit_configure_usb: RX/TX FIFO allocation exceeds the LM20 3040-word capacity"
     )
   endif()
   string(JOIN ", " tx_fifo_initializer ${tx_fifo_words})
   get_target_property(soc "${target}" NRFKIT_SOC)
   if(NOT soc STREQUAL "nrf54lm20a")
     message(FATAL_ERROR
-      "nrfkit_enable_usb_device: '${soc}' has no supported NrfKit USBHS port"
+      "nrfkit_configure_usb: '${soc}' has no supported NrfKit USBHS port"
     )
   endif()
   if(ARG_SOURCE_DIR)
@@ -92,14 +94,14 @@ function(_nrfkit_enable_usb target)
       "${cherryusb}/LICENSE")
     if(NOT EXISTS "${required}")
       message(FATAL_ERROR
-        "nrfkit_enable_usb_device: CherryUSB source tree is incomplete: ${required}"
+        "nrfkit_configure_usb: CherryUSB source tree is incomplete: ${required}"
       )
     endif()
   endforeach()
   if("hid" IN_LIST ARG_CLASSES AND
       NOT EXISTS "${cherryusb}/class/hid/usbd_hid.c")
     message(FATAL_ERROR
-      "nrfkit_enable_usb_device: CherryUSB HID class source is missing"
+      "nrfkit_configure_usb: CherryUSB HID class source is missing"
     )
   endif()
 
@@ -114,23 +116,12 @@ function(_nrfkit_enable_usb target)
     "${cherryusb}/core"
     "${cherryusb}/port/dwc2"
   )
-  target_sources("${target}" PRIVATE
-    "${NrfKit_ROOT}/src/usb/nrf54l/usb_dc.c"
-    "${NrfKit_ROOT}/src/usb/nrf54l/usb_glue_dwc2.c"
-  )
-  if(NOT ARG_PORT_ONLY)
-    target_sources("${target}" PRIVATE "${cherryusb}/core/usbd_core.c")
-  endif()
   if("hid" IN_LIST ARG_CLASSES)
     target_include_directories("${target}" PRIVATE "${cherryusb}/class/hid")
-    if(NOT ARG_PORT_ONLY)
-      target_sources("${target}" PRIVATE "${cherryusb}/class/hid/usbd_hid.c")
-    endif()
   endif()
   set_target_properties("${target}" PROPERTIES
-    NRFKIT_USB_DEVICE_STACK cherryusb
     NRFKIT_USB_DEVICE_SOURCE "${cherryusb}"
     NRFKIT_USB_DEVICE_CLASSES "${ARG_CLASSES}"
-    NRFKIT_NRFX_HEADERS_REQUIRED TRUE
+    NRFKIT_USB_CONFIGURED TRUE
   )
 endfunction()

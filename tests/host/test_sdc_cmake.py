@@ -146,7 +146,7 @@ class SdcCmakeTests(unittest.TestCase):
             base = Path(directory)
             for case, expected in (
                 ("conflict", "timer20' is already owned by 'application'"),
-                ("invalid-variant", "unsupported VARIANT 'observer'"),
+                ("invalid-variant", "NrfKit::sdc_observer"),
             ):
                 configured = self.configure(base / case, case)
                 self.assertNotEqual(configured.returncode, 0, configured.stdout)

@@ -2,7 +2,7 @@
 
 include_guard(GLOBAL)
 
-function(nrfkit_read_version header)
+function(_nrfkit_read_version header)
   if(NOT EXISTS "${header}")
     message(FATAL_ERROR "NrfKit version header is missing: ${header}")
   endif()

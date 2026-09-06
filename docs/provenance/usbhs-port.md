@@ -37,7 +37,7 @@ not substitutes for LM20 facts. The application uses one endpoint maximum packet
 unframed bulk OUT arm, following CherryUSB's documented device API behavior.
 
 CherryUSB is pinned as an immutable submodule. Consumer configure does not download
-it, and `nrfkit_enable_usb_device(... SOURCE_DIR ...)` permits an explicitly supplied
+it, and `nrfkit_configure_usb(... SOURCE_DIR ...)` permits an explicitly supplied
 compatible tree. NrfKit owns only the LM20 glue and target configuration; upstream
 CherryUSB is not copied into ordinary project-owned source.
 

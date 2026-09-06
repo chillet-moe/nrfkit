@@ -17,7 +17,7 @@ set(_NRFKIT_SDC_RESOURCES
 
 function(_nrfkit_define_nrfxlib_targets)
   _nrfkit_validate_nrfxlib(root)
-  if(TARGET NrfKit::mpsl)
+  if(TARGET _nrfkit_mpsl)
     return()
   endif()
   _nrfkit_prepare_nrfx(nrfx)
@@ -28,17 +28,17 @@ function(_nrfkit_define_nrfxlib_targets)
     softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_peripheral.a
     softdevice_controller/lib/nrf54lm/hard-float/libsoftdevice_controller_central.a
   )
-  add_library(NrfKit::mpsl STATIC IMPORTED GLOBAL)
-  set_target_properties(NrfKit::mpsl PROPERTIES
+  add_library(_nrfkit_mpsl STATIC IMPORTED GLOBAL)
+  set_target_properties(_nrfkit_mpsl PROPERTIES
     NRFKIT_NRFXLIB_ROOT "${root}"
     INTERFACE_INCLUDE_DIRECTORIES
       "${root}/mpsl/include;${nrfx};${nrfx}/bsp/stable"
   )
   list(GET paths 0 mpsl_path)
-  set_target_properties(NrfKit::mpsl PROPERTIES IMPORTED_LOCATION "${root}/${mpsl_path}")
-  add_library(NrfKit::mpsl_fem_common STATIC IMPORTED GLOBAL)
+  set_target_properties(_nrfkit_mpsl PROPERTIES IMPORTED_LOCATION "${root}/${mpsl_path}")
+  add_library(_nrfkit_mpsl_fem_common STATIC IMPORTED GLOBAL)
   list(GET paths 1 mpsl_fem_path)
-  set_target_properties(NrfKit::mpsl_fem_common PROPERTIES
+  set_target_properties(_nrfkit_mpsl_fem_common PROPERTIES
     IMPORTED_LOCATION "${root}/${mpsl_fem_path}"
     INTERFACE_INCLUDE_DIRECTORIES
       "${root}/mpsl/fem/include;${root}/mpsl/fem/include/protocol"
@@ -52,9 +52,9 @@ function(_nrfkit_define_nrfxlib_targets)
       set(index 4)
     endif()
     list(GET paths ${index} sdc_path)
-    add_library("NrfKit::sdc_${variant}" STATIC IMPORTED GLOBAL)
-    target_link_libraries("NrfKit::sdc_${variant}" INTERFACE NrfKit::mpsl_fem_common NrfKit::mpsl)
-    set_target_properties("NrfKit::sdc_${variant}" PROPERTIES
+    add_library("_nrfkit_sdc_binary_${variant}" STATIC IMPORTED GLOBAL)
+    target_link_libraries("_nrfkit_sdc_binary_${variant}" INTERFACE _nrfkit_mpsl_fem_common _nrfkit_mpsl)
+    set_target_properties("_nrfkit_sdc_binary_${variant}" PROPERTIES
       IMPORTED_LOCATION "${root}/${sdc_path}"
       INTERFACE_INCLUDE_DIRECTORIES
         "${root}/softdevice_controller/include;${root}/mpsl/include;${nrfx};${nrfx}/bsp/stable"
@@ -62,96 +62,50 @@ function(_nrfkit_define_nrfxlib_targets)
   endforeach()
 endfunction()
 
-function(nrfkit_enable_sdc target)
-  _nrfkit_require_open_target("${target}" nrfkit_enable_sdc)
-  cmake_parse_arguments(PARSE_ARGV 1 ARG "" "VARIANT" "")
-  if(ARG_UNPARSED_ARGUMENTS OR NOT ARG_VARIANT)
-    message(FATAL_ERROR "nrfkit_enable_sdc requires VARIANT <variant>")
-  endif()
-  if(NOT ARG_VARIANT MATCHES "^(multirole|peripheral|central)$")
-    message(FATAL_ERROR "nrfkit_enable_sdc: unsupported VARIANT '${ARG_VARIANT}'")
-  endif()
-  get_target_property(existing "${target}" NRFKIT_SDC_VARIANT)
-  if(existing)
-    message(FATAL_ERROR "nrfkit_enable_sdc: '${target}' already uses '${existing}'")
-  endif()
-  get_target_property(soc "${target}" NRFKIT_SOC)
-  if(NOT soc STREQUAL "nrf54lm20a")
-    message(FATAL_ERROR "nrfkit_enable_sdc: '${soc}' is not supported")
-  endif()
-
-  nrfkit_claim_resources("${target}" OWNER sdc_mpsl RESOURCES ${_NRFKIT_SDC_RESOURCES})
-  _nrfkit_define_nrfxlib_targets()
-  nrfkit_enable_nrfx("${target}" DRIVERS cracen)
-  target_sources("${target}" PRIVATE
+# Source capabilities compile in each consuming firmware's own context.
+foreach(variant IN ITEMS multirole peripheral central)
+  add_library("NrfKit::sdc_${variant}" INTERFACE IMPORTED GLOBAL)
+  string(TOUPPER "${variant}" variant_upper)
+  set_target_properties("NrfKit::sdc_${variant}" PROPERTIES
+    SYSTEM FALSE NRFKIT_CAPABILITY sdc NRFKIT_SDC_VARIANT "${variant}")
+  target_sources("NrfKit::sdc_${variant}" INTERFACE
     "${NrfKit_ROOT}/src/wireless/sdc/nrf54l/platform.c"
-    "${NrfKit_ROOT}/src/wireless/sdc/nrf54l/hci.c"
-  )
-  target_include_directories("${target}" PRIVATE
-    "${NrfKit_ROOT}/src/wireless/include"
-  )
-  string(TOUPPER "${ARG_VARIANT}" variant_upper)
-  target_compile_definitions("${target}" PRIVATE
-    "NRFKIT_SDC_VARIANT_${variant_upper}=1"
-  )
-  target_link_libraries("${target}" PRIVATE
-    "NrfKit::sdc_${ARG_VARIANT}")
+    "${NrfKit_ROOT}/src/wireless/sdc/nrf54l/hci.c")
+  target_include_directories("NrfKit::sdc_${variant}" INTERFACE
+    "${NrfKit_ROOT}/src/wireless/include")
+  target_compile_definitions("NrfKit::sdc_${variant}" INTERFACE
+    "NRFKIT_SDC_VARIANT_${variant_upper}=1")
+  target_link_libraries("NrfKit::sdc_${variant}" INTERFACE
+    "_nrfkit_sdc_binary_${variant}" NrfKit::nrfx_cracen)
+endforeach()
 
+foreach(name IN ITEMS radio_direct radio_timeslot rram)
+  add_library("NrfKit::${name}" INTERFACE IMPORTED GLOBAL)
+  set_target_properties("NrfKit::${name}" PROPERTIES SYSTEM FALSE NRFKIT_CAPABILITY "${name}")
+endforeach()
+target_sources(NrfKit::rram INTERFACE "${NrfKit_ROOT}/src/runtime/nrfx/rram.c")
+foreach(name IN ITEMS radio_direct radio_timeslot)
+  target_sources("NrfKit::${name}" INTERFACE
+    "${NrfKit_ROOT}/src/wireless/radio/ownership.c"
+    "${NrfKit_ROOT}/src/wireless/radio/nrf54l/radio.c")
+endforeach()
+target_link_libraries(NrfKit::radio_direct INTERFACE NrfKit::nrfx_clock)
+target_sources(NrfKit::radio_timeslot INTERFACE
+  "${NrfKit_ROOT}/src/wireless/timeslot/nrf54l/timeslot.c")
+
+function(_nrfkit_finalize_sdc target)
+  get_target_property(ARG_VARIANT "${target}" NRFKIT_SDC_VARIANT)
+  if(NOT ARG_VARIANT)
+    return()
+  endif()
+  _nrfkit_define_nrfxlib_targets()
+  nrfkit_claim_resources("${target}" OWNER sdc_mpsl RESOURCES ${_NRFKIT_SDC_RESOURCES})
   string(MAKE_C_IDENTIFIER "${target}" target_id)
   set(config_dir "${CMAKE_CURRENT_BINARY_DIR}/nrfkit/${target_id}")
   file(MAKE_DIRECTORY "${config_dir}")
   string(REPLACE ";" "\", \"" resources_json "${_NRFKIT_SDC_RESOURCES}")
-  get_target_property(root NrfKit::mpsl NRFKIT_NRFXLIB_ROOT)
-
+  get_target_property(root _nrfkit_mpsl NRFKIT_NRFXLIB_ROOT)
   _nrfkit_generate_template(sdc-target.json.in "${config_dir}/sdc-target.json")
-  set_target_properties("${target}" PROPERTIES NRFKIT_SDC_VARIANT "${ARG_VARIANT}")
-endfunction()
-
-function(nrfkit_enable_rram target)
-  _nrfkit_require_open_target("${target}" nrfkit_enable_rram)
-  get_target_property(enabled "${target}" NRFKIT_RRAM_ENABLED)
-  if(enabled OR ARGN)
-    message(FATAL_ERROR "nrfkit_enable_rram: enable once without extra arguments")
-  endif()
-  target_sources("${target}" PRIVATE "${NrfKit_ROOT}/src/runtime/nrfx/rram.c")
-  set_target_properties("${target}" PROPERTIES NRFKIT_RRAM_ENABLED TRUE)
-endfunction()
-
-function(nrfkit_enable_mpsl_timeslot target)
-  _nrfkit_require_open_target("${target}" nrfkit_enable_mpsl_timeslot)
-  if(ARGN)
-    message(FATAL_ERROR "nrfkit_enable_mpsl_timeslot: unexpected arguments: ${ARGN}")
-  endif()
-  get_target_property(enabled "${target}" NRFKIT_MPSL_TIMESLOT_ENABLED)
-  if(enabled)
-    message(FATAL_ERROR
-      "nrfkit_enable_mpsl_timeslot: '${target}' is already enabled"
-    )
-  endif()
-  target_sources("${target}" PRIVATE
-    "${NrfKit_ROOT}/src/wireless/radio/ownership.c"
-    "${NrfKit_ROOT}/src/wireless/radio/nrf54l/radio.c"
-    "${NrfKit_ROOT}/src/wireless/timeslot/nrf54l/timeslot.c"
-  )
-  set_target_properties("${target}" PROPERTIES NRFKIT_MPSL_TIMESLOT_ENABLED TRUE)
-endfunction()
-
-function(nrfkit_enable_radio target)
-  _nrfkit_require_open_target("${target}" nrfkit_enable_radio)
-  cmake_parse_arguments(PARSE_ARGV 1 ARG "" "" "")
-  if(ARG_UNPARSED_ARGUMENTS)
-    message(FATAL_ERROR "nrfkit_enable_radio: unknown arguments: ${ARG_UNPARSED_ARGUMENTS}")
-  endif()
-  get_target_property(soc "${target}" NRFKIT_SOC)
-  if(NOT soc STREQUAL "nrf54lm20a")
-    message(FATAL_ERROR "nrfkit_enable_radio: '${soc}' is not supported")
-  endif()
-  target_sources("${target}" PRIVATE
-    "${NrfKit_ROOT}/src/wireless/radio/ownership.c"
-    "${NrfKit_ROOT}/src/wireless/radio/nrf54l/radio.c"
-  )
-  nrfkit_enable_nrfx("${target}" DRIVERS clock)
-  set_target_properties("${target}" PROPERTIES NRFKIT_RADIO_ENABLED TRUE)
 endfunction()
 
 function(_nrfkit_validate_wireless target)
@@ -162,6 +116,10 @@ function(_nrfkit_validate_wireless target)
   get_target_property(rram "${target}" NRFKIT_RRAM_ENABLED)
   if((timeslot OR rram) AND NOT sdc_variant)
     message(FATAL_ERROR "nrfkit_finalize_target: Timeslot/RRAM requires SDC on '${target}'")
+  endif()
+  get_target_property(direct "${target}" NRFKIT_RADIO_ENABLED)
+  if(direct AND (sdc_variant OR timeslot))
+    message(FATAL_ERROR "nrfkit_finalize_target: direct RADIO cannot coexist with SDC/Timeslot")
   endif()
   if(sdc_variant AND "clock" IN_LIST nrfx_drivers)
     message(FATAL_ERROR

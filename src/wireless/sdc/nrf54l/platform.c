@@ -93,7 +93,7 @@ static int32_t configure_controller(void)
     sdc_support_scan();
     sdc_support_central();
 #else
-#error "The SDC archive variant must be selected by nrfkit_enable_sdc"
+#error "Link exactly one NrfKit::sdc_<variant> target to select the SDC archive"
 #endif
     return sdc_cfg_set(SDC_DEFAULT_RESOURCE_CFG_TAG, SDC_CFG_TYPE_NONE, NULL);
 }

@@ -102,8 +102,9 @@ nrfkit_configure_target(firmware
   BOARD nrf54lm20dk
   RUNTIME freestanding
 )
-nrfkit_enable_nrfx(firmware
-  DRIVERS clock gpio gpiote grtc dppi uarte
+target_link_libraries(firmware PRIVATE
+  NrfKit::nrfx_clock NrfKit::nrfx_gpio NrfKit::nrfx_gpiote
+  NrfKit::nrfx_grtc NrfKit::nrfx_dppi NrfKit::nrfx_uarte
 )
 nrfkit_finalize_target(firmware)
 ```
@@ -112,7 +113,7 @@ nrfkit_finalize_target(firmware)
 
 - 一个 ELF target 明确绑定一个 SoC、core、security domain、board 和 memory layout；
 - board 是普通 CMake target 加普通 C/C++ header，不是 YAML/DTS 输入；
-- `nrfkit_enable_nrfx()` 只把列出的 driver 及依赖加入当前 target；
+- 链接 `NrfKit::nrfx_<driver>` 只把所选 driver 及依赖加入当前固件；
 - 同一个构建树可以包含多个不同配置的 firmware target，不使用全局 `NRFX_CONFIG_*` 污染；
 - 应用可以只链接 CMSIS/MDK/HAL，而不强制使用 SDK runtime 或 nrfx driver；
 - 所有自动选择都要能打印为一份确定的 target report；
@@ -1283,6 +1284,20 @@ nrfx 缓存和安装使用同一文件选择清单，两个已有补丁继续在
 边界修改，不更改硬件行为或扩大已声明的实板支持范围。
 验收：134 项 host tests 通过，带空格的独立源码路径构建 28 个 ELF；7 个核心示例的
 BIN/HEX 与修改前逐字节一致。安装包搬迁、缓存清单失效和可复现归档测试通过。
+
+### CMake 能力 target 接口（2026-09-06）
+
+按用户决定删除 `nrfkit_enable_*`，消费者以 `target_link_libraries` 选择公开
+`NrfKit::nrfx_<driver>`、SDC 变体、direct/Timeslot RADIO、RRAM 和 USB target。
+自有适配与 nrfx 使用 INTERFACE sources，在各固件上下文编译；nrfx 仍来自应用补丁的
+ignored cache，Controller/MPSL 仍为锁定的 imported static libraries。
+固件布局、USB 参数与显式资源声明保留独立配置入口，finalize 在所有能力声明后生成
+每个固件的配置并检查冲突。支持经 INTERFACE library 与 alias 的传递链接；拒绝条件
+表达式隐藏能力以及通过预编译 library 传播需要各固件独立编译的能力。
+公开接口见 [CMake API](../architecture/cmake-api.md)。验收：139 项 host tests 通过，
+包含安装包搬迁、直接/间接链接、多固件 nrfx/USB 隔离、补丁缓存来源和冲突拒绝；
+28 个 SDK 示例以及消费者 application/bootloader/updater 构建通过，应用和 bootloader
+镜像地址审计通过。本轮未操作硬件，不新增实板验收结论。
 
 ## 13. 权威入口
 

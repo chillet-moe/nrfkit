@@ -76,7 +76,7 @@ before MPSL initialization or after SDC is disabled, every retained client is
 released, and deferred processing has uninitialized MPSL. Configuration-region and
 one-time writes remain outside this contract.
 
-Active MPSL persistence instead uses `nrfkit_enable_rram()` and the SDK's private
+Active MPSL persistence instead uses the `NrfKit::rram` target and the SDK's private
 storage Timeslot session. The platform configures two session contexts before
 opening either client. A request copies at most 256 bytes and commits one 128-bit
 unit per 600 us grant (500 us per line plus 100 us slack, matching NCS v3.4.0

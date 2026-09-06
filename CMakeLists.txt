@@ -3,7 +3,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 include(cmake/modules/NrfKitVersion.cmake)
-nrfkit_read_version("${CMAKE_CURRENT_SOURCE_DIR}/include/nrfkit/version.h")
+_nrfkit_read_version("${CMAKE_CURRENT_SOURCE_DIR}/include/nrfkit/version.h")
 project(NrfKit VERSION "${NrfKit_VERSION}" LANGUAGES NONE)
 
 include(GNUInstallDirs)
