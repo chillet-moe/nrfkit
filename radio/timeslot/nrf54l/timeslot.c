@@ -12,7 +12,7 @@
 #include <nrfkit/radio.h>
 #include <nrfkit/timeslot.h>
 
-#include "../../../../softdevice/sdc/nrf54l/platform_internal.h"
+#include <nrfkit/internal/sdc_platform_internal.h>
 
 #define DEADLINE_CC NRF_TIMER_CC_CHANNEL0
 #define MINIMUM_CLEANUP_MARGIN_US UINT32_C(100)

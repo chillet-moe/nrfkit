@@ -20,8 +20,10 @@ class TimeslotRuntimeTests(unittest.TestCase):
             result = subprocess.run([
                 compiler, "-std=c11", "-Wall", "-Wextra",
                 "-Wno-unused-parameter", "-Werror",
+                f"-I{ROOT}",
                 f"-I{ROOT / 'tests/host/timeslot_stubs'}",
                 f"-I{ROOT / 'include'}",
+                f"-I{ROOT / 'softdevice/include'}",
                 f"-I{ROOT / 'external/sdk-nrfxlib/mpsl/include'}",
                 str(ROOT / "tests/host/timeslot_runtime.c"),
                 "-o", str(executable),

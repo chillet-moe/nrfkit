@@ -2,6 +2,8 @@
 
 include_guard(GLOBAL)
 
+include("${CMAKE_CURRENT_LIST_DIR}/NrfKitDependencies.cmake")
+
 set(_NRFKIT_NRFX_DRIVERS
   clock power gpio gpiote grtc timer dppi uarte spim twim pwm saadc rramc watchdog
   reset retention cracen
@@ -17,6 +19,8 @@ function(_nrfkit_prepare_nrfx out_var)
       "Initialize external/nrfx before configuring; NrfKit never downloads it during configure."
     )
   endif()
+  _nrfkit_read_selection(selected_files)
+  _nrfkit_validate_selection("${nrfx_source}" "${selected_files}")
 
   if(NOT DEFINED NRFKIT_VENDOR_CACHE_ROOT)
     set(NRFKIT_VENDOR_CACHE_ROOT
@@ -31,7 +35,8 @@ function(_nrfkit_prepare_nrfx out_var)
   set(patch_dir "${NrfKit_ROOT}/patches/nrfx")
   file(GLOB patches CONFIGURE_DEPENDS "${patch_dir}/*.patch")
   list(SORT patches)
-  set(state "nrfx=${nrfx_commit}\n")
+  file(SHA256 "${_NRFKIT_NRFX_SELECTION_FILE}" selection_hash)
+  set(state "nrfx=${nrfx_commit}\nselection_manifest=${selection_hash}\n")
   foreach(patch IN LISTS patches)
     file(SHA256 "${patch}" patch_sha256)
     get_filename_component(patch_name "${patch}" NAME)
@@ -56,7 +61,7 @@ function(_nrfkit_prepare_nrfx out_var)
     set(staging "${prepared}.staging")
     file(REMOVE_RECURSE "${staging}")
     file(MAKE_DIRECTORY "${staging}")
-    file(COPY "${nrfx_source}/" DESTINATION "${staging}" PATTERN ".git" EXCLUDE)
+    _nrfkit_copy_selection("${nrfx_source}" "${staging}" "${selected_files}")
     if(patches)
       find_program(NRFKIT_GIT_EXECUTABLE git REQUIRED)
       foreach(patch IN LISTS patches)

@@ -29,7 +29,7 @@
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "BSD-3-Clause AND Apache-2.0 AND LicenseRef-CodeSourcery-Linker-Script",
       "copyrightText": "NOASSERTION",
-      "comment": "The complete upstream is pinned as an immutable git submodule. The audited LM20A MDK/startup subset remains imported unmodified for the standalone core; exact imported-file hashes are in the vendor import manifest referenced by sources.lock."
+      "comment": "The complete upstream is pinned as an immutable git submodule. The standalone core and drivers consume the same upstream checkout; the duplicate MDK/startup snapshot has been removed. Selected-file identities and hashes remain locked by sources.lock."
     },
     {
       "SPDXID": "SPDXRef-Package-CMSIS",
@@ -40,7 +40,7 @@
       "licenseConcluded": "Apache-2.0",
       "licenseDeclared": "Apache-2.0",
       "copyrightText": "Copyright (c) 2009-2025 Arm Limited",
-      "comment": "CMSIS Core headers are imported unmodified; exact file hashes are in the vendor import manifest referenced by sources.lock."
+      "comment": "CMSIS Core headers are imported unmodified under external/cmsis; exact file hashes are in the vendor import manifest referenced by sources.lock."
     },
     {
       "SPDXID": "SPDXRef-Package-CherryUSB",

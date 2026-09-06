@@ -200,13 +200,16 @@ class SdcCmakeTests(unittest.TestCase):
                 environment[name] = "/path/that/must/not/be/consulted"
 
             sdk_build = base / "sdk-build"
-            prefix = base / "prefix"
+            original_prefix = base / "original-prefix"
+            prefix = base / "relocated SDK"
             commands = [
                 [
                     self.cmake, "-S", str(ROOT), "-B", str(sdk_build),
-                    "-G", "Ninja", f"-DCMAKE_INSTALL_PREFIX={prefix}",
+                    "-G", "Ninja", f"-DCMAKE_INSTALL_PREFIX={original_prefix}",
                 ],
                 [self.cmake, "--build", str(sdk_build), "--target", "install"],
+                # The original install location must not be required by firmware.
+                [self.cmake, "-E", "rename", str(original_prefix), str(prefix)],
             ]
             for usb_first, package_options in (
                 (False, [f"-DNrfKit_DIR={ROOT / 'cmake'}",

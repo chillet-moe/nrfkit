@@ -20,15 +20,15 @@ from nrfkit_tools.sdk import SdkContractError, create_device_manifest
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLES = ROOT / "examples"
 STARTUP = (
-    ROOT / "third_party/nrfx/mdk/nrf54l/nrf54lm20a"
+    ROOT / "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a"
     / "gcc_startup_nrf54lm20a_application.S"
 )
 DEVICE_HEADER = (
-    ROOT / "third_party/nrfx/mdk/nrf54l/nrf54lm20a"
+    ROOT / "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a"
     / "nrf54lm20a_application.h"
 )
 SVD = (
-    ROOT / "third_party/nrfx/mdk/nrf54l/nrf54lm20a"
+    ROOT / "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a"
     / "nrf54lm20a_application.svd"
 )
 

@@ -94,7 +94,7 @@ class NrfxlibContractTests(unittest.TestCase):
             self.assertEqual(identity[key], lock[key], key)
 
         device_header = (
-            ROOT / "third_party/nrfx/mdk/nrf54l/nrf54lm20a/"
+            ROOT / "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a/"
             "nrf54lm20a_application.h"
         ).read_text(encoding="utf-8")
         vectors = self.contract["lm20_resources"]["interrupts"]["vectors"]

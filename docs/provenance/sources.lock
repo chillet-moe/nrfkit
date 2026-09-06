@@ -2,7 +2,7 @@
   "schema": "nrfkit-sources/v1",
   "vendor_import_manifest": {
     "path": "docs/provenance/vendor-imports.lock",
-    "sha256": "250ed9a4b9b8613a428f58286683c9882e6f2d44c2319924bcd57c435233b0f8"
+    "sha256": "63cdcd821a9a891ad7b900695105b359733ca2aabd3ba0068ebe993df9b921b3"
   },
   "audited_sources": {
     "nrf54lm20-datasheet-1.0": {
@@ -283,6 +283,11 @@
       "tag": "v3.4.0"
     },
     "nrfx-4.5.0": {
+      "selection_manifest": {
+        "path": "cmake/nrfx-selection.txt",
+        "sha256": "9c70661b2360c59eacef638a62bcf5f5f9fd2f3e6723a72f6d4a9732713aabf8",
+        "file_count": 327
+      },
       "release": "nrfx v4.5.0",
       "repository": "https://github.com/NordicSemiconductor/nrfx",
       "commit": "1b7bedb5c7f379a3ec3ece851796e94d7e5d0b2c",
@@ -361,6 +366,11 @@
       }
     },
     "cmsis-6.3.0": {
+      "selection_manifest": {
+        "path": "cmake/cmsis-selection.txt",
+        "sha256": "ddaafeb56830686a219ea6e46cbf0dc0c34ec4ab4ef01d1ebf24b2d080232606",
+        "file_count": 45
+      },
       "release": "CMSIS 6.3.0",
       "repository": "https://github.com/ARM-software/CMSIS_6",
       "commit": "45dab712ad84f8cbbf2b7bfc089c19088507df6f",

@@ -87,6 +87,9 @@ function(nrfkit_enable_sdc target)
     "${NrfKit_ROOT}/softdevice/sdc/nrf54l/platform.c"
     "${NrfKit_ROOT}/softdevice/sdc/nrf54l/hci.c"
   )
+  target_include_directories("${target}" PRIVATE
+    "${NrfKit_ROOT}/softdevice/include"
+  )
   string(TOUPPER "${ARG_VARIANT}" variant_upper)
   target_compile_definitions("${target}" PRIVATE
     "NRFKIT_SDC_VARIANT_${variant_upper}=1"

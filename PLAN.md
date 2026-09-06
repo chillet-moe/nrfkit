@@ -55,7 +55,7 @@
 
 因此采用以下策略：
 
-1. nrfx 作为 `external/nrfx` 中固定到精确 commit 的只读 Git submodule；本仓库不把完整 nrfx 源码树作为普通文件提交。项目只跟踪逐文件选择清单、自有适配层和 `patches/nrfx/` 下的可审查补丁。需要修改上游时，在 consumer workspace 的 ignored shared cache 中复制被选文件并以普通 `git apply` 应用补丁，绝不直接修改 submodule。
+1. 所有随 SDK 提供的第三方输入统一放在 `external/`；CMSIS Core 保留为 `external/cmsis` 中逐文件 hash 锁定的未修改快照。nrfx 的 startup/MDK 与 HAL/driver 共用同一上游，不再维护重复的 `third_party/nrfx` 快照。nrfx 作为 `external/nrfx` 中固定到精确 commit 的只读 Git submodule；本仓库不把完整 nrfx 源码树作为普通文件提交。项目只跟踪逐文件选择清单、自有适配层和 `patches/nrfx/` 下的可审查补丁。需要修改上游时，在 consumer workspace 的 ignored shared cache 中复制被选文件并以普通 `git apply` 应用补丁，绝不直接修改 submodule。
 2. `sdk-nrfxlib` 是无线功能的一级、不可变、版本锁定输入，以
    `external/sdk-nrfxlib` Git submodule 固定到 tag `v3.4.0` 的准确 commit。来源锁同时记录
    SDC/MPSL component manifest revision、所选头文件/静态库 hash、许可证、安全域和
@@ -149,6 +149,7 @@ nrfkit/
 │   ├── modules/
 │   └── toolchains/
 ├── external/
+│   ├── cmsis/                 # unmodified, hash-locked Core snapshot
 │   ├── cherryusb/             # immutable, version-locked submodule
 │   ├── nrfx/                  # immutable, version-locked submodule
 │   └── sdk-nrfxlib/           # fixed read-only official submodule
@@ -187,7 +188,7 @@ nrfkit/
 │   ├── architecture/
 │   ├── provenance/
 │   └── porting/
-└── third_party/
+└── .agents/skills/
 ```
 
 公共层只能表达通用概念。差异必须落在正确层级：
@@ -1275,6 +1276,17 @@ CMake、适配层、配置、链接布局和等价审计命令；固定此前完
 - 消费者继续拥有完整 linker script；SDK 额外验证启动 ABI、声明地址边界和栈重叠。
 - 以 Engineering B v1.1 / Revision 1 v1.0 勘误为输入统一 anomaly 63 复位处理；
   [勘误覆盖表](docs/provenance/lm20-errata.md) 区分实现、产品约束和未验证条件。
+
+### 依赖目录与头文件边界整理（2026-09-06）
+
+用户确认保留固定版本 submodule，所有输入统一到 `external/`。startup/MDK 与 nrfx
+HAL/driver 共用同一上游，删除重复 MDK 快照；CMSIS Core 保留原版本与逐文件 hash。
+nrfx 缓存和安装使用同一文件选择清单，两个已有补丁继续在 ignored cache 应用。
+项目跨模块头文件改由 target-scoped include 路径解析，仓库技能迁至 `.agents/skills/`。
+设计说明见 [依赖目录](docs/architecture/dependency-layout.md)。本轮是来源组织和构建
+边界修改，不更改硬件行为或扩大已声明的实板支持范围。
+验收：134 项 host tests 通过，带空格的独立源码路径构建 28 个 ELF；7 个核心示例的
+BIN/HEX 与修改前逐字节一致。安装包搬迁、缓存清单失效和可复现归档测试通过。
 
 ## 13. 权威入口
 

@@ -9,7 +9,7 @@
 #include <nrf_errno.h>
 #include <nrfkit/rram.h>
 #include <nrfkit/runtime.h>
-#include "../../softdevice/sdc/nrf54l/platform_internal.h"
+#include <nrfkit/internal/sdc_platform_internal.h>
 
 /* NCS v3.4.0 soc_flash_nrf_rram.c uses 500 us for a single buffer line;
  * flash_sync_mpsl.c adds 100 us slack. One 128-bit unit per grant keeps the

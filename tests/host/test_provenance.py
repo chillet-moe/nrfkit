@@ -161,7 +161,7 @@ class ProvenanceTests(unittest.TestCase):
                 f"git_revision: {source['binary_manifest_revision']}", manifest
             )
 
-    def test_vendor_import_manifest_covers_and_hashes_third_party_tree(self) -> None:
+    def test_vendor_import_manifest_covers_and_hashes_external_snapshots(self) -> None:
         lock = json.loads(
             (ROOT / "docs/provenance/sources.lock").read_text(encoding="utf-8")
         )
@@ -174,8 +174,12 @@ class ProvenanceTests(unittest.TestCase):
         entries = {item["destination"]: item for item in manifest["files"]}
         actual = {
             path.relative_to(ROOT).as_posix(): path
-            for path in (ROOT / "third_party").rglob("*") if path.is_file()
+            for path in (ROOT / "external/cmsis").rglob("*") if path.is_file()
         }
+        actual.update({
+            item["destination"]: ROOT / item["destination"]
+            for item in manifest["files"] if item["destination"].startswith("external/nrfx/")
+        })
         self.assertEqual(set(entries), set(actual))
         for destination, path in actual.items():
             item = entries[destination]
@@ -184,6 +188,18 @@ class ProvenanceTests(unittest.TestCase):
             self.assertTrue(item["source_path"])
             self.assertTrue(item["license"])
             self.assertEqual(item["patches"], "none")
+
+        for source_id, selection in (("nrfx-4.5.0", "cmake/nrfx-selection.txt"),
+                                     ("cmsis-6.3.0", "cmake/cmsis-selection.txt")):
+            source = lock["audited_sources"][source_id]
+            metadata = source["selection_manifest"]
+            path = ROOT / metadata["path"]
+            self.assertEqual(metadata["path"], selection)
+            self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), metadata["sha256"])
+            self.assertEqual(len(path.read_text(encoding="utf-8").splitlines()), metadata["file_count"])
+            root = ROOT / ("external/nrfx" if source_id.startswith("nrfx") else "external/cmsis")
+            for relative in path.read_text(encoding="utf-8").splitlines():
+                self.assertTrue((root / relative).is_file(), relative)
 
     def test_spdx_draft_describes_current_project_and_external_candidates(self) -> None:
         sbom = json.loads(

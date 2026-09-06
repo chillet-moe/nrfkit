@@ -2,9 +2,11 @@
 
 The startup/MDK audit was performed on 2026-09-04 and the first-class nrfxlib
 selection was added on 2026-09-05. Exact commits and file hashes are in
-`sources.lock`. M1 imports the audited CMSIS Core and nrfx/MDK subset; sdk-nrfxlib is
-an immutable upstream submodule, while external oracles (including S115) remain
-outside the consumer package.
+`sources.lock`. The audited CMSIS Core snapshot is stored in `external/cmsis`.
+Startup/MDK and nrfx drivers now share the immutable `external/nrfx` input; the
+earlier M1 MDK snapshot is no longer duplicated. sdk-nrfxlib is also an immutable
+upstream submodule, while external oracles (including S115) remain outside the
+consumer package.
 
 ## Release baseline
 
@@ -95,4 +97,4 @@ M1 therefore exposes only RAM0 (`0x20000000..0x20040000`) for the initial standa
 
 ## Reproducibility
 
-The release archive/tag, source URL, commit, per-file SHA-256, SPDX identifier, import date, and patch state are machine-independent entries in `sources.lock` and its hashed `vendor-imports.lock`. Host tests require that the latter covers every tracked `third_party` file and that every digest still matches. Local workspaces and downloaded audit archives are discovery inputs only.
+The release archive/tag, source URL, commit, per-file SHA-256, SPDX identifier, import date, and patch state are machine-independent entries in `sources.lock` and its hashed `vendor-imports.lock`. Host tests require that the latter covers every imported CMSIS snapshot file and the selected nrfx MDK inputs and that every digest still matches. Local workspaces and downloaded audit archives are discovery inputs only.

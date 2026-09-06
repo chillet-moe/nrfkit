@@ -17,7 +17,7 @@
 #include <sdc_hci.h>
 #include <sdc_soc.h>
 
-#include "platform_internal.h"
+#include <nrfkit/internal/sdc_platform_internal.h>
 
 volatile struct nrfkit_sdc_fault_record nrfkit_sdc_last_fault
     __attribute__((section(".noinit.sdc_fault")));

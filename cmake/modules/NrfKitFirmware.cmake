@@ -54,7 +54,7 @@ function(nrfkit_configure_target target)
   endif()
 
   set(sdk_root "${NrfKit_ROOT}")
-  set(mdk "${sdk_root}/third_party/nrfx/mdk")
+  set(mdk "${sdk_root}/external/nrfx/bsp/stable/mdk")
   _nrfkit_configure_image_layout("${target}" "${ARG_LINKER_SCRIPT}" "${ARG_IMAGE_LAYOUT}"
     linker_script image_layout)
   foreach(required IN ITEMS
@@ -76,7 +76,7 @@ function(nrfkit_configure_target target)
   target_include_directories("${target}" PRIVATE
     "${sdk_root}/include"
     "${sdk_root}/runtime/freestanding/include"
-    "${sdk_root}/third_party/cmsis/CMSIS/Core/Include"
+    "${sdk_root}/external/cmsis/CMSIS/Core/Include"
     "${mdk}"
   )
   if(ARG_BOARD)

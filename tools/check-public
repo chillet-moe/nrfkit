@@ -8,7 +8,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 EXCLUDED = {
-    ".git", ".local", ".vscode", ".work", "build", "external", "third_party",
+    ".git", ".local", ".vscode", ".work", "build", "external",
 }
 PATTERNS = (
     ("absolute home path", re.compile(r"/(?:home|Users)/[^/\s]+/")),

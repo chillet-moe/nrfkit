@@ -3,7 +3,7 @@
 #include <assert.h>
 
 /* Exercise the real backend with only the peripheral and MPSL calls replaced. */
-#include "../../radio/timeslot/nrf54l/timeslot.c"
+#include <radio/timeslot/nrf54l/timeslot.c>
 
 static mpsl_timeslot_callback_t callback;
 static int request_result;

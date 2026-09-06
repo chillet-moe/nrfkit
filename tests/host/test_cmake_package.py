@@ -76,8 +76,23 @@ class CMakePackageTests(unittest.TestCase):
                 "cherryusb/class/hid/usbd_hid.c",
             ):
                 self.assertTrue((installed_vendor / required).is_file(), required)
+            selected_nrfx = (ROOT / "cmake/nrfx-selection.txt").read_text(
+                encoding="utf-8"
+            ).splitlines()
+            self.assertEqual(set(selected_nrfx), {
+                path.relative_to(installed_vendor / "nrfx").as_posix()
+                for path in (installed_vendor / "nrfx").rglob("*") if path.is_file()
+            })
+            selected_cmsis = (ROOT / "cmake/cmsis-selection.txt").read_text(
+                encoding="utf-8"
+            ).splitlines()
+            self.assertEqual(set(selected_cmsis), {
+                path.relative_to(installed_vendor / "cmsis").as_posix()
+                for path in (installed_vendor / "cmsis").rglob("*") if path.is_file()
+            })
             for excluded in (
-                "nrfx/doc", "cherryusb/.github", "cherryusb/demo",
+                "../third_party", "nrfx/bsp/stable/mdk/nrf51", "nrfx/doc",
+                "cherryusb/.github", "cherryusb/demo",
                 "cherryusb/third_party", "cherryusb/tools", "cherryusb/zephyr",
                 "cherryusb/Kconfig",
             ):
@@ -90,6 +105,38 @@ class CMakePackageTests(unittest.TestCase):
                 *version_options,
             ], environment)
             self.run_command([cmake, "--build", str(installed_build)], environment)
+
+            # Changing the selection must regenerate the prepared view even when
+            # the upstream revision and patches are unchanged.
+            sdk_root = prefix / "share/nrfkit"
+            cache_source = temporary / "cache-consumer"
+            cache_source.mkdir()
+            (cache_source / "CMakeLists.txt").write_text(
+                'cmake_minimum_required(VERSION 3.25)\n'
+                'project(cache_contract LANGUAGES NONE)\n'
+                'include("${NrfKit_MODULE_DIR}/NrfKitNrfx.cmake")\n'
+                '_nrfkit_prepare_nrfx(prepared)\n'
+                'file(WRITE "${CMAKE_BINARY_DIR}/prepared.txt" "${prepared}")\n'
+            )
+            cache_build = temporary / "cache-build"
+            self.run_command([
+                cmake, "-S", str(cache_source), "-B", str(cache_build), "-G", "Ninja",
+                f"-DNrfKit_ROOT={sdk_root}",
+                f"-DNrfKit_MODULE_DIR={prefix / 'lib/cmake/NrfKit/modules'}",
+            ], environment)
+            prepared = Path((cache_build / "prepared.txt").read_text())
+            self.assertEqual(set(selected_nrfx), {
+                path.relative_to(prepared).as_posix() for path in prepared.rglob("*")
+                if path.is_file() and path.name != ".nrfkit-prepared"
+            })
+            marker = (prepared / ".nrfkit-prepared").read_text()
+            probe = "selection-probe.h"
+            (installed_vendor / "nrfx" / probe).write_text("/* cache probe */\n")
+            selection = sdk_root / "cmake/nrfx-selection.txt"
+            selection.write_text(selection.read_text() + probe + "\n")
+            self.run_command([cmake, "--build", str(cache_build)], environment)
+            self.assertTrue((prepared / probe).is_file())
+            self.assertNotEqual(marker, (prepared / ".nrfkit-prepared").read_text())
 
 
 if __name__ == "__main__":

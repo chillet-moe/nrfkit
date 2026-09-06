@@ -8,6 +8,8 @@ remain compatible; internal module and target names are implementation details.
 
 - `NrfKitFirmware.cmake`: firmware identity, runtime/compiler setup, and the public
   configure/finalize entry points.
+- `NrfKitDependencies.cmake`: shared file-selection manifests for prepared nrfx
+  inputs and dependency installation.
 - `NrfKitNrfx.cmake`: immutable nrfx cache, selected driver targets, resource
   reservations, and each firmware's generated configuration.
 - `NrfKitWireless.cmake` / `NrfKitNrfxlib.cmake`: wireless composition and

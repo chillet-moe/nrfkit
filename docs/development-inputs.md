@@ -23,7 +23,7 @@ The local inventory is useful context, not authority. Every path, source identit
 | nRF Connect SDK Bare Metal workspace | Bare-metal, SoftDevice, startup, linker, and integration evidence | No | Release plus exact module commits |
 | Version-locked Nordic sdk-nrfxlib | First-class MPSL and SoftDevice Controller runtime input | Yes, when wireless is selected | Repository tag/commit, component manifest revision, selected header/archive/license hashes, security domain, float ABI, documented resource contract |
 | Nordic product documentation, including matching silicon errata | Memory, reset, security, power, peripheral, and errata facts | No | Document title, revision, URL or file hash |
-| Version-locked upstream submodules and selected snapshots | Inputs shipped by this SDK | Yes | Upstream path, commit, selected-file hashes, license, patches |
+| Version-locked upstream submodules and selected snapshots under `external/` | Inputs shipped by this SDK | Yes | Upstream path, commit, selected-file hashes, license, patches |
 | Legacy SoftDevice binary packages | Historical or optional runtime components | Yes, when explicitly selected | Exact version, binary/header/spec hashes, license, ABI checks |
 | Local read-only implementation references | General tooling and architecture patterns | No | Local-only identity; never publish its name or path |
 | External reference peer and private reference implementation | Proprietary-radio interoperability oracle only | No | Local source/image/version receipt and bounded run evidence below ignored storage |
