@@ -129,5 +129,8 @@ route is stopped and must not run as part of the current goal.
 
 The optional [OpenOCD backend](architecture/openocd-backend.md) supports an external
 CMSIS-DAP probe without the board's J-Link/VCOM. Use its guarded backup before
-replacing an image that must be restored. Cold-start measurement must occur after
-the debug server exits, with no new debug attachment during capture.
+replacing an image that must be restored. [PPK2 acquisition](provenance/ppk2-acquisition.md)
+is exposed through `tools/nrfkit ppk2 info`, `power`, and `capture`. Instrument
+settings require a known DUT supply topology and voltage; entering source mode is
+not a substitute for checking the physical power connection. Cold-start measurement
+must occur after the debug server exits, with no new debug attachment during capture.

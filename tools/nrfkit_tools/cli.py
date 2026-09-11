@@ -45,6 +45,7 @@ from .hci import (
 )
 from .process import atomic_json, run_logged
 from .power import PowerCaptureError, REQUIRED_PROFILES, summarize_capture
+from .ppk2 import Ppk2Error
 from .openocd import OpenOcdError
 from .reference import (
     ReferenceContractError, build, load_receipt, official_toolchain_compiler,
@@ -2490,6 +2491,9 @@ def main(argv: list[str] | None = None) -> int:
     device_list.add_argument("--timeout", type=float, default=10.0)
     device_list.set_defaults(handler=command_device_list)
 
+    from .ppk2_cli import add_commands as add_ppk2_commands
+    add_ppk2_commands(subparsers)
+
     reference = subparsers.add_parser("reference")
     reference_commands = reference.add_subparsers(dest="reference_command", required=True)
     reference_prepare = reference_commands.add_parser("prepare")
@@ -2670,7 +2674,7 @@ def main(argv: list[str] | None = None) -> int:
     m7_power.add_argument("--instrument", required=True)
     m7_power.add_argument("--supply-voltage-v", type=float, required=True)
     m7_power.add_argument("--minimum-duration", type=float, default=1.0)
-    m7_power.add_argument("--maximum-sample-gap-us", type=float, default=5.0)
+    m7_power.add_argument("--maximum-sample-gap-us", type=float, default=10.1)
     m7_power.set_defaults(handler=command_m7_power_audit)
     m6_ble = subparsers.add_parser("m6-ble-gate")
     m6_ble.add_argument("--device-name", default="nrfkit-m6")
@@ -2794,6 +2798,6 @@ def main(argv: list[str] | None = None) -> int:
     except (
         DeviceContractError, ImageContractError, ReferenceContractError,
         SdkContractError, ToolError, UsbValidationError, BleValidationError, OSError,
-        OpenOcdError,
+        Ppk2Error, PowerCaptureError, OpenOcdError,
     ) as error:
         parser.exit(1, f"error: {error}\n")
