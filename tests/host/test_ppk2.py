@@ -7,11 +7,25 @@ import unittest
 from unittest.mock import patch, MagicMock
 from argparse import Namespace
 
-from nrfkit_tools.ppk2 import Ppk2Error, Decoder, parse_metadata, decode_capture
+from nrfkit_tools.ppk2 import Ppk2, Ppk2Error, Decoder, parse_metadata, decode_capture
 from nrfkit_tools.ppk2_cli import command
 
 
 class Ppk2Tests(unittest.TestCase):
+    def test_configuration_waits_for_readback_without_repeating_writes(self):
+        instrument = object.__new__(Ppk2)
+        instrument.command = MagicMock()
+        instrument.metadata = MagicMock(side_effect=[
+            {'mode': 2, 'vdd': 2400}, {'mode': 2, 'vdd': 1800}])
+        with patch('nrfkit_tools.ppk2.time.sleep'):
+            self.assertEqual(instrument.configure(1800, 'source')['vdd'], 1800)
+        self.assertEqual(instrument.command.call_count, 2)
+        instrument.metadata = MagicMock(return_value={'mode': 2, 'vdd': 2400})
+        with patch('nrfkit_tools.ppk2.time.sleep'), \
+             patch('nrfkit_tools.ppk2.time.monotonic', side_effect=[0, 3]):
+            with self.assertRaisesRegex(Ppk2Error, 'vdd=2400'):
+                instrument.configure(1800, 'source')
+
     def test_metadata_preserves_zero_and_marks_missing_calibration(self):
         metadata = parse_metadata(b'VDD: 1800\no0: 0\nr0: -nan\nEND\n')
         self.assertEqual(metadata['o0'], 0)

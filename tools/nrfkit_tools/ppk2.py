@@ -91,11 +91,19 @@ class Ppk2:
             raise Ppk2Error("invalid PPK2 voltage or mode")
         self.command(bytes([0x11, 2 if mode == "source" else 1]))
         self.command(bytes([0x0d, voltage_mv >> 8, voltage_mv & 0xff]))
-        time.sleep(0.1)
-        metadata = self.metadata()
-        if metadata.get("vdd") != voltage_mv or metadata.get("mode") != (2 if mode == "source" else 1):
-            raise Ppk2Error("PPK2 mode/voltage readback differs from the request")
-        return metadata
+        # Firmware can answer metadata before the regulator setting is applied.
+        # Repeat only the read, never the configuration or output-on command.
+        deadline = time.monotonic() + 2.0
+        while True:
+            time.sleep(0.1)
+            metadata = self.metadata()
+            if (metadata.get("vdd") == voltage_mv and
+                    metadata.get("mode") == (2 if mode == "source" else 1)):
+                return metadata
+            if time.monotonic() >= deadline:
+                raise Ppk2Error(
+                    "PPK2 mode/voltage readback differs from the request: "
+                    f"mode={metadata.get('mode')}, vdd={metadata.get('vdd')}")
 
     def power(self, enabled: bool) -> None:
         # Firmware has no output-state readback in metadata. Record this as a
