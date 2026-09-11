@@ -18,6 +18,30 @@
 
 自主 goal 的启动文本只需要求 agent 读取上述文件并持续完成 `docs/development/PLAN.md`；具体任务不得复制进 `AGENTS.md` 或堆叠在启动文本中。
 
+## 当前剩余工作（2026-09-11 复核）
+
+首阶段主体已完成；以下项目仍有明确的证据或工具缺口：
+
+- **M7 电气功耗验收**：建立外部仪器采集与报告工作流，以相同方法测量
+  4/2/1 Mbit/s、retry 和 BLE 共存的电流、功率与能量；duty 指标不能替代电气测量。
+  仪器现状以 ignored local inventory 为准，历史缺少仪器不应成为永久阻塞结论。
+- **M4 USB remote wake**：在直连拓扑完成 device-initiated resume，确认没有
+  reset/re-enumeration；已有 host-initiated resume 通过不能替代该门禁。
+- **真实 System OFF 唤醒**：建立退出 Debug Interface mode 后的睡眠与唤醒验证，
+  补齐 M3 记录中明确未覆盖的行为，并与功耗测量关联。
+- **OpenOCD backend 评估与接入**：当前公共工作流仍使用 nrfutil/J-Link。
+  外部实现须分别审查 attach/RAM、RRAM program/readback、reset 和 GDB 能力；
+  在本仓库复用镜像 guard、探针选择/锁、timeout、清理和报告后重跑验收。
+  nRF54LM20 DK 上的 LM20B 可用于 SDK 的 LM20A 共同功能验收；锁定的 A/B
+  Datasheet v1.0 §3.2 Table 6 列出相同的 RRAM/RAM 容量，B 增加 Axon NPU。
+  NPU 不在当前 SDK 范围内；报告仍保留实际 PART/revision，并匹配适用勘误。
+  B 型号本身不是沿用 DK 实板证据的阻塞项。
+
+M4/M7 的暂缓决定仍保留；输入到位本身不表示验收完成。后续 CMake/ELF 接口整理
+已有 host/build 证据，但没有新增实板结论；下次发布应对最终提交重新完成对应回归
+与归档验收。开放 BLE Host、产品 profile、其他 SoC 和实际量产 provisioning 不属于
+这些遗留项；已完成的 M8/M9 不因它们重新打开。
+
 ## 1. 最终目标
 
 建立一个非官方、可开源、可复用的 Nordic nRF 裸机 SDK：
@@ -855,7 +879,7 @@ soak 均通过。4/2/1 Mbit/s 已用同一 DWT/16-byte payload 方法量化。Ti
 完成 grant/deadline/extend/blocked/cancel/close 清理，并在 SDC-disabled lifecycle、广播和
 活动连接下通过；最终三轮双板共存门禁要求 L15 实收只在活动连接 burst 才会出现的
 序号 15，同时 LM20 保持双向 raw ACL。完整公开结果在
-`docs/provenance/m7-radio-evidence.md`。M7 尚未标记完成：当前输入与 USB inventory 没有
+`docs/provenance/m7-radio-evidence.md`。M7 尚未标记完成：2026-09-05 检查点的输入与 USB inventory 没有
 PPK2、示波器、电流表或功率分析仪，官方 DK 测量流程要求外部仪器；已有 60.55% retry
 reservation duty 和 11.27% 共存 burst duty 只是功耗代理，不能替代安培/瓦特/焦耳。
 
