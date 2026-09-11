@@ -775,28 +775,31 @@ def command_consumer_usb_smoke(args: argparse.Namespace) -> int:
     try:
         manifest = load_manifest(args.manifest)
         _initialize_device_report(run_dir, report, args.manifest, manifest, args)
-        device = _select(manifest, args, run_dir)
-        _stage(run_dir, report, "device-selection", board_version=manifest["board_version"])
-        with _probe_lock(device["serialNumber"], "consumer-usb-smoke"):
-            _stage(run_dir, report, "probe-lock")
-            snapshots = _snapshot_hexes(manifest, run_dir)
-            _stage(
-                run_dir, report, "image-snapshot",
-                sha256=[sha256(snapshot) for snapshot in snapshots],
-            )
-            for snapshot in snapshots:
-                _program(manifest, device, snapshot, args, run_dir)
-                _stage(run_dir, report, "program", image_sha256=sha256(snapshot))
-            reset_result = run_logged(
-                reset_argv(
-                    args.nrfutil, device["serialNumber"], manifest["device_family"],
-                    manifest["core"], args.reset_kind,
-                ),
-                run_dir / "reset.log", args.timeout,
-            )
-            if reset_result.returncode:
-                raise ToolError("device reset failed")
-            _stage(run_dir, report, "reset", duration_seconds=reset_result.duration_seconds)
+        if not args.attach:
+            device = _select(manifest, args, run_dir)
+            _stage(run_dir, report, "device-selection", board_version=manifest["board_version"])
+            with _probe_lock(device["serialNumber"], "consumer-usb-smoke"):
+                _stage(run_dir, report, "probe-lock")
+                snapshots = _snapshot_hexes(manifest, run_dir)
+                _stage(
+                    run_dir, report, "image-snapshot",
+                    sha256=[sha256(snapshot) for snapshot in snapshots],
+                )
+                for snapshot in snapshots:
+                    _program(manifest, device, snapshot, args, run_dir)
+                    _stage(run_dir, report, "program", image_sha256=sha256(snapshot))
+                reset_result = run_logged(
+                    reset_argv(
+                        args.nrfutil, device["serialNumber"], manifest["device_family"],
+                        manifest["core"], args.reset_kind,
+                    ),
+                    run_dir / "reset.log", args.timeout,
+                )
+                if reset_result.returncode:
+                    raise ToolError("device reset failed")
+                _stage(run_dir, report, "reset", duration_seconds=reset_result.duration_seconds)
+        else:
+            _stage(run_dir, report, "attach-existing-image", manifest_identity_only=True)
 
         descriptors = inspect_standard_descriptors(
             vid=args.vid, pid=args.pid, expected_speed=args.expected_speed,
@@ -2608,6 +2611,8 @@ def main(argv: list[str] | None = None) -> int:
     consumer_usb.add_argument("--expected-speed", type=int)
     consumer_usb.add_argument("--expected-interfaces", type=int)
     consumer_usb.add_argument("--reconnect-cycles", type=int, default=10)
+    consumer_usb.add_argument("--attach", action="store_true",
+                              help="inspect an already running image without programming or probe reset")
     consumer_usb.set_defaults(handler=command_consumer_usb_smoke)
     m4_usb = subparsers.add_parser("m4-usb-gate")
     add_device_arguments(m4_usb)
@@ -2784,8 +2789,9 @@ def main(argv: list[str] | None = None) -> int:
             parser.error(f"--{name.replace('_', '-')} must be positive")
     if getattr(args, "serial_ready_delay", 0) < 0:
         parser.error("--serial-ready-delay must not be negative")
-    if getattr(args, "reconnect_cycles", 1) <= 0:
-        parser.error("--reconnect-cycles must be positive")
+    if getattr(args, "reconnect_cycles", 1) < 0 or (
+            getattr(args, "reconnect_cycles", 1) == 0 and args.command != "consumer-usb-smoke"):
+        parser.error("--reconnect-cycles must be positive (consumer inspection also accepts zero)")
     if getattr(args, "stress_seconds", 1) <= 0:
         parser.error("--stress-seconds must be positive")
     if getattr(args, "sdk_runtime_contract", False) and not args.post_main_break:

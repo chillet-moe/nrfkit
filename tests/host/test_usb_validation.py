@@ -3,10 +3,41 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from pathlib import Path
+from tempfile import TemporaryDirectory
 import unittest
 from unittest import mock
 
 from nrfkit_tools import usb_validation
+from nrfkit_tools.cli import command_consumer_usb_smoke, main
+
+
+class ConsumerUsbAttachTests(unittest.TestCase):
+    def test_cli_accepts_descriptor_only_inspection(self):
+        with mock.patch('nrfkit_tools.cli.command_consumer_usb_smoke', return_value=0) as command:
+            self.assertEqual(main(['consumer-usb-smoke', '--attach', '--reconnect-cycles', '0',
+                                   '--manifest', 'image.json', '--vid', '0xcafe', '--pid', '0x4012']), 0)
+            self.assertTrue(command.call_args.args[0].attach)
+
+    def test_attach_does_not_select_program_or_reset_a_probe(self):
+        with TemporaryDirectory() as temporary:
+            report = {'stages': []}
+            args = SimpleNamespace(manifest=Path('image.json'), attach=True,
+                                   vid=0xcafe, pid=0x4012, expected_speed=480,
+                                   expected_interfaces=4, timeout=5, reconnect_cycles=0)
+            with mock.patch('nrfkit_tools.cli._new_run', return_value=(Path(temporary), report)), \
+                 mock.patch('nrfkit_tools.cli.load_manifest', return_value={}), \
+                 mock.patch('nrfkit_tools.cli._initialize_device_report'), \
+                 mock.patch('nrfkit_tools.cli._select') as select, \
+                 mock.patch('nrfkit_tools.cli._program') as program, \
+                 mock.patch('nrfkit_tools.cli.run_logged') as run, \
+                 mock.patch('nrfkit_tools.cli.inspect_standard_descriptors', return_value={}), \
+                 mock.patch('nrfkit_tools.cli.run_standard_reconnect_validation', return_value={}):
+                command_consumer_usb_smoke(args)
+            select.assert_not_called()
+            program.assert_not_called()
+            run.assert_not_called()
+            self.assertEqual(report['status'], 'ok')
 
 
 class FakeUsbUtil:

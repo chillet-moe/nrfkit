@@ -134,3 +134,11 @@ is exposed through `tools/nrfkit ppk2 info`, `power`, and `capture`. Instrument
 settings require a known DUT supply topology and voltage; entering source mode is
 not a substitute for checking the physical power connection. Cold-start measurement
 must occur after the debug server exits, with no new debug attachment during capture.
+
+### Inspect an already running USB consumer
+
+`tools/nrfkit consumer-usb-smoke --attach --reconnect-cycles 0 --manifest <manifest>
+--vid <vid> --pid <pid>` audits the manifest and inspects standard descriptors
+without programming or resetting through a probe. This does not verify the
+running firmware identity; establish that with the programming receipt and
+post-boot observations. Zero cycles records no reconnect validation.
