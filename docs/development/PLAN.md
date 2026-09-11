@@ -50,6 +50,12 @@ M4/M7 的暂缓决定仍保留；输入到位本身不表示验收完成。后�
 5 秒 GRTC 唤醒未通过，两次采样均没有预期转换，随后调试接入得到 DIF 复位原因。
 详见[测量记录](../validation/power-measurement-2026-09-11.md)。
 
+默认电源初始化修正后，已完成 1/2/4 Mbit/s 各 1000 包，以及 4 Mbit/s
+每批 64 包、共 100 批的有限发送采集。GRTC 包数/活动时间与后验 fault 检查通过，
+补齐功耗 probe 中 anomaly 20 的 constant-latency 要求；原始采样与可缩放离线图表
+保留于 ignored 本地报告。PPK2 系数缺失和空闲底线差异仍限制电气结论，
+详见[定时发送测量](../validation/wireless-power-2026-09-11.md)。
+
 ## 1. 最终目标
 
 建立一个非官方、可开源、可复用的 Nordic nRF 裸机 SDK：

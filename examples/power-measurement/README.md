@@ -2,22 +2,28 @@
 
 These LM20 DK programs leave UART, USB, LEDs and DWT tracing uninitialized.
 They expose state in RAM for inspection **after** the electrical capture. They
-have real-board idle and direct-TX captures; automatic System OFF wake remains
+have real-board idle and [timed direct-TX captures](../../docs/validation/wireless-power-2026-09-11.md); automatic System OFF wake remains
 unverified. See the [results](../../docs/validation/power-measurement-2026-09-11.md). None of these programs completes the M7 seven-workload power gate.
 
 | Target | Workload | Post-capture state |
 | --- | --- | --- |
 | `power_idle` | System ON WFE loop after normal startup | `nrfkit_power_stage = 1` |
 | `power_system_off` | Cold start, System OFF with retained marker, GRTC wake about 5 s later, System ON WFE | Stage 2 and `nrfkit_power_reset_reason` containing GRTC, without DIF |
-| `power_radio_1m` | Direct RADIO 1 Mbit/s periodic TX | Stage 1, increasing `nrfkit_power_packets` |
+| `power_radio_1m` | Direct RADIO 1 Mbit/s periodic TX | Stage 2, `nrfkit_power_packets = 1000` |
 | `power_radio_2m` | Direct RADIO 2 Mbit/s periodic TX | Same |
 | `power_radio_4m` | Direct RADIO 4 Mbit/s BT=0.6 periodic TX | Same |
+| `power_radio_burst_4m` | 64 packets per burst, 100 bursts at 100 ms spacing | Stage 2, 6400 packets, 100 batches |
 
-The radio profiles use 16 payload bytes, 0 dBm, 2416 MHz and 10 ms scheduled
+The periodic radio profiles use 16 payload bytes, 0 dBm, 2416 MHz and 10 ms scheduled
 packet spacing. They use the same packet/address/CRC/whitening configuration as
 the existing direct-RADIO link validation. CPU polling during HFXO startup and
 TX is included in the measurement; HFXO is stopped and the CPU sleeps between
-packets. They measure a specified transmitter workload, not receiver delivery,
+batches. Each packet carries 16 payload bytes; the one-byte length field is
+framing overhead. Periodic profiles send 1000 packets over 10 seconds of scheduled
+intervals, following a two-second quiet startup. The burst profile sends 1024
+payload bytes per batch, 102400 bytes in total. After the final batch the program
+sleeps indefinitely. Constant latency is requested only during each active batch
+to satisfy anomaly 20. They measure a specified transmitter workload, not receiver delivery,
 retry energy, BLE coexistence, or an optimized lower bound. A missed scheduling
 deadline is a failure, not silently shifted traffic.
 
@@ -67,3 +73,22 @@ radio packet counts against the actual elapsed interval and use a receiver when
 claiming delivery. Preserve raw captures and the original firmware backup in the
 ignored workspace. See the [PPK2 acquisition contract](../../docs/provenance/ppk2-acquisition.md)
 for sample continuity and voltage/calibration limitations.
+
+## Timing and electrical windows
+
+`nrfkit_power_batches` and `nrfkit_power_packets` count completed transmissions
+with both END and DISABLED observed. Stage 2 indicates normal completion.
+`nrfkit_power_first_us` and `nrfkit_power_last_us` bracket the first and final
+active batches. `nrfkit_power_elapsed_us` is their difference. The active sum,
+minimum and maximum (`nrfkit_power_active_us`, `nrfkit_power_active_min_us`,
+`nrfkit_power_active_max_us`) include the constant-latency request, HFXO start,
+packet preparation, RADIO ramp/TX/disable and HFXO stop. They are not pure air time.
+The GRTC timestamps use its microsecond counter, without a trace clock or UART.
+
+Use an 18-second cold-start capture to include startup, the whole finite workload
+and final idle. The 10-second scheduled traffic window differs from both the
+first-start to last-end span and the sum of active time. Report each explicitly.
+PPK2 samples are 10 microseconds apart and are not electrically synchronized to
+GRTC. If current transitions are used to align burst windows, record the detection
+rule and boundary uncertainty. Preserve the raw binary, full CSV, metadata and
+firmware/GDB receipts; never present a downsampled chart as the original capture.

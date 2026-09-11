@@ -3,16 +3,32 @@
 #include <stdint.h>
 #include <nrf.h>
 #include <hal/nrf_radio.h>
+#include <hal/nrf_power.h>
 #include <nrfkit/radio.h>
 #include <nrfkit/runtime.h>
 #include <nrfx_clock.h>
 #include <nrfx_grtc.h>
 
 #define PACKET_LENGTH 16U
-#define INTERVAL_US UINT64_C(10000)
+#ifndef NRFKIT_POWER_BATCH_PACKETS
+#define NRFKIT_POWER_BATCH_PACKETS 1U
+#endif
+#ifndef NRFKIT_POWER_BATCH_COUNT
+#define NRFKIT_POWER_BATCH_COUNT 1000U
+#endif
+#ifndef NRFKIT_POWER_INTERVAL_US
+#define NRFKIT_POWER_INTERVAL_US 10000U
+#endif
 
 volatile uint32_t nrfkit_power_stage;
 volatile uint32_t nrfkit_power_packets;
+volatile uint32_t nrfkit_power_batches;
+volatile uint32_t nrfkit_power_active_us;
+volatile uint32_t nrfkit_power_active_min_us = UINT32_MAX;
+volatile uint32_t nrfkit_power_active_max_us;
+volatile uint32_t nrfkit_power_first_us;
+volatile uint32_t nrfkit_power_last_us;
+volatile uint32_t nrfkit_power_elapsed_us;
 static volatile uint32_t wake_pending;
 static uint8_t packet[PACKET_LENGTH + 1U] __attribute__((aligned(4)));
 
@@ -65,34 +81,66 @@ int main(void)
         NRF_RADIO_SHORT_READY_START_MASK | NRF_RADIO_SHORT_PHYEND_DISABLE_MASK);
     nrfx_clock_stop(NRF_CLOCK_DOMAIN_HFCLK);
     packet[0] = PACKET_LENGTH;
-    uint64_t next = nrfx_grtc_syscounter_get();
+    uint64_t next = nrfx_grtc_syscounter_get() + UINT64_C(2000000);
     nrfkit_power_stage = 1U;
-    for (;;) {
-        next += INTERVAL_US;
+    for (uint32_t batch = 0; batch < NRFKIT_POWER_BATCH_COUNT; ++batch) {
+        next += NRFKIT_POWER_INTERVAL_US;
         require(next > nrfx_grtc_syscounter_get(), 107U);
         wake_pending = 0U;
         require(nrfx_grtc_syscounter_cc_absolute_set(&wake, next, true) == 0, 108U);
         while (wake_pending == 0U) {
             __WFE();
         }
+        uint32_t active_start = (uint32_t)nrfx_grtc_syscounter_get();
+        if (batch == 0U) {
+            nrfkit_power_first_us = active_start;
+        }
+        /* LM20 anomaly 20 requires constant latency during RADIO TX/RX. */
+        nrf_power_task_trigger(NRF_POWER, NRF_POWER_TASK_CONSTLAT);
+        uint32_t latency_wait = 200000U;
+        while ((NRF_POWER->CONSTLATSTAT & POWER_CONSTLATSTAT_STATUS_Msk) !=
+               POWER_CONSTLATSTAT_STATUS_Enable && latency_wait != 0U) {
+            --latency_wait;
+        }
+        require(latency_wait != 0U, 110U);
         nrfx_clock_start(NRF_CLOCK_DOMAIN_HFCLK);
-        packet[1] = (uint8_t)nrfkit_power_packets;
-        packet[2] = (uint8_t)(nrfkit_power_packets >> 8U);
-        for (uint32_t index = 3U; index < sizeof(packet); ++index) {
-            packet[index] = (uint8_t)(nrfkit_power_packets + index);
+        for (uint32_t index_in_batch = 0; index_in_batch < NRFKIT_POWER_BATCH_PACKETS;
+             ++index_in_batch) {
+            packet[1] = (uint8_t)nrfkit_power_packets;
+            packet[2] = (uint8_t)(nrfkit_power_packets >> 8U);
+            for (uint32_t index = 3U; index < sizeof(packet); ++index) {
+                packet[index] = (uint8_t)(nrfkit_power_packets + index);
+            }
+            nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_END);
+            nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_DISABLED);
+            nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_TXEN);
+            /* CPU polling during TX is included; sleep occurs between batches. */
+            uint32_t remaining = 200000U;
+            while (!nrf_radio_event_check(NRF_RADIO, NRF_RADIO_EVENT_DISABLED) &&
+                   remaining != 0U) {
+                --remaining;
+            }
+            require(nrf_radio_event_check(NRF_RADIO, NRF_RADIO_EVENT_DISABLED) &&
+                    nrf_radio_event_check(NRF_RADIO, NRF_RADIO_EVENT_END), 109U);
+            ++nrfkit_power_packets;
         }
-        nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_END);
-        nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_DISABLED);
-        nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_TXEN);
-        /* This profile includes CPU polling during TX, but sleeps between packets. */
-        uint32_t remaining = 200000U;
-        while (!nrf_radio_event_check(NRF_RADIO, NRF_RADIO_EVENT_DISABLED) &&
-               remaining != 0U) {
-            --remaining;
-        }
-        require(nrf_radio_event_check(NRF_RADIO, NRF_RADIO_EVENT_DISABLED) &&
-                nrf_radio_event_check(NRF_RADIO, NRF_RADIO_EVENT_END), 109U);
         nrfx_clock_stop(NRF_CLOCK_DOMAIN_HFCLK);
-        ++nrfkit_power_packets;
+        nrf_power_task_trigger(NRF_POWER, NRF_POWER_TASK_LOWPWR);
+        uint32_t active_end = (uint32_t)nrfx_grtc_syscounter_get();
+        uint32_t duration = active_end - active_start;
+        nrfkit_power_active_us += duration;
+        if (duration < nrfkit_power_active_min_us) {
+            nrfkit_power_active_min_us = duration;
+        }
+        if (duration > nrfkit_power_active_max_us) {
+            nrfkit_power_active_max_us = duration;
+        }
+        nrfkit_power_last_us = active_end;
+        ++nrfkit_power_batches;
+    }
+    nrfkit_power_elapsed_us = nrfkit_power_last_us - nrfkit_power_first_us;
+    nrfkit_power_stage = 2U;
+    for (;;) {
+        __WFE();
     }
 }

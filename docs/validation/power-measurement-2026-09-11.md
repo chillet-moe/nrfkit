@@ -99,3 +99,6 @@ a measurement of the new defaults. See the [startup audit](../provenance/lm20-po
 for authority, the missing defaults, oscillator arithmetic and remaining power
 responsibilities. The SDK-default CoreMark ELF SHA-256 is
 `9e3561460d185bd4cec5f2f3601a7a47f25e2c9c0d1bfb6a44f1b4e109584406`.
+
+The corrected defaults and finite transmitter profiles were subsequently measured
+with [packet counts, burst timing and electrical windows](wireless-power-2026-09-11.md).

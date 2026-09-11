@@ -27,6 +27,11 @@ foreach(phy IN ITEMS 1 2 4)
   target_link_libraries("${target}" PRIVATE NrfKit::radio_direct)
   target_compile_definitions("${target}" PRIVATE "NRFKIT_POWER_PHY=${phy}")
 endforeach()
+add_m1_example(power_radio_burst_4m power-measurement/radio.c clock grtc)
+target_link_libraries(power_radio_burst_4m PRIVATE NrfKit::radio_direct)
+target_compile_definitions(power_radio_burst_4m PRIVATE
+  NRFKIT_POWER_PHY=4 NRFKIT_POWER_BATCH_PACKETS=64
+  NRFKIT_POWER_BATCH_COUNT=100 NRFKIT_POWER_INTERVAL_US=100000)
 add_m1_example(blinky blinky/main.c)
 add_m1_example(fault fault/main.c)
 add_m1_example(constructors constructors/main.cpp)
