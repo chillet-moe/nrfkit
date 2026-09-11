@@ -76,7 +76,9 @@ int main(void)
             __WFE();
         }
         nrfx_clock_start(NRF_CLOCK_DOMAIN_HFCLK);
-        for (uint32_t index = 1U; index < sizeof(packet); ++index) {
+        packet[1] = (uint8_t)nrfkit_power_packets;
+        packet[2] = (uint8_t)(nrfkit_power_packets >> 8U);
+        for (uint32_t index = 3U; index < sizeof(packet); ++index) {
             packet[index] = (uint8_t)(nrfkit_power_packets + index);
         }
         nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_END);

@@ -30,7 +30,8 @@
 - **真实 System OFF 唤醒**：建立退出 Debug Interface mode 后的睡眠与唤醒验证，
   补齐 M3 记录中明确未覆盖的行为，并与功耗测量关联。
 - **OpenOCD backend 评估与接入**：公共工具已加入受 guard 约束的 CMSIS-DAP/OpenOCD
-  入口；探针枚举已通过，目标 attach、program/readback、reset 和 GDB 仍待实板验收。
+  入口；探针枚举、目标 attach、program/readback、backup/restore 与冷启动后 GDB
+  读取已通过。当前接线下 pin reset 未能重启 CPU，相关 step/watchpoint 门禁仍未通过。
   外部实现须分别审查 attach/RAM、RRAM program/readback、reset 和 GDB 能力；
   在本仓库复用镜像 guard、探针选择/锁、timeout、清理和报告后重跑验收。
   nRF54LM20 DK 上的 LM20B 可用于 SDK 的 LM20A 共同功能验收；锁定的 A/B
@@ -43,10 +44,11 @@ M4/M7 的暂缓决定仍保留；输入到位本身不表示验收完成。后�
 与归档验收。开放 BLE Host、产品 profile、其他 SoC 和实际量产 provisioning 不属于
 这些遗留项；已完成的 M8/M9 不因它们重新打开。
 
-功耗采集已有公共 PPK2 CLI 与原始数据/校准元数据报告，仪器传输预检通过，但不代表
-SoC 电气测量完成。[功耗样例](../../examples/power-measurement/README.md) 提供无 UART/USB/LED
-的空闲、GRTC System OFF 唤醒和 1/2/4 Mbit/s 周期发射固件；当前证据仅为编译与镜像审计。
-实际供电拓扑必须满足 DK 文档后才能开始实测。
+功耗采集已有公共 PPK2 CLI 与原始数据/校准元数据报告。2026-09-11 在 3.0 V 下完成
+空闲与 1/2/4 Mbit/s 周期发射采样；GDB 后验检查确认发射程序运行。PPK2 报告未校准且
+使用默认系数，因此数值仅为当前夹具估计，不完成 M7 电气门禁。真实 System OFF 的
+5 秒 GRTC 唤醒未通过，两次采样均没有预期转换，随后调试接入得到 DIF 复位原因。
+详见[测量记录](../validation/power-measurement-2026-09-11.md)。
 
 ## 1. 最终目标
 

@@ -64,8 +64,10 @@ int main(void)
         .timeout = 257U, .waketime = 255U, .auto_mode = false,
     };
     nrfx_grtc_sleep_configure(&sleep);
+    /* Match the locked official GRTC wakeup_prepare compare-IRQ setup.
+     * Detached GRTC wake remains unverified; see the measurement results. */
     require(nrfx_grtc_syscounter_cc_absolute_set(
-                &wake, nrfx_grtc_syscounter_get() + UINT64_C(5000000), false) == 0, 107U);
+                &wake, nrfx_grtc_syscounter_get() + UINT64_C(5000000), true) == 0, 107U);
     require(nrfx_grtc_syscounter_cc_disable(main_channel) == 0, 108U);
     retained.magic = RETAINED_MAGIC;
     retained.inverse = ~RETAINED_MAGIC;

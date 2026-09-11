@@ -2,8 +2,8 @@
 
 These LM20 DK programs leave UART, USB, LEDs and DWT tracing uninitialized.
 They expose state in RAM for inspection **after** the electrical capture. They
-are compile-validated probes; real-board execution and electrical results are
-pending. None of these programs completes the M7 seven-workload power gate.
+have real-board idle and direct-TX captures; automatic System OFF wake remains
+unverified. See the [results](../../docs/validation/power-measurement-2026-09-11.md). None of these programs completes the M7 seven-workload power gate.
 
 | Target | Workload | Post-capture state |
 | --- | --- | --- |
@@ -51,13 +51,15 @@ use the allowed external voltage. The debugger's voltage reference is not a DK
 power source. The alternative stand-alone configuration requires the documented
 resistor routing; it is unnecessary when using the powered-DK configuration.
 
-After flashing, disconnect the debug session and cold-cycle the SoC supply through
-`tools/nrfkit ppk2 power`. Keep DK power present. Capture using
-`tools/nrfkit ppk2 capture --manifest <manifest> --label <workload> --duration 10`.
-For System OFF, start capture promptly after cold power-on so it includes both
-the OFF interval and automatic wake transition. Leave SoC power on until the
-post-capture RAM inspection; `capture --power-cycle` turns output off in cleanup
-and would discard that evidence. Attach only after the expected wake time.
+For programming, keep a bounded `tools/nrfkit ppk2 power --state on --duration 120
+--voltage-mv <voltage>` session open while using OpenOCD. PPK2 stops supplying power
+when the serial connection closes. After flashing, disconnect the debug session
+and allow the supply session to finish. Keep DK power present. Cold-start and
+capture using `tools/nrfkit ppk2 capture --power-cycle --voltage-mv <voltage>
+--manifest <manifest> --label <workload> --duration 10 --hold-after 30`.
+The post-capture hold preserves RAM for inspection before automatic output-off
+cleanup. For System OFF, inspect only after the automatic wake and capture have
+finished; the capture must include both the OFF interval and wake transition.
 
 Record firmware hash, supply setup, instrument calibration status, capture
 timestamps and post-capture fault/stage/counter observations together. Confirm
