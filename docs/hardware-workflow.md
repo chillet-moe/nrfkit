@@ -126,3 +126,8 @@ inventory, then pass both probe identities explicitly. Never rely on enumeration
 order. Each child operation must still validate PCA10184 versus PCA10156, audit
 the SoC-specific image ranges, and acquire its own probe lock. This retained S115
 route is stopped and must not run as part of the current goal.
+
+The optional [OpenOCD backend](architecture/openocd-backend.md) supports an external
+CMSIS-DAP probe without the board's J-Link/VCOM. Use its guarded backup before
+replacing an image that must be restored. Cold-start measurement must occur after
+the debug server exits, with no new debug attachment during capture.

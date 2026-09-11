@@ -45,6 +45,7 @@ from .hci import (
 )
 from .process import atomic_json, run_logged
 from .power import PowerCaptureError, REQUIRED_PROFILES, summarize_capture
+from .openocd import OpenOcdError
 from .reference import (
     ReferenceContractError, build, load_receipt, official_toolchain_compiler,
     oracle, prepare, sha256,
@@ -2466,6 +2467,8 @@ def add_device_arguments(parser: argparse.ArgumentParser) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Build, audit, and safely run nRF reference images")
     subparsers = parser.add_subparsers(dest="command", required=True)
+    from .openocd_cli import add_commands as add_openocd_commands
+    add_openocd_commands(subparsers)
     doctor = subparsers.add_parser("doctor")
     doctor.add_argument("--cmake", default=shutil.which("cmake") or "cmake")
     doctor.add_argument("--ninja", default=shutil.which("ninja") or "ninja")
@@ -2791,5 +2794,6 @@ def main(argv: list[str] | None = None) -> int:
     except (
         DeviceContractError, ImageContractError, ReferenceContractError,
         SdkContractError, ToolError, UsbValidationError, BleValidationError, OSError,
+        OpenOcdError,
     ) as error:
         parser.exit(1, f"error: {error}\n")
