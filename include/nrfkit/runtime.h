@@ -26,6 +26,13 @@ struct nrfkit_fault_record {
 
 extern volatile struct nrfkit_fault_record nrfkit_last_fault;
 
+/** After SystemInit and C data initialization, before constructors/peripherals.
+ * Enables LM20 DC/DC and cache, updates SystemCoreClock, and invokes the linked
+ * board initializer. The freestanding runtime calls this automatically; custom
+ * runtimes must call it. Board oscillator loads require stopped crystals.
+ */
+void nrfkit_platform_init(void);
+
 void nrfkit_start(void) __attribute__((noreturn));
 void nrfkit_assert_fail(void) __attribute__((noreturn));
 /** Reset LM20 with the revision-matched anomaly 63 workaround. */

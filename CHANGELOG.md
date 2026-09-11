@@ -4,6 +4,9 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+- Enable LM20 DC/DC and NVM cache before constructors in the freestanding
+  runtime, and configure DK crystal loads using signed factory trim values.
+  Custom runtimes can call `nrfkit_platform_init()` at the equivalent point.
 - Replace firmware configure/finalize functions with composable SoC, startup,
   runtime, board and driver targets. Consumers own linker layouts and artifacts.
 - Configure nrfx through target usage requirements and retain native resource,

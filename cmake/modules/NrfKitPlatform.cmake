@@ -8,7 +8,8 @@ set_target_properties(NrfKit::soc_nrf54lm20a PROPERTIES SYSTEM FALSE)
 set(_nrfkit_mdk "${NrfKit_ROOT}/external/nrfx/bsp/stable/mdk")
 target_link_libraries(NrfKit::soc_nrf54lm20a INTERFACE NrfKit::core)
 target_sources(NrfKit::soc_nrf54lm20a INTERFACE
-  "${_nrfkit_mdk}/nrf54l/system_nrf54l.c")
+  "${_nrfkit_mdk}/nrf54l/system_nrf54l.c"
+  "${NrfKit_ROOT}/src/runtime/cortex-m/platform.c")
 target_include_directories(NrfKit::soc_nrf54lm20a INTERFACE
   "${NrfKit_ROOT}/external/cmsis/CMSIS/Core/Include" "${_nrfkit_mdk}")
 target_compile_definitions(NrfKit::soc_nrf54lm20a INTERFACE
@@ -52,6 +53,8 @@ endif()
 add_library(NrfKit::board_nrf54lm20dk INTERFACE IMPORTED GLOBAL)
 set_target_properties(NrfKit::board_nrf54lm20dk PROPERTIES SYSTEM FALSE)
 target_link_libraries(NrfKit::board_nrf54lm20dk INTERFACE NrfKit::soc_nrf54lm20a)
+target_sources(NrfKit::board_nrf54lm20dk INTERFACE
+  "${NrfKit_ROOT}/src/boards/nrf54lm20dk/init.c")
 target_include_directories(NrfKit::board_nrf54lm20dk INTERFACE
   "${NrfKit_ROOT}/src/boards/nrf54lm20dk/include")
 unset(_nrfkit_mdk)

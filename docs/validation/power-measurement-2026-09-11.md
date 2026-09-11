@@ -31,8 +31,9 @@ transmitter execution, not reception or an independently measured RF data rate.
 At the scheduled 100 Hz rate, total fixture energy per interval is approximately
 26.73, 21.40 and 18.49 µJ respectively, including baseline and clock startup.
 
-The instrument reported `calibrated=0` and missing calibration coefficients, so
-the decoder used recorded defaults. The approximately 315 µA idle reading is not
+The instrument reported missing calibration coefficients, so the decoder used
+recorded defaults. The `calibrated=0` field alone is not a reliable factory-
+calibration verdict. The approximately 315 µA idle reading is not
 an established SoC baseline. Board/debug connections and supply arrangement are
 part of the measured fixture. Voltage is a configured value, not a measured rail.
 Raw range-switch peaks are retained and must not be treated as calibrated peaks.
@@ -69,3 +70,32 @@ The pre-test firmware and ordinary RRAM settings were restored from double-read
 backups with byte verification. No configuration/one-time regions or persistent
 probe settings were changed. The bounded PPK2 supply session turns output off at
 completion.
+
+## CoreMark and startup audit
+
+A separate bare-metal port of official EEMBC CoreMark commit
+`1f483d5b8316753a742cbf5590caf5bd0a4e4777` ran unchanged algorithm sources with
+10,000 iterations, performance seeds and a 2,000-byte workload. LLVM Release
+`-O3`, 128 MHz, RRAM execution, GRTC timing and RAM-only reporting were used;
+USB, UART and wireless were not initialized. The workload ran for approximately
+20.9 seconds, then stopped HFXO and slept. Means below use only seconds 1–10.
+
+| Configuration | CoreMark iterations/s | Mean current estimate |
+| --- | ---: | ---: |
+| Cache enabled, DC/DC disabled | 478.56 | 9.394 mA |
+| Cache enabled, DC/DC enabled manually | 478.48 | 2.858 mA |
+| SDK platform defaults, no application enable calls | 478.17 | 2.852 mA |
+
+All three runs passed CoreMark validation with final CRC `0x988c`. This is a
+local compiler/port comparison, not an EEMBC-certified score or a reproduction
+of Nordic's compiler and RAM configuration. Post-run GDB for the SDK-default
+image confirmed cache=1, DCDCEN=1, CPU=128 MHz and RRAM idle mode=PowerOff.
+HFXO/LFXO capacitor codes were 41/22, matching the observed factory trims.
+INDUCTORDET read zero even with DCDCEN=1 and the large current reduction; this
+unresolved observation is not presented as positive converter-status proof.
+
+The earlier idle/RADIO table predates this initialization correction and is not
+a measurement of the new defaults. See the [startup audit](../provenance/lm20-power-startup.md)
+for authority, the missing defaults, oscillator arithmetic and remaining power
+responsibilities. The SDK-default CoreMark ELF SHA-256 is
+`9e3561460d185bd4cec5f2f3601a7a47f25e2c9c0d1bfb6a44f1b4e109584406`.

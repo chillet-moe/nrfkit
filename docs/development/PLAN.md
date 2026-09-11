@@ -45,7 +45,7 @@ M4/M7 的暂缓决定仍保留；输入到位本身不表示验收完成。后�
 这些遗留项；已完成的 M8/M9 不因它们重新打开。
 
 功耗采集已有公共 PPK2 CLI 与原始数据/校准元数据报告。2026-09-11 在 3.0 V 下完成
-空闲与 1/2/4 Mbit/s 周期发射采样；GDB 后验检查确认发射程序运行。PPK2 报告未校准且
+空闲与 1/2/4 Mbit/s 周期发射采样；GDB 后验检查确认发射程序运行。PPK2 缺失校准系数且
 使用默认系数，因此数值仅为当前夹具估计，不完成 M7 电气门禁。真实 System OFF 的
 5 秒 GRTC 唤醒未通过，两次采样均没有预期转换，随后调试接入得到 DIF 复位原因。
 详见[测量记录](../validation/power-measurement-2026-09-11.md)。
@@ -1369,6 +1369,17 @@ RAM 边界不扩大烧写 allowlist。device manifest 绑定 ELF hash 与符号�
 验收：149 项 SDK host tests 和 28 个示例构建通过；包含自定义保留区、坏 ELF 符号表、
 manifest 篡改拒绝及旧恢复 receipt 校验。消费者构建、host tests 与应用/bootloader
 地址审计通过。本轮未操作硬件。
+
+### 2026-09-11 电源与晶振启动复核
+
+freestanding runtime 在 C 数据初始化之后、构造器之前调用公共平台初始化，补齐
+MDK `SystemInit` 未提供的主 DC/DC 与 NVM cache 默认开启。DK target 提供按 FICR
+有符号 trim 计算的 HFXO 15 pF / LFXO 17 pF 内部电容，已请求或运行的晶振保持原配置。
+自定义 runtime 需在对应时点显式调用；普通外设、时钟请求与 RAM 生命周期仍由应用负责。
+来源与锁定 nrfx 电容宏的算术差异见[启动审计](../provenance/lm20-power-startup.md)。
+167 项 host tests、LLVM/GNU、安装包与可复现构建通过；LM20B DK 冷启动 CoreMark
+CRC 通过，确认 cache/DC/DC 已开启，晶振电容与 FICR 计算一致。组合应用 USB 四个
+HID 接口和主循环/fault 检查通过。测量仍受 PPK2 系数缺失限制，不完成 M7 电气门禁。
 
 ## 13. 权威入口
 

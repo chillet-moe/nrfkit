@@ -22,8 +22,8 @@ set_property(TARGET firmware APPEND PROPERTY LINK_DEPENDS "${linker_script}")
 | `NrfKit::core` | Public SDK headers; usable without a firmware runtime. |
 | `NrfKit::soc_nrf54lm20a` | Chip macros, CMSIS/MDK headers, SystemInit, Cortex-M33 and hard-float ABI requirements. |
 | `NrfKit::startup` | Official LM20 startup and the SoC target; consumer supplies runtime entry conventions. |
-| `NrfKit::runtime_freestanding` | Optional minimal runtime, fault/reset support and startup; no application linker layout. |
-| `NrfKit::board_nrf54lm20dk` | DK headers and the SoC target. |
+| `NrfKit::runtime_freestanding` | Optional minimal runtime, platform initialization, fault/reset support and startup; no application linker layout. |
+| `NrfKit::board_nrf54lm20dk` | DK headers, oscillator-load initialization and the SoC target. |
 | `NrfKit::nrfx_<driver>` | Selected nrfx driver and its source dependencies. |
 | `NrfKit::sdc_multirole` | Multirole Controller, SDK platform/HCI implementation, and locked MPSL/FEM dependencies. |
 | `NrfKit::sdc_peripheral` | Peripheral-only version of the same integration. |
@@ -98,3 +98,9 @@ standalone layout and artifacts. It is a validation-fixture helper, not a public
 application API. USB configuration likewise stays with the consumer.
 
 Names beginning `_nrfkit_`, raw archive targets and prepared-cache paths are private.
+
+The freestanding runtime enables LM20 DC/DC and NVM cache before constructors,
+and invokes the linked board initializer. Custom runtimes call
+`nrfkit_platform_init()` after MDK and C data initialization. See the
+[power startup contract](../provenance/lm20-power-startup.md) for crystal loads,
+bootloader handoff and application power responsibilities.

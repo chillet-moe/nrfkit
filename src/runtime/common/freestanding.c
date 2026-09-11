@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <stddef.h>
+#include <nrfkit/runtime.h>
 
 typedef void (*init_function)(void);
 
@@ -13,7 +14,6 @@ extern init_function __fini_array_start[];
 extern init_function __fini_array_end[];
 
 extern int main(void);
-extern void SystemCoreClockUpdate(void);
 
 int errno;
 
@@ -148,8 +148,7 @@ static void call_forward(init_function *begin, init_function *end)
 
 void nrfkit_start(void)
 {
-    /* SystemInit selects the boot-time PLL frequency before entering here. */
-    SystemCoreClockUpdate();
+    nrfkit_platform_init();
     call_forward(__preinit_array_start, __preinit_array_end);
     call_forward(__init_array_start, __init_array_end);
     (void)main();
