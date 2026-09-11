@@ -12,6 +12,28 @@ from nrfkit_tools.ppk2_cli import command
 
 
 class Ppk2Tests(unittest.TestCase):
+    def test_power_session_holds_connection_and_turns_off_before_close(self):
+        with TemporaryDirectory() as temporary:
+            report = {}
+            instrument = MagicMock()
+            instrument.metadata.return_value = {'vdd': 1800, 'mode': 2}
+            instrument.configure.return_value = {'vdd': 1800, 'mode': 2}
+            args = Namespace(ppk_action='power', ppk_serial=None, manifest=None,
+                             voltage_mv=1800, duration=60, state='on')
+            def check_open(seconds):
+                self.assertEqual(seconds, 60)
+                instrument.close.assert_not_called()
+                self.assertEqual(instrument.power.call_args.args, (True,))
+            with patch('nrfkit_tools.cli._new_run', return_value=(Path(temporary), report)), \
+                 patch('nrfkit_tools.ppk2_cli.discover', return_value=[]), \
+                 patch('nrfkit_tools.ppk2_cli.select', return_value={'serial': 'test', 'port': 'unused'}), \
+                 patch('nrfkit_tools.ppk2_cli.Ppk2', return_value=instrument), \
+                 patch('nrfkit_tools.ppk2_cli.time.sleep', side_effect=check_open):
+                command(args)
+            self.assertEqual(instrument.power.call_args.args, (False,))
+            instrument.close.assert_called_once()
+            self.assertEqual(report['cleanup_output_requested'], 'off')
+
     def test_configuration_waits_for_readback_without_repeating_writes(self):
         instrument = object.__new__(Ppk2)
         instrument.command = MagicMock()

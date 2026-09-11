@@ -18,8 +18,12 @@ CDC interface is not a second instrument. An explicit serial disambiguates multi
 instruments; the process holds a device lock and an exclusive serial handle.
 `info` requests metadata without stopping acquisition or changing power.
 
-`power` explicitly controls the source output. Mode and configured voltage are read
-back. PPK2 metadata does not report the physical output state or independently
+`power --state on --duration 60` holds the serial connection and source output for
+a bounded interval, then requests output off before closing. Nordic confirms that
+[PPK2 output depends on keeping the serial connection open](https://devzone.nordicsemi.com/f/nordic-q-a/87399/keep-power-profiler-powered-up-when-not-communcating).
+A completed power-on command must not be interpreted as a persistent supply.
+Mode and configured voltage are read back, with bounded polling for asynchronous
+regulator updates. PPK2 metadata does not report the physical output state or independently
 measure DUT voltage: reports distinguish requested output from verified mode/voltage
 configuration. No calibration, firmware, persistent gain or probe configuration is
 written. Choose the voltage and wiring from the actual DUT specification before
@@ -31,8 +35,11 @@ formatting cannot stall USB reception. Raw samples, metadata, CSV, firmware iden
 and SHA-256 values remain in the ignored run directory. A manifest only binds the
 intended firmware; the caller must separately establish that it is running.
 `--power-cycle` explicitly cold-starts the DUT and requests output off in cleanup,
-including after capture or decoding errors. Without that option, capture leaves
-power configuration unchanged.
+including after capture or decoding errors. `--hold-after` keeps the same connection
+and output alive briefly after a successful capture for post-capture target inspection.
+Without `--power-cycle`, capture sends no output command; it is suitable for an
+externally supplied DUT in ampere mode or instrument diagnostics, not an assumption
+that a previous closed source session still powers the DUT.
 
 Four-byte little-endian samples contain a 14-bit ADC value, 3-bit range, 6-bit
 sequence counter and digital bits. ADC codes are scaled by four. The decoder rejects
