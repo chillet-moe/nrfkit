@@ -9,11 +9,25 @@ from unittest.mock import patch, MagicMock
 
 from nrfkit_tools.image import ImageContractError, parse_ihex
 from nrfkit_tools.openocd import OpenOcdError, addressed_hex, configuration, parse_identity, tcl_word
-from nrfkit_tools.openocd_cli import command, _restore, _backup
+from nrfkit_tools.openocd_cli import command, _restore, _backup, _settings_span
 from nrfkit_tools.reference import sha256
 
 
 class OpenOcdTests(unittest.TestCase):
+    def test_settings_backup_accepts_only_separate_audited_ordinary_rram(self):
+        manifest = {'debug_allowlist': [[0, 0x10000]], 'image_layout': {
+            'source': 'elf-symbols', 'symbols': {
+                '__nrfkit_settings_start': 0x10000, '__nrfkit_settings_end': 0x11000}}}
+        self.assertEqual(_settings_span(manifest), (0x10000, 0x11000))
+        for start, end in ((0, 16), (0x10001, 0x11000), (0x10000, 0x10000),
+                           (0x00ffd000, 0x00ffe000)):
+            manifest['image_layout']['symbols'].update(
+                __nrfkit_settings_start=start, __nrfkit_settings_end=end)
+            with self.assertRaises((OpenOcdError, ImageContractError)):
+                _settings_span(manifest)
+        with self.assertRaises(OpenOcdError):
+            _settings_span({'debug_allowlist': [[0, 16]]})
+
     def test_tcl_argument_injection_is_rejected(self):
         for text in ('x} ; reset', 'a\\b', 'a\nb', 'a\x00b'):
             with self.assertRaises(OpenOcdError):

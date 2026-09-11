@@ -37,6 +37,9 @@ def add_commands(subparsers: Any) -> None:
             action.add_argument("--manifest", type=Path, required=True, action="append" if name == "backup" else "store")
         if name == "restore":
             action.add_argument("--backup-report", type=Path, required=True)
+        if name in ("backup", "restore"):
+            action.add_argument("--include-settings", action="store_true",
+                                help="also preserve the ordinary settings region declared by the audited ELF")
         if name == "gdb-smoke":
             action.add_argument("--gdb", required=True)
             action.add_argument("--attach", action="store_true")
@@ -45,11 +48,28 @@ def add_commands(subparsers: Any) -> None:
         action.set_defaults(handler=command)
 
 
-def _backup(backend: OpenOcd, manifests: list[dict[str, Any]], report: dict[str, Any]) -> None:
+def _settings_span(manifest: dict[str, Any]) -> tuple[int, int]:
+    layout = manifest.get("image_layout", {})
+    symbols = layout.get("symbols", {})
+    start = symbols.get("__nrfkit_settings_start")
+    end = symbols.get("__nrfkit_settings_end")
+    if (layout.get("source") != "elf-symbols" or not isinstance(start, int) or
+            not isinstance(end, int) or start % 16 or end % 16):
+        raise OpenOcdError("settings backup requires an audited ELF with aligned settings bounds")
+    require_allowed(((start, end),), ((0, RRAM_END),))
+    if start >= end or any(start < b and a < end for a, b in manifest["debug_allowlist"]):
+        raise OpenOcdError("settings must be a separate nonempty ordinary RRAM region")
+    return start, end
+
+
+def _backup(backend: OpenOcd, manifests: list[dict[str, Any]], report: dict[str, Any],
+            *, include_settings: bool = False) -> None:
     # Save only bytes that the selected test images can overwrite, rounded to the
     # RRAM data unit. Adjacent bytes are checked against each manifest's allowlist.
     ranges = []
     for manifest in manifests:
+        if include_settings:
+            ranges.append(_settings_span(manifest))
         for item in manifest["images"]:
             for start, end in item["ranges"]:
                 span = (start // 16 * 16, (end + 15) // 16 * 16)
@@ -82,15 +102,20 @@ def _backup(backend: OpenOcd, manifests: list[dict[str, Any]], report: dict[str,
         second.chmod(0o400)
         backups.append({"path": str(path), "sha256": sha256(path), "range": [start, end]})
     report["backups"] = backups
+    report["includes_declared_settings"] = include_settings
     report["target_state"] = "halted"
 
 
-def _restore(backend: OpenOcd, manifest: dict[str, Any], path: Path, report: dict[str, Any]) -> None:
+def _restore(backend: OpenOcd, manifest: dict[str, Any], path: Path, report: dict[str, Any],
+             *, include_settings: bool = False) -> None:
     backup = json.loads(path.read_text())
     if (backup.get("operation") != "openocd-backup" or backup.get("status") != "ok"
             or not backup.get("backups") or not backup.get("target")):
         raise OpenOcdError("a successful OpenOCD backup report is required")
     snapshots = []
+    allowlist = tuple(map(tuple, manifest["debug_allowlist"]))
+    if include_settings:
+        allowlist += (_settings_span(manifest),)
     for index, item in enumerate(backup["backups"]):
         source = Path(item["path"])
         destination = backend.run_dir / f"restore-{index}.hex"
@@ -99,7 +124,7 @@ def _restore(backend: OpenOcd, manifest: dict[str, Any], path: Path, report: dic
         if sha256(destination) != item["sha256"]:
             raise OpenOcdError("backup artifact changed")
         image = parse_ihex(destination)
-        require_allowed(image.ranges, tuple(map(tuple, manifest["debug_allowlist"])))
+        require_allowed(image.ranges, allowlist)
         require_allowed(image.ranges, ((0, RRAM_END),))
         if image.ranges != (tuple(item["range"]),):
             raise OpenOcdError("backup range does not match its receipt")
@@ -205,6 +230,9 @@ def command(args: argparse.Namespace) -> int:
             if any(m["soc"] != "nrf54lm20a" for m in manifests):
                 raise OpenOcdError("OpenOCD workflow supports the LM20 application target only")
             report["manifests"] = [{"path": str(p.resolve()), "sha256": sha256(p)} for p in paths]
+            if getattr(args, "include_settings", False):
+                for manifest in manifests:
+                    _settings_span(manifest)
         devices = discover(args.vid, args.pid, args.probe_serial)
         report["devices"] = devices
         if action != "list":
@@ -217,9 +245,10 @@ def command(args: argparse.Namespace) -> int:
                 if action == "info":
                     report["target"] = parse_identity(backend.run("info", ""))
                 elif action == "backup":
-                    _backup(backend, manifests, report)
+                    _backup(backend, manifests, report, include_settings=args.include_settings)
                 elif action == "restore":
-                    _restore(backend, manifests[0], args.backup_report, report)
+                    _restore(backend, manifests[0], args.backup_report, report,
+                             include_settings=args.include_settings)
                 elif action == "flash":
                     snapshots = _snapshot_hexes(manifests[0], run_dir)
                     commands = ["halt"]

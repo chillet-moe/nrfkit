@@ -35,7 +35,10 @@ LM20 functionality; NPU support is outside scope.
 - `restore --manifest --backup-report` requires a successful backup, unchanged
   artifact hashes, matching target identity, and ranges within the supplied
   manifest's allowlist. It verifies restored bytes and leaves the CPU halted.
-- `reset` performs a pin reset and resumes execution.
+- `backup` and `restore` accept `--include-settings` to preserve the separate,
+  16-byte-aligned ordinary RRAM settings span declared by the audited ELF. The
+  default remains image bytes only; protected regions are never included.
+- `reset` requests a pin reset and resumes execution.
 - `gdb-smoke --manifest --gdb` exercises main and single-step with hardware
   breakpoints. `--runtime-contract` adds the hardware-validation firmware's RAM,
   post-main, reset-vector and watchpoint checks. `--attach --observe SYMBOL` inspects
@@ -50,5 +53,13 @@ flash breakpoints, power-loss programming recovery and full M2/M7 acceptance are
 separate evidence, not inferred from a successful attach.
 
 Host tests cover argument quoting, identity/range rejection, rounded backup bounds,
-and stale or wrong-target restoration. Live USB enumeration has passed. Programming,
-reset and GDB gates remain pending until recorded through these commands.
+and stale or wrong-target restoration. Live USB enumeration has passed. Guarded programming/readback, double-read backup/restore, and post-cold-start
+GDB attach/read have passed on LM20B. Physical reset did not restart the tested
+fixture, so reset-dependent main/step/watchpoint gates remain pending. See the
+[measurement results](../validation/power-measurement-2026-09-11.md).
+
+If running firmware locks application writes until reset, a restore can fail
+without an image-guard failure. Where a separately backed-up writable boot region
+is available, program the quiet probe there, cold-start it, restore application
+and settings, then restore the original boot region while halted. Do not modify
+protection settings or infer that an ineffective pin reset cleared runtime locks.
