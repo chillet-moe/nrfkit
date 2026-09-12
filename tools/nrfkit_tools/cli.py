@@ -2496,6 +2496,8 @@ def main(argv: list[str] | None = None) -> int:
 
     from .ppk2_cli import add_commands as add_ppk2_commands
     add_ppk2_commands(subparsers)
+    from .ppk2_eeprom_cli import add_commands as add_ppk2_eeprom_commands
+    add_ppk2_eeprom_commands(subparsers)
 
     reference = subparsers.add_parser("reference")
     reference_commands = reference.add_subparsers(dest="reference_command", required=True)

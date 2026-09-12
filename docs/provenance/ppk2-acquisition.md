@@ -18,6 +18,8 @@ CDC interface is not a second instrument. An explicit serial disambiguates multi
 instruments; the process holds a device lock and an exclusive serial handle.
 `info` requests metadata without stopping acquisition or changing power.
 
+EEPROM inspection has a separate [firmware and recovery contract](ppk2-eeprom.md).
+
 `power --state on --duration 60` holds the serial connection and source output for
 a bounded interval, then requests output off before closing. Nordic confirms that
 [PPK2 output depends on keeping the serial connection open](https://devzone.nordicsemi.com/f/nordic-q-a/87399/keep-power-profiler-powered-up-when-not-communcating).

@@ -134,6 +134,12 @@ is exposed through `tools/nrfkit ppk2 info`, `power`, and `capture`. Instrument
 settings require a known DUT supply topology and voltage; entering source mode is
 not a substitute for checking the physical power connection. Cold-start measurement
 must occur after the debug server exits, with no new debug attachment during capture.
+An explicitly authorized calibration audit uses `tools/nrfkit ppk2-eeprom`
+with the pinned temporary DFU package, an explicitly hashed official restore
+package, and the official firmware identity read from the selected instrument
+before the transaction. It performs two read-only EEPROM reads and restores the
+official firmware in cleanup; it never exposes an EEPROM write command. Close all
+instrument clients before starting the transaction.
 
 ### Inspect an already running USB consumer
 
