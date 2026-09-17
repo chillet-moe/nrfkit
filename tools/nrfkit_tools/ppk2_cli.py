@@ -42,7 +42,7 @@ def add_commands(subparsers: Any) -> None:
 
 def command(args: argparse.Namespace) -> int:
     from .cli import _new_run, _probe_lock, load_manifest
-    run_dir, report = _new_run("ppk2-" + args.ppk_action)
+    run_dir, report = _new_run("ppk2-" + args.ppk_action, group="power")
     instrument = None
     try:
         if getattr(args, "manifest", None):

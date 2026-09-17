@@ -56,6 +56,29 @@ class FlashCommandTests(unittest.TestCase):
 
         self.assertNotEqual(first, second)
 
+    def test_power_run_group_has_a_separate_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with mock.patch("nrfkit_tools.cli.project_root", return_value=root):
+                run, _ = _new_run("capture", group="power")
+
+            self.assertEqual(run.parent, root / ".work/power/runs")
+
+    def test_child_run_inherits_its_group_from_the_environment(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with (
+                mock.patch("nrfkit_tools.cli.project_root", return_value=root),
+                mock.patch.dict(os.environ, {"NRFKIT_RUN_GROUP": "power"}),
+            ):
+                run, _ = _new_run("openocd-flash")
+
+            self.assertEqual(run.parent, root / ".work/power/runs")
+
+    def test_invalid_run_group_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ToolError, "run group"):
+            _new_run("capture", group="../elsewhere")
+
     def test_gdb_discovery_accepts_explicit_environment_path(self) -> None:
         with mock.patch.dict(os.environ, {"NRF_GDB": "/opt/arm/bin/arm-none-eabi-gdb"}):
             self.assertEqual(_default_gdb(), "/opt/arm/bin/arm-none-eabi-gdb")

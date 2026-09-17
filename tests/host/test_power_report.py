@@ -71,13 +71,13 @@ class PowerReportTests(unittest.TestCase):
 
     def test_zero_argument_selection_uses_latest_successful_suite(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            runs = Path(temporary)
-            failed = runs / "20260918-000001-blu939-suite-failed"
-            success = runs / "20260918-000000-blu939-suite-ok"
+            power_runs = Path(temporary) / "power/runs"
+            failed = power_runs / "20260918-000001-blu939-suite-failed"
+            success = power_runs / "20260918-000000-blu939-suite-ok"
             self.fixture(success)
             self.fixture(failed, status="failed")
             failed.touch()
-            self.assertEqual(_latest_successful(runs), success / "run.json")
+            self.assertEqual(_latest_successful(power_runs), success / "run.json")
 
 
 if __name__ == "__main__":

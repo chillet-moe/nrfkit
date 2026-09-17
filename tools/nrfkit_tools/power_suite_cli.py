@@ -79,7 +79,10 @@ def _profiles(values: list[str]) -> list[tuple[str, Path]]:
 def _child(
     argv: list[str], log: Path, timeout: float,
 ) -> Path:
-    result = run_logged(argv, log, timeout)
+    result = run_logged(
+        argv, log, timeout,
+        environment={**os.environ, "NRFKIT_RUN_GROUP": "power"},
+    )
     if result.returncode:
         raise RuntimeError(f"child command failed; see {log.name}")
     lines = [line for line in result.stdout.splitlines() if line.strip()]
@@ -188,7 +191,7 @@ def _validate_observations(profile: str, values: dict[str, int]) -> None:
 def command(args: argparse.Namespace) -> int:
     from .cli import ToolError, _new_run, _probe_lock, load_manifest, project_root
 
-    run_dir, report = _new_run("blu939-suite")
+    run_dir, report = _new_run("blu939-suite", group="power")
     instrument: Blu939 | None = None
     backup_report: Path | None = None
     operation_error: BaseException | None = None
@@ -365,6 +368,7 @@ def command(args: argparse.Namespace) -> int:
                         stderr=subprocess.STDOUT,
                         text=True,
                         start_new_session=True,
+                        env={**os.environ, "NRFKIT_RUN_GROUP": "power"},
                     )
                     deadline = time.monotonic() + args.peer_timeout
                     while not peer_ready.is_file():

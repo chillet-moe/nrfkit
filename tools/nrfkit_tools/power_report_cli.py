@@ -21,7 +21,8 @@ def add_commands(subparsers: Any) -> None:
 
 def _latest_successful(runs: Path) -> Path:
     for directory in sorted(
-        runs.glob("*-blu939-suite-*"), key=lambda path: path.stat().st_mtime,
+        runs.glob("*-blu939-suite-*"),
+        key=lambda path: path.stat().st_mtime,
         reverse=True,
     ):
         report = directory / "run.json"
@@ -38,7 +39,9 @@ def command(args: argparse.Namespace) -> int:
     from .cli import ToolError, project_root
 
     try:
-        report = args.run or _latest_successful(project_root() / ".work/runs")
+        report = args.run or _latest_successful(
+            project_root() / ".work/power/runs"
+        )
         print(generate_report(report, args.output))
     except PowerReportError as error:
         raise ToolError(str(error)) from error

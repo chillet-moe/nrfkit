@@ -176,7 +176,7 @@ def command(args: argparse.Namespace) -> int:
     from .cli import _new_run, _probe_lock
 
     _validate_inputs(args)
-    run_dir, report = _new_run("ppk2-eeprom-audit")
+    run_dir, report = _new_run("ppk2-eeprom-audit", group="power")
     report.update({
         "temporary_firmware": {
             "project": "fabiobaltieri/ppk2-eeprom",

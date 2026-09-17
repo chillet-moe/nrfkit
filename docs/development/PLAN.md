@@ -640,7 +640,7 @@ SDK 验证示例显式选择并输出以下产物；普通消费者按自己的�
 - `run` 编排 doctor/build/inspect/flash/serial-ready/reset/wait-token 流程，通过 `nrfutil device list --json` 与板级 VCOM 契约选择串口，不硬编码 `/dev/ttyACM*`；解析器必须按 JSON Lines 事件流读取 nrfutil 输出，不能假定 stdout 只有一个 JSON object。烧写保持 target 不复位，串口读取进入 ready 状态后才单独 reset，防止漏掉一次性启动输出；必须用限时内观察到的 token 判定运行成功，不以烧写工具返回 0 代替运行证据。两个首批 token 分别为 `Hello World! nrf54lm20dk/nrf54lm20a/cpuapp` 和 `LEDs sample initialized`；
 - `gdb-smoke` 用本机 GDB client 与 SEGGER J-Link GDB Server 执行最小自动验收：连接、reset halt、读 CPUID/PC/SP、在 `main` 停止、单步、detach 并清理 server；
 - `doctor` 必须分别报告 CMake/Ninja/west、官方 toolchain、nrfutil/J-Link server 和本机 Arm GDB client；west 与官方 toolchain 只服务 reference build，GDB client 不得从 NCS build environment 隐式借用。若本机没有 `arm-none-eabi-gdb` 或 `gdb-multiarch`，P0 应安装并锁定一个校验过 hash 的用户级 Arm GNU Toolchain/GDB，且不能把下载动作放进普通项目 configure/build；
-- 每次操作写入独立的 `.work/runs/<id>/run.json` 和进程日志，记录产物、源码、工具版本、各阶段状态、timeout 和必要的 recovery 结果；nrfutil 必须显式使用 stdout 日志并由 runner 收集，不能把默认日志散落到用户目录。子进程使用 argv 而不是 shell string，在独立 process group 中运行，超时或异常时终止整个进程组；报告以原子替换写入。串号和本地路径只能保存在这些 gitignored 本地文件中；
+- 每次操作写入独立的本地 `run.json` 和进程日志：普通操作使用 `.work/runs/<id>/`，功耗测量与仪器操作使用 `.work/power/runs/<id>/`。报告记录产物、源码、工具版本、各阶段状态、timeout 和必要的 recovery 结果；nrfutil 必须显式使用 stdout 日志并由 runner 收集，不能把默认日志散落到用户目录。子进程使用 argv 而不是 shell string，在独立 process group 中运行，超时或异常时终止整个进程组；报告以原子替换写入。串号和本地路径只能保存在这些 gitignored 本地文件中；
 - 对 HEX 解析、越界拒绝、多探针歧义、命令参数、锁、timeout、原子 JSON 报告和失败清理建立无硬件 host tests；
 - 任何为建立 ground truth 而成功执行的手工构建、烧写、复位、串口或 GDB 命令，都必须在同一任务内固化到公共 CLI、测试并通过该 CLI 重跑；不能只留在 shell history、聊天记录或一次性脚本中；
 - 最小 README/工作流文档、`.gitignore`、自有工具代码的 BSD-3-Clause `LICENSE` 和 SPDX headers。

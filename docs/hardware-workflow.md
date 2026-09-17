@@ -10,7 +10,7 @@ Use this sequence:
 
 1. Run source, tool, manifest, ELF, and HEX checks without hardware access.
 2. Invoke the applicable public CLI command. If USB, serial, probe IPC, or local-port access is denied by the sandbox, rerun that same command with Codex escalation instead of bypassing the CLI.
-3. Keep the safety guard, immutable image snapshot, unique-probe selection, per-probe lock, timeout, process cleanup, and `.work/runs/` report active in the escalated run.
+3. Keep the safety guard, immutable image snapshot, unique-probe selection, per-probe lock, timeout, process cleanup, and local structured report active in the escalated run. General reports use `.work/runs/`; power measurement and instrument reports use `.work/power/runs/`.
 4. Treat an escalation or transport failure as infrastructure evidence. Repair the workflow and rerun it; do not respond with direct vendor erase, recover, or provisioning commands.
 
 For a VCOM token failure, preserve the raw local transcript and classify its byte pattern before retrying. Ordered ASCII with missing groups indicates transport loss rather than a baud-rate mismatch. Check exclusive TTY ownership and the probe's enumerated USB functions. Some J-Link OB configurations expose MSD and VCOM concurrently and are subject to [documented packet-size limitations](https://kb.segger.com/J-Link_OB). For a confirmed affected probe that does not need drag-and-drop programming, SEGGER's supported workaround is to keep MSD disabled; J-Link debug and VCOM remain available. Do not weaken the exact-token contract or alter a persistent setting without the separate authorization procedure above.
@@ -69,7 +69,9 @@ both boards. It always requests output off during cleanup. This replaces interac
 Agent sequencing; an individual `blu939 capture` remains useful for one-off probes.
 Every successful suite writes `index.html` beside `run.json`. To rebuild the newest
 successful report, run `tools/nrfkit power-report` with no arguments. Pass a run
-directory or `run.json` only when rendering an older suite.
+directory or `run.json` only when rendering an older suite. New suite, individual
+BLU939/PPK2, power-audit, and USB power reports are grouped under
+`.work/power/runs/`.
 
 The M4 USB device gate is `tools/nrfkit m4-usb-gate`. Its default contract performs
 100 controlled reconnects, transfer/HID stress, and Linux runtime-PM suspend plus

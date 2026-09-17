@@ -42,7 +42,7 @@ def command(args: argparse.Namespace) -> int:
             f"missing={missing}, extra={extra}"
         )
 
-    run_dir, report = _new_run("m7-power-audit")
+    run_dir, report = _new_run("m7-power-audit", group="power")
     report.update({
         "status": "running",
         "stages": [],

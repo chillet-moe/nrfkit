@@ -142,9 +142,22 @@ def load_manifest(path: Path, *, artifacts: bool = True) -> dict[str, Any]:
     return value
 
 
-def _new_run(operation: str) -> tuple[Path, dict[str, Any]]:
+def _new_run(
+    operation: str, *, group: str | None = None,
+) -> tuple[Path, dict[str, Any]]:
     root = project_root()
-    runs_dir = root / ".work/runs"
+    selected_group = group if group is not None else os.environ.get("NRFKIT_RUN_GROUP")
+    if selected_group is not None and re.fullmatch(
+        r"[a-z0-9][a-z0-9-]*", selected_group
+    ) is None:
+        raise ToolError(
+            "run group must contain only lowercase letters, digits, and hyphens"
+        )
+    runs_dir = (
+        root / ".work" / selected_group / "runs"
+        if selected_group is not None
+        else root / ".work/runs"
+    )
     runs_dir.mkdir(parents=True, exist_ok=True)
     run_dir = Path(tempfile.mkdtemp(
         prefix=f"{time.strftime('%Y%m%d-%H%M%S')}-{operation}-",
@@ -926,7 +939,7 @@ def command_m6_host_info(args: argparse.Namespace) -> int:
 
 
 def command_m4_usb_power(args: argparse.Namespace) -> int:
-    run_dir, report = _new_run("m4-usb-power")
+    run_dir, report = _new_run("m4-usb-power", group="power")
     report["stages"] = []
     try:
         report["active_stage"] = "usb-host-resume"

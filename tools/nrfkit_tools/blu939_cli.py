@@ -41,7 +41,7 @@ def add_commands(subparsers: Any) -> None:
 def command(args: argparse.Namespace) -> int:
     from .cli import _new_run, _probe_lock, load_manifest
 
-    run_dir, report = _new_run("blu939-" + args.blu939_action)
+    run_dir, report = _new_run("blu939-" + args.blu939_action, group="power")
     instrument = None
     try:
         if getattr(args, "manifest", None):
