@@ -32,6 +32,13 @@ target_link_libraries(power_radio_burst_4m PRIVATE NrfKit::radio_direct)
 target_compile_definitions(power_radio_burst_4m PRIVATE
   NRFKIT_POWER_PHY=4 NRFKIT_POWER_BATCH_PACKETS=64
   NRFKIT_POWER_BATCH_COUNT=100 NRFKIT_POWER_INTERVAL_US=100000)
+foreach(target IN ITEMS power_ble power_ble_timeslot_4m)
+  add_executable("${target}" power-measurement/ble.c)
+  nrfkit_example_firmware("${target}")
+  target_link_libraries("${target}" PRIVATE NrfKit::sdc_multirole)
+endforeach()
+target_link_libraries(power_ble_timeslot_4m PRIVATE NrfKit::radio_timeslot)
+target_compile_definitions(power_ble_timeslot_4m PRIVATE NRFKIT_POWER_TIMESLOT=1)
 add_m1_example(blinky blinky/main.c)
 add_m1_example(fault fault/main.c)
 add_m1_example(constructors constructors/main.cpp)

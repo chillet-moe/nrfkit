@@ -132,17 +132,16 @@ incidental ACK loss. All hardware runs used guarded application RRAM with read-b
 verification and completed process cleanup. Raw evidence remains in ignored local
 reports.
 
-## Remaining electrical power boundary
+## Electrical power boundary
 
-No current probe, oscilloscope, ampere meter, power analyzer, or Power Profiler Kit
-is present in the recorded development inputs or USB inventory. Nordic's LM20 DK
-guide exposes measurement pins but requires an external instrument for current
-profile or average-current measurement. Serial and debug connections also alter the
-measurement boundary. Consequently M7 has functional, timing, stability, and duty
-evidence, but it does not yet claim measured amperes, watts, or joules. Closing the
-PLAN power exit condition requires an instrumented baseline/4/2/1/Timeslot run using
-the same packet and timing method. The user explicitly deferred this external-instrument
-gate on 2026-09-05; it remains unclaimed and does not block work on later milestones.
+The external-instrument gap recorded on 2026-09-05 was closed on 2026-09-18 with a
+BLU939 and the DK's documented external SoC supply topology. One autonomous run
+captured idle, direct 1/2/4 Mbit/s, Timeslot retry, BLE advertising, and BLE plus a
+bounded Timeslot burst. It also checked workload counters and restored both boards.
+The results are [recorded separately](../validation/m7-power-blu939-2026-09-18.md).
+They are fixture characterization, not SoC specification limits or a transfer of
+instrument calibration. System OFF, established-connection ACL load, and USB power
+states remain distinct measurements.
 
 `tools/nrfkit m7-power-audit` is the instrument-independent final reducer. It requires
 seven normalized captures named `idle`, `direct-1m`, `direct-2m`, `direct-4m`,

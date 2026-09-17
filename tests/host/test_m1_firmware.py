@@ -87,7 +87,8 @@ class M1FirmwareTests(unittest.TestCase):
             "empty", "blinky", "fault", "constructors", "hardware_validation",
             "nrfx_minimal", "nrfx_all",
             "power_idle", "power_system_off", "power_radio_1m", "power_radio_2m",
-            "power_radio_4m", "power_radio_burst_4m",
+            "power_radio_4m", "power_radio_burst_4m", "power_ble",
+            "power_ble_timeslot_4m",
         ):
             with self.subTest(name=name):
                 self.assertEqual(
@@ -175,7 +176,8 @@ class M1FirmwareTests(unittest.TestCase):
             "empty", "blinky", "fault", "constructors", "hardware_validation",
             "nrfx_minimal", "nrfx_all",
             "power_idle", "power_system_off", "power_radio_1m", "power_radio_2m",
-            "power_radio_4m", "power_radio_burst_4m",
+            "power_radio_4m", "power_radio_burst_4m", "power_ble",
+            "power_ble_timeslot_4m",
         ):
             with self.subTest(name=name):
                 elf = parse_elf(self.build_a / f"{name}.elf")

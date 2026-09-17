@@ -61,6 +61,13 @@ instrument captures to normalized `time_s,current_a` CSV and run
 voltage, and the instrument identity. Raw captures and their local paths remain
 outside Git; the ignored report retains only their hashes and integrated results.
 
+For self-running LM20 power images, `tools/nrfkit blu939-suite` is the preferred
+acquisition entry point. One invocation owns the BLU939 for the entire suite and
+performs guarded LM20 backup, flash/cold-start/capture, post-capture GDB observation,
+optional L15 peer execution, seven-profile reduction, and verified restoration of
+both boards. It always requests output off during cleanup. This replaces interactive
+Agent sequencing; an individual `blu939 capture` remains useful for one-off probes.
+
 The M4 USB device gate is `tools/nrfkit m4-usb-gate`. Its default contract performs
 100 controlled reconnects, transfer/HID stress, and Linux runtime-PM suspend plus
 remote wake. USB access always requires Codex tool escalation. The runtime-PM portion

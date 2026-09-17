@@ -3,7 +3,7 @@
 These LM20 DK programs leave UART, USB, LEDs and DWT tracing uninitialized.
 They expose state in RAM for inspection **after** the electrical capture. They
 have real-board idle and [timed direct-TX captures](../../docs/validation/wireless-power-2026-09-11.md); automatic System OFF wake remains
-unverified. See the [results](../../docs/validation/power-measurement-2026-09-11.md). None of these programs completes the M7 seven-workload power gate.
+unverified. See the [results](../../docs/validation/power-measurement-2026-09-11.md).
 
 | Target | Workload | Post-capture state |
 | --- | --- | --- |
@@ -13,6 +13,8 @@ unverified. See the [results](../../docs/validation/power-measurement-2026-09-11
 | `power_radio_2m` | Direct RADIO 2 Mbit/s periodic TX | Same |
 | `power_radio_4m` | Direct RADIO 4 Mbit/s BT=0.6 periodic TX | Same |
 | `power_radio_burst_4m` | 64 packets per burst, 100 bursts at 100 ms spacing | Stage 2, 6400 packets, 100 batches |
+| `power_ble` | Legacy connectable BLE advertising at a 100 ms interval | Stage 1 |
+| `power_ble_timeslot_4m` | The same advertising plus one bounded eight-grant 4 Mbit/s Timeslot burst | Stage 2, eight grants and packets |
 
 The periodic radio profiles use 16 payload bytes, 0 dBm, 2416 MHz and 10 ms scheduled
 packet spacing. They use the same packet/address/CRC/whitening configuration as
@@ -26,6 +28,12 @@ sleeps indefinitely. Constant latency is requested only during each active batch
 to satisfy anomaly 20. They measure a specified transmitter workload, not receiver delivery,
 retry energy, BLE coexistence, or an optimized lower bound. A missed scheduling
 deadline is a failure, not silently shifted traffic.
+
+The BLE profiles configure SDC internally and do not initialize UART or USB. This
+keeps acquisition self-running: no host HCI traffic or Agent action is required
+after the cold start. The Timeslot variant deliberately retains the validated
+finite eight-grant envelope; it is a burst-energy profile, not a claim that an
+unbounded proprietary schedule can coexist with BLE connections.
 
 System OFF follows the locked nRF54LM20A/B Datasheet v1.0 sections 5.2 and 8.11.2:
 clear RESETREAS, stop HFXO, program GRTC while active, then release the active
@@ -49,6 +57,13 @@ The manifest CLI still requires a token field, but these programs emit no serial
 token and must not be passed to the UART-based `run` gate. Use the guarded
 [OpenOCD workflow](../../docs/architecture/openocd-backend.md) to back up the union
 of all ranges that will be overwritten, flash, verify, and later restore them.
+
+`tools/nrfkit blu939-suite` performs that complete sequence for multiple profiles:
+it validates every manifest before target access, double-reads the LM20 and optional
+L15 peer ranges, cold-starts and captures each image, checks post-capture RAM state,
+integrates the seven M7 profiles, and restores both targets with readback verification.
+The command retains every unfiltered binary acquisition and normalized CSV in its
+single ignored run directory. No Agent action is needed between profiles.
 
 For the normal DK configuration, follow the official
 [external SoC supply with DK functionality](https://docs.nordicsemi.com/r/bundle/ug_nrf54lm20_dk/page/ug/nrf54lm20_dk/hw_desription/direct_supply.html):

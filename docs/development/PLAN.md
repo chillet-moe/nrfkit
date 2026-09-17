@@ -1,6 +1,6 @@
 # nrfkit：目标与执行计划
 
-> 状态：P0、M0、M1、M2、M3、M6、M8、M9 已完成；M4 仅余但暂缓直连拓扑 remote wake；M5 direct-RADIO 基线已收束；M7 功能、时序、retry 与共存门禁已完成，外部仪器电气功耗测量暂缓；0.1.0-rc.2 已完成发布验收并推送公开 main/签名 tag
+> 状态：P0、M0、M1、M2、M3、M6、M8、M9 已完成；M4 仅余但暂缓直连拓扑 remote wake；M5 direct-RADIO 基线已收束；M7 功能、时序、retry、共存与七场景夹具功耗已完成；0.1.0-rc.2 已完成发布验收并推送公开 main/签名 tag
 > 计划基线：2026-09-05<br>
 > 唯一 SDK 支持目标：nRF54LM20A / nRF54LM20 DK<br>
 > 实验室夹具：nRF54L15 DK（不属于 SDK 支持目标）<br>
@@ -22,9 +22,6 @@
 
 首阶段主体已完成；以下项目仍有明确的证据或工具缺口：
 
-- **M7 电气功耗验收**：建立外部仪器采集与报告工作流，以相同方法测量
-  4/2/1 Mbit/s、retry 和 BLE 共存的电流、功率与能量；duty 指标不能替代电气测量。
-  仪器现状以 ignored local inventory 为准，历史缺少仪器不应成为永久阻塞结论。
 - **M4 USB remote wake**：在直连拓扑完成 device-initiated resume，确认没有
   reset/re-enumeration；已有 host-initiated resume 通过不能替代该门禁。
 - **真实 System OFF 唤醒**：建立退出 Debug Interface mode 后的睡眠与唤醒验证，
@@ -62,9 +59,14 @@ C++ SDK。公共命令先完成唯一设备发现、完整元数据读取及 20 
 采集 18 秒、实收 1,800,001 个四字节样本，固件 stage、包数、批数与活动时间后验检查
 均通过；原应用 RRAM 已由双读备份恢复并读回验证。设备元数据报告 `Calibrated=0`，但
 厂商换算路径不读取该字段，而是直接应用同时返回的六组电阻/偏移系数；该字段本身既
-不能证明也不能否定校准。原始迹线保留约 -1.23 uA 的近零负样本而不裁剪。由于 idle、
-Timeslot retry、BLE-only 与 BLE+Timeslot 尚未采集，这次复测仍不完成 M7 七场景电气
-门禁。详见[BLU939 定时发送测量](../validation/wireless-power-blu939-2026-09-18.md)。
+不能证明也不能否定校准。原始迹线保留约 -1.23 uA 的近零负样本而不裁剪。当时尚未
+采集 idle、Timeslot retry、BLE-only 与 BLE+Timeslot，因此该轮本身不完成 M7 七场景
+电气门禁。详见[BLU939 定时发送测量](../validation/wireless-power-blu939-2026-09-18.md)。
+
+同日后续由单一 `blu939-suite` 工作流完成全部七场景。LM20 与 L15 测试前双读备份、
+逐场景冷启动/采样、RAM 计数器检查、最终恢复和读回校验均无需 Agent 中途编排；每份
+未滤波原始数据与完整 CSV 保留于 ignored 报告。结果与边界见
+[M7 七场景 BLU939 测量](../validation/m7-power-blu939-2026-09-18.md)。
 
 同一 BLU939 夹具随后完成 30 秒 CoreMark 与实际 consumer 无 USB 初始化复测。CoreMark
 通过 10,000 次与 CRC，1–20 秒稳定工作均流为 2.832 mA，结束后 WFE 为 0.208 mA；
@@ -909,17 +911,18 @@ soak 均通过。4/2/1 Mbit/s 已用同一 DWT/16-byte payload 方法量化。Ti
 完成 grant/deadline/extend/blocked/cancel/close 清理，并在 SDC-disabled lifecycle、广播和
 活动连接下通过；最终三轮双板共存门禁要求 L15 实收只在活动连接 burst 才会出现的
 序号 15，同时 LM20 保持双向 raw ACL。完整公开结果在
-`docs/provenance/m7-radio-evidence.md`。M7 尚未标记完成：2026-09-05 检查点的输入与 USB inventory 没有
-PPK2、示波器、电流表或功率分析仪，官方 DK 测量流程要求外部仪器；已有 60.55% retry
-reservation duty 和 11.27% 共存 burst duty 只是功耗代理，不能替代安培/瓦特/焦耳。
+`docs/provenance/m7-radio-evidence.md`。2026-09-18 的 BLU939 单命令工作流随后完成 idle、
+direct 1/2/4 Mbit/s、Timeslot retry、BLE advertising 与 BLE+有限 Timeslot burst 七份
+电气采集，并自动检查固件计数器及恢复 LM20/L15。它关闭七场景夹具测量缺口，但不把
+configured voltage、`Calibrated=0` 或 range-switch peak 提升为绝对仪器精度结论。
 
 2026-09-05 后续审查回归已闭环：输入校验和 Timeslot 请求状态修复通过 121 项 host tests；
 双向 Timeslot 与活动 BLE 共存各三轮通过。retry 根因是 ACK server 在 ACK 丢失后已经
 推进序号、却不重放上一序号 ACK，导致 client 永久失步。peer 现在幂等处理合法重复包，
 并以每轮一次 server-side commit 后 ACK 抑制强制覆盖该路径。当前镜像先通过三轮，再通过
 20 轮 soak；每轮 64/64 完成、零 drop，且一次额外真实 ACK 丢失也成功恢复。详见上述
-证据文档。M4 remote wake 与 M7 外部电气功耗由用户于 2026-09-05 明确暂缓，保留为未完成
-退出条件，但不再阻塞其余里程碑推进。
+证据文档。M4 remote wake 仍按用户于 2026-09-05 的决定暂缓；M7 外部电气功耗缺口已由
+2026-09-18 的七场景 BLU939 夹具测量关闭。
 
 ### M8：首个私有下游集成与 LM20 release candidate
 
