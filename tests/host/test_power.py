@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from argparse import Namespace
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
+from nrfkit_tools.cli import ToolError
 from nrfkit_tools.power import PowerCaptureError, summarize_capture
+from nrfkit_tools.power_cli import command
 
 
 class PowerCaptureTests(unittest.TestCase):
@@ -59,6 +63,35 @@ class PowerCaptureTests(unittest.TestCase):
                 minimum_duration_s=1.0,
                 maximum_sample_gap_s=1.0,
             )
+
+    def test_m7_reducer_remains_available_from_split_cli_module(self) -> None:
+        capture = self.capture(
+            "time_s,current_a\n0,0.001\n0.00001,0.002\n0.00002,0.001\n"
+        )
+        profiles = (
+            "idle", "direct-1m", "direct-2m", "direct-4m",
+            "timeslot-retry-4m", "ble", "ble-timeslot-4m",
+        )
+        args = Namespace(
+            capture=[f"{profile}={capture}" for profile in profiles],
+            instrument="test",
+            supply_voltage_v=3.0,
+            minimum_duration=0.00002,
+            maximum_sample_gap_us=10.1,
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            report = {}
+            with patch(
+                "nrfkit_tools.cli._new_run",
+                return_value=(Path(temporary), report),
+            ):
+                self.assertEqual(command(args), 0)
+        self.assertEqual(report["status"], "ok")
+        self.assertEqual(set(report["captures"]), set(profiles))
+
+        args.capture.pop()
+        with self.assertRaisesRegex(ToolError, "missing"):
+            command(args)
         with self.assertRaisesRegex(PowerCaptureError, "invalid value"):
             summarize_capture(
                 self.capture("time_s,current_a\n0,-0.1\n1,0\n"),

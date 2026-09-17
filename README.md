@@ -130,6 +130,12 @@ comparison, and active-BLE coexistence. See
 The latter also defines `m7-power-audit`, the normalized capture reducer required to
 close the remaining external-instrument power gate.
 
+Maintainers can acquire normalized current captures with either the repository-owned
+`ppk2` or `blu939` command. Both discover a specific serial-numbered instrument,
+keep raw data and local identities below `.work/`, require an explicit voltage before
+enabling source output, and request output off during cleanup. See the
+[hardware workflow](docs/hardware-workflow.md) before connecting either instrument.
+
 The experimental SoftDevice Controller integration is also target-scoped and selects
 exactly one locked archive variant:
 

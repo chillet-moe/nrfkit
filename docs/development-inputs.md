@@ -28,6 +28,7 @@ The local inventory is useful context, not authority. Every path, source identit
 | Local read-only implementation references | General tooling and architecture patterns | No | Local-only identity; never publish its name or path |
 | External reference peer and private reference implementation | Proprietary-radio interoperability oracle only | No | Local source/image/version receipt and bounded run evidence below ignored storage |
 | Development kits and probes | Hardware validation | No | Dynamically detected family, board type, capabilities, and local-only identity |
+| Power instruments | Bounded current captures and externally measured M7 evidence | No | Dynamically detected identity, calibration state, supply topology, voltage, raw-capture hash and cleanup result |
 | Host and vendor tools | Build, inspect, program, reset, serial, and debug | No | Executable identity and version in each run receipt |
 
 ## Discovery and precedence
@@ -90,6 +91,13 @@ sysbuild, Kconfig, Devicetree, or Zephyr to resolve nrfxlib.
 Connected hardware is always runtime state. The repository must never assume that a previously seen probe is still present or that a `/dev/tty*` number is stable. Each operation must enumerate again, validate the device family and board capability, select exactly one probe, acquire a per-probe lock, and derive VCOM ports from the current enumeration.
 
 Probe serial numbers, USB topology, local device paths, and unsanitized logs may be stored in `.local/` or `.work/`, but never in tracked files or public artifacts.
+
+Power instruments follow the same runtime-discovery and local-identity boundary.
+Source-output commands additionally require the actual DUT wiring, isolation and
+allowed voltage to be established first. A configured-voltage or output command is
+not an independently measured voltage. Calibration fields must be interpreted under
+the selected instrument's documented conversion contract; a generic boolean flag is
+not sufficient evidence either for or against calibration.
 
 Hardware authorization is defined in [`docs/development/PLAN.md`](development/PLAN.md); the existence of a local device does not authorize mass erase, recover, protection changes, provisioning, or writes to one-time/configuration regions.
 

@@ -4,6 +4,9 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+- Add an independent BLU939 discovery, power-session and bounded-capture workflow
+  that emits normalized M7 current CSV without using the manufacturer's SDK at
+  build or run time; split the M7 power reducer out of the top-level CLI module.
 - Enable LM20 DC/DC and NVM cache before constructors in the freestanding
   runtime, and configure DK crystal loads using signed factory trim values.
   Custom runtimes can call `nrfkit_platform_init()` at the equivalent point.

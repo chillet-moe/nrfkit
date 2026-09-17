@@ -44,8 +44,8 @@ from .hci import (
     disconnection_complete, le_connection_complete,
 )
 from .process import atomic_json, run_logged
-from .power import PowerCaptureError, REQUIRED_PROFILES, summarize_capture
 from .ppk2 import Ppk2Error
+from .blu939 import Blu939Error
 from .openocd import OpenOcdError
 from .reference import (
     ReferenceContractError, build, load_receipt, official_toolchain_compiler,
@@ -1280,73 +1280,6 @@ def command_m7_coexistence(args: argparse.Namespace) -> int:
     return 0
 
 
-def command_m7_power_audit(args: argparse.Namespace) -> int:
-    captures: dict[str, Path] = {}
-    for value in args.capture:
-        profile, separator, path = value.partition("=")
-        if not separator or not profile or not path:
-            raise ToolError("power captures must use PROFILE=PATH")
-        if profile in captures:
-            raise ToolError(f"duplicate power capture profile: {profile}")
-        captures[profile] = Path(path)
-    if set(captures) != set(REQUIRED_PROFILES):
-        missing = sorted(set(REQUIRED_PROFILES) - set(captures))
-        extra = sorted(set(captures) - set(REQUIRED_PROFILES))
-        raise ToolError(
-            f"power capture profiles do not match the contract; "
-            f"missing={missing}, extra={extra}"
-        )
-
-    run_dir, report = _new_run("m7-power-audit")
-    report.update({
-        "status": "running",
-        "stages": [],
-        "instrument": args.instrument,
-        "supply_voltage_v": args.supply_voltage_v,
-        "minimum_duration_s": args.minimum_duration,
-        "maximum_sample_gap_us": args.maximum_sample_gap_us,
-    })
-    atomic_json(run_dir / "run.json", report)
-    try:
-        summaries: dict[str, dict[str, Any]] = {}
-        for profile in REQUIRED_PROFILES:
-            path = captures[profile]
-            summary = summarize_capture(
-                path,
-                supply_voltage_v=args.supply_voltage_v,
-                minimum_duration_s=args.minimum_duration,
-                maximum_sample_gap_s=args.maximum_sample_gap_us / 1000000.0,
-            )
-            summary["capture_sha256"] = sha256(path)
-            summaries[profile] = summary
-            _stage(run_dir, report, "power-capture", profile=profile, **summary)
-        idle = summaries["idle"]["average_current_a"]
-        ble = summaries["ble"]["average_current_a"]
-        comparison = {
-            "direct_1m_incremental_current_a":
-                summaries["direct-1m"]["average_current_a"] - idle,
-            "direct_2m_incremental_current_a":
-                summaries["direct-2m"]["average_current_a"] - idle,
-            "direct_4m_incremental_current_a":
-                summaries["direct-4m"]["average_current_a"] - idle,
-            "timeslot_retry_4m_incremental_current_a":
-                summaries["timeslot-retry-4m"]["average_current_a"] - idle,
-            "ble_timeslot_4m_incremental_current_a":
-                summaries["ble-timeslot-4m"]["average_current_a"] - ble,
-        }
-        _stage(run_dir, report, "power-comparison", **comparison)
-        report.update({
-            "status": "ok", "captures": summaries, "comparison": comparison,
-        })
-    except (OSError, PowerCaptureError) as error:
-        report.update({"status": "failed", "error": f"{type(error).__name__}: {error}"})
-        raise ToolError(str(error)) from error
-    finally:
-        atomic_json(run_dir / "run.json", report)
-    print(run_dir / "run.json")
-    return 0
-
-
 def _serial_port(device: dict[str, Any], vcom: int) -> Path:
     matches = [item for item in device.get("serialPorts", []) if item.get("vcom") == vcom]
     if len(matches) != 1:
@@ -2496,6 +2429,10 @@ def main(argv: list[str] | None = None) -> int:
 
     from .ppk2_cli import add_commands as add_ppk2_commands
     add_ppk2_commands(subparsers)
+    from .blu939_cli import add_commands as add_blu939_commands
+    add_blu939_commands(subparsers)
+    from .power_cli import add_commands as add_power_commands
+    add_power_commands(subparsers)
     from .ppk2_eeprom_cli import add_commands as add_ppk2_eeprom_commands
     add_ppk2_eeprom_commands(subparsers)
 
@@ -2674,15 +2611,6 @@ def main(argv: list[str] | None = None) -> int:
         "--bluetoothctl", default=shutil.which("bluetoothctl") or "bluetoothctl"
     )
     m7_coexistence.set_defaults(handler=command_m7_coexistence)
-    m7_power = subparsers.add_parser("m7-power-audit")
-    m7_power.add_argument(
-        "--capture", action="append", required=True, metavar="PROFILE=PATH"
-    )
-    m7_power.add_argument("--instrument", required=True)
-    m7_power.add_argument("--supply-voltage-v", type=float, required=True)
-    m7_power.add_argument("--minimum-duration", type=float, default=1.0)
-    m7_power.add_argument("--maximum-sample-gap-us", type=float, default=10.1)
-    m7_power.set_defaults(handler=command_m7_power_audit)
     m6_ble = subparsers.add_parser("m6-ble-gate")
     m6_ble.add_argument("--device-name", default="nrfkit-m6")
     m6_ble.add_argument("--timeout", type=float, default=60.0)
@@ -2806,6 +2734,6 @@ def main(argv: list[str] | None = None) -> int:
     except (
         DeviceContractError, ImageContractError, ReferenceContractError,
         SdkContractError, ToolError, UsbValidationError, BleValidationError, OSError,
-        Ppk2Error, PowerCaptureError, OpenOcdError,
+        Ppk2Error, Blu939Error, OpenOcdError,
     ) as error:
         parser.exit(1, f"error: {error}\n")

@@ -134,6 +134,10 @@ is exposed through `tools/nrfkit ppk2 info`, `power`, and `capture`. Instrument
 settings require a known DUT supply topology and voltage; entering source mode is
 not a substitute for checking the physical power connection. Cold-start measurement
 must occur after the debug server exits, with no new debug attachment during capture.
+The independent [BLU939 acquisition](provenance/blu939-acquisition.md) workflow is
+exposed through the matching `tools/nrfkit blu939` actions. It has the same topology,
+explicit-voltage, bounded-session, cleanup and ignored-report requirements. Do not
+run the manufacturer's SDK beside it or treat a requested output state as readback.
 An explicitly authorized calibration audit uses `tools/nrfkit ppk2-eeprom`
 with the pinned temporary DFU package, an explicitly hashed official restore
 package, and the official firmware identity read from the selected instrument
