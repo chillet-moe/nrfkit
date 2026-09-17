@@ -152,6 +152,10 @@ microseconds by default. The command records capture hashes rather than paths an
 integrates average/peak current, charge, energy, the three direct-PHY increments,
 Timeslot retry increment, and active-BLE Timeslot increment. The supply voltage and
 instrument identity are explicit arguments; neither is guessed from board defaults.
+Signed near-zero samples are integrated without clipping because calibrated
+instruments can report small negative values around their zero-current offset. The
+summary exposes the minimum and negative-sample count so that this uncertainty is
+reviewable rather than hidden.
 
 Official board measurement instructions:
 

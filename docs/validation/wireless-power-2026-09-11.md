@@ -96,3 +96,5 @@ the chart. Machine paths, probe identities and raw debug logs remain ignored.
 See the [probe contract](../../examples/power-measurement/README.md),
 [startup audit](../provenance/lm20-power-startup.md) and
 [earlier captures](power-measurement-2026-09-11.md) for scope and provenance.
+The same four workloads were later repeated with
+[BLU939](wireless-power-blu939-2026-09-18.md).

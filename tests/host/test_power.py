@@ -36,6 +36,8 @@ class PowerCaptureTests(unittest.TestCase):
         )
         self.assertEqual(summary["sample_count"], 4)
         self.assertAlmostEqual(summary["average_current_a"], 7.0 / 3000.0)
+        self.assertAlmostEqual(summary["minimum_current_a"], 0.001)
+        self.assertEqual(summary["negative_samples"], 0)
         self.assertAlmostEqual(summary["charge_c"], 7e-9)
         self.assertAlmostEqual(summary["energy_j"], 12.6e-9)
 
@@ -55,7 +57,7 @@ class PowerCaptureTests(unittest.TestCase):
                 maximum_sample_gap_s=0.01,
             )
 
-    def test_rejects_unexpected_schema_and_negative_current(self) -> None:
+    def test_rejects_unexpected_schema(self) -> None:
         with self.assertRaisesRegex(PowerCaptureError, "exactly"):
             summarize_capture(
                 self.capture("seconds,amps\n0,0\n1,0\n"),
@@ -92,13 +94,23 @@ class PowerCaptureTests(unittest.TestCase):
         args.capture.pop()
         with self.assertRaisesRegex(ToolError, "missing"):
             command(args)
-        with self.assertRaisesRegex(PowerCaptureError, "invalid value"):
-            summarize_capture(
-                self.capture("time_s,current_a\n0,-0.1\n1,0\n"),
-                supply_voltage_v=1.8,
-                minimum_duration_s=1.0,
-                maximum_sample_gap_s=1.0,
-            )
+
+    def test_preserves_signed_near_zero_samples(self) -> None:
+        summary = summarize_capture(
+            self.capture(
+                "time_s,current_a\n"
+                "0,-0.000001\n"
+                "1,0.000003\n"
+                "2,-0.000001\n"
+            ),
+            supply_voltage_v=3.0,
+            minimum_duration_s=2.0,
+            maximum_sample_gap_s=1.0,
+        )
+        self.assertEqual(summary["negative_samples"], 2)
+        self.assertAlmostEqual(summary["minimum_current_a"], -0.000001)
+        self.assertAlmostEqual(summary["average_current_a"], 0.000001)
+        self.assertAlmostEqual(summary["charge_c"], 0.000002)
 
 
 if __name__ == "__main__":

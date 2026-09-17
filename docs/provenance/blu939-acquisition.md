@@ -37,7 +37,8 @@ on the receive path, stops at a bounded byte count and always sends the stop byt
 Offline decoding uses the instrument's six calibration pairs and the nominal
 100 ksample/s clock to emit `time_s,current_a` CSV accepted by `m7-power-audit`.
 Samples are unfiltered; range transitions, reserved range encodings and signed
-near-zero readings are reported rather than hidden. The instrument's `Calibrated`
+near-zero readings are preserved and integrated rather than clipped, and their
+minimum and count are reported. The instrument's `Calibrated`
 field is retained verbatim but is not converted into a project pass/fail result: the
 manufacturer's conversion path does not read that field and instead applies the six
 returned resistance/offset pairs. Its value therefore cannot by itself prove or

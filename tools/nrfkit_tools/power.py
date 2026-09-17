@@ -49,7 +49,9 @@ def summarize_capture(
         previous_time: float | None = None
         previous_current: float | None = None
         charge_c = 0.0
-        peak_current_a = 0.0
+        minimum_current_a = math.inf
+        peak_current_a = -math.inf
+        negative_samples = 0
         maximum_gap_s = 0.0
         sample_count = 0
         for row_number, row in enumerate(reader, 2):
@@ -63,7 +65,6 @@ def summarize_capture(
             if (
                 not math.isfinite(current_time)
                 or not math.isfinite(current_a)
-                or current_a < 0.0
             ):
                 raise PowerCaptureError(
                     f"capture row {row_number} has an invalid value"
@@ -78,7 +79,9 @@ def summarize_capture(
                 charge_c += gap_s * (previous_current + current_a) / 2.0
             previous_time = current_time
             previous_current = current_a
+            minimum_current_a = min(minimum_current_a, current_a)
             peak_current_a = max(peak_current_a, current_a)
+            negative_samples += int(current_a < 0.0)
             sample_count += 1
 
     if sample_count < 2 or first_time is None or previous_time is None:
@@ -97,7 +100,9 @@ def summarize_capture(
         "duration_s": duration_s,
         "maximum_sample_gap_s": maximum_gap_s,
         "average_current_a": charge_c / duration_s,
+        "minimum_current_a": minimum_current_a,
         "peak_current_a": peak_current_a,
+        "negative_samples": negative_samples,
         "charge_c": charge_c,
         "energy_j": charge_c * supply_voltage_v,
     }
