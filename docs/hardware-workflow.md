@@ -67,6 +67,9 @@ performs guarded LM20 backup, flash/cold-start/capture, post-capture GDB observa
 optional L15 peer execution, seven-profile reduction, and verified restoration of
 both boards. It always requests output off during cleanup. This replaces interactive
 Agent sequencing; an individual `blu939 capture` remains useful for one-off probes.
+Every successful suite writes `index.html` beside `run.json`. To rebuild the newest
+successful report, run `tools/nrfkit power-report` with no arguments. Pass a run
+directory or `run.json` only when rendering an older suite.
 
 The M4 USB device gate is `tools/nrfkit m4-usb-gate`. Its default contract performs
 100 controlled reconnects, transfer/HID stress, and Linux runtime-PM suspend plus

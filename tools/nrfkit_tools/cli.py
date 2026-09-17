@@ -2435,6 +2435,8 @@ def main(argv: list[str] | None = None) -> int:
     add_power_commands(subparsers)
     from .power_suite_cli import add_commands as add_power_suite_commands
     add_power_suite_commands(subparsers)
+    from .power_report_cli import add_commands as add_power_report_commands
+    add_power_report_commands(subparsers)
     from .ppk2_eeprom_cli import add_commands as add_ppk2_eeprom_commands
     add_ppk2_eeprom_commands(subparsers)
 

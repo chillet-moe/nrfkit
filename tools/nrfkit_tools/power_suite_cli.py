@@ -616,5 +616,14 @@ def command(args: argparse.Namespace) -> int:
         if isinstance(operation_error, (ToolError, Blu939Error, PowerCaptureError)):
             raise operation_error
         raise ToolError(str(operation_error)) from operation_error
+    try:
+        from .power_report import generate_report
+        visualization = generate_report(run_dir / "run.json")
+        report["visualization"] = str(visualization)
+        atomic_json(run_dir / "run.json", report)
+    except BaseException as error:
+        report["visualization_error"] = f"{type(error).__name__}: {error}"
+        atomic_json(run_dir / "run.json", report)
+        raise ToolError(f"power report generation failed: {error}") from error
     print(run_dir / "run.json")
     return 0
