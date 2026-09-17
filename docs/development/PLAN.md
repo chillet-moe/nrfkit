@@ -66,6 +66,12 @@ C++ SDK。公共命令先完成唯一设备发现、完整元数据读取及 20 
 Timeslot retry、BLE-only 与 BLE+Timeslot 尚未采集，这次复测仍不完成 M7 七场景电气
 门禁。详见[BLU939 定时发送测量](../validation/wireless-power-blu939-2026-09-18.md)。
 
+同一 BLU939 夹具随后完成 30 秒 CoreMark 与实际 consumer 无 USB 初始化复测。CoreMark
+通过 10,000 次与 CRC，1–20 秒稳定工作均流为 2.832 mA，结束后 WFE 为 0.208 mA；
+consumer 保留正常 SDC、扫描与主循环，1–30 秒均流为 1.907 mA。两份采集各保留
+3,000,001 个原始样本；测试前 ordinary RRAM/settings 双读备份、测试后恢复与读回校验
+均完成。详见[BLU939 应用功耗测量](../validation/application-power-blu939-2026-09-18.md)。
+
 ## 1. 最终目标
 
 建立一个非官方、可开源、可复用的 Nordic nRF 裸机 SDK：
