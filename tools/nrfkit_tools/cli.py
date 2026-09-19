@@ -46,7 +46,7 @@ from .hci import (
 from .process import atomic_json, run_logged
 from .ppk2 import Ppk2Error
 from .blu939 import Blu939Error
-from .openocd import OpenOcdError
+from .openocd import OpenOcdError, observation_path_valid
 from .reference import (
     ReferenceContractError, build, load_receipt, official_toolchain_compiler,
     oracle, prepare, sha256,
@@ -2744,8 +2744,8 @@ def main(argv: list[str] | None = None) -> int:
     if getattr(args, "sdk_runtime_contract", False) and not args.post_main_break:
         parser.error("--sdk-runtime-contract requires --post-main-break")
     for symbol in getattr(args, "observe", []):
-        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", symbol) is None:
-            parser.error("--observe must name a C identifier")
+        if not observation_path_valid(symbol):
+            parser.error("--observe must name a C identifier or member path")
     try:
         return args.handler(args)
     except (

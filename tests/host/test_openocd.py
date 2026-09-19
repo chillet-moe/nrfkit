@@ -8,12 +8,37 @@ import unittest
 from unittest.mock import patch, MagicMock
 
 from nrfkit_tools.image import ImageContractError, parse_ihex
-from nrfkit_tools.openocd import OpenOcdError, addressed_hex, configuration, parse_identity, tcl_word
-from nrfkit_tools.openocd_cli import command, _restore, _backup, _settings_span
+from nrfkit_tools.openocd import (
+    OpenOcdError,
+    addressed_hex,
+    configuration,
+    observation_path_valid,
+    parse_identity,
+    system_control_observation_address,
+    tcl_word,
+)
+from nrfkit_tools.openocd_cli import (
+    _backup,
+    _restore,
+    _settings_span,
+    command,
+)
 from nrfkit_tools.reference import sha256
 
 
 class OpenOcdTests(unittest.TestCase):
+    def test_gdb_observations_accept_only_identifiers_and_member_paths(self):
+        for path in ("board_lcd_status", "nrfkit_last_fault.pc", "a.b2.c_3"):
+            self.assertTrue(observation_path_valid(path))
+        for path in ("record->pc", "record.pc+1", "*record", "record..pc", "1record.pc"):
+            self.assertFalse(observation_path_valid(path))
+
+    def test_system_control_observations_are_aligned_and_scs_only(self):
+        self.assertEqual(system_control_observation_address("0xe000ed28"), 0xE000ED28)
+        for address in ("0xe000ed29", "0xe000e004", "0x20000000", "not-an-address"):
+            with self.assertRaises(OpenOcdError):
+                system_control_observation_address(address)
+
     def test_settings_backup_accepts_only_separate_audited_ordinary_rram(self):
         manifest = {'debug_allowlist': [[0, 0x10000]], 'image_layout': {
             'source': 'elf-symbols', 'symbols': {

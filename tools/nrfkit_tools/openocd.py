@@ -17,6 +17,25 @@ class OpenOcdError(RuntimeError):
 
 
 RRAM_END = 0x001FD000
+_OBSERVATION_PATH = re.compile(
+    r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*"
+)
+
+
+def observation_path_valid(path: str) -> bool:
+    return _OBSERVATION_PATH.fullmatch(path) is not None
+
+
+def system_control_observation_address(value: str) -> int:
+    try:
+        address = int(value, 0)
+    except ValueError as error:
+        raise OpenOcdError("system-control observations require an integer address") from error
+    if address % 4 or not 0xE000ED00 <= address < 0xE000EE00:
+        raise OpenOcdError(
+            "system-control observations require an aligned address in the SCB range"
+        )
+    return address
 
 
 def tcl_word(value: str | Path) -> str:

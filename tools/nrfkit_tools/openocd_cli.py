@@ -6,16 +6,27 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from pathlib import Path
 import shutil
 import signal
 import socket
 import subprocess
 import time
+from pathlib import Path
 from typing import Any
 
 from .image import parse_ihex, require_allowed
-from .openocd import OpenOcd, OpenOcdError, IDENTIFY, RRAM_END, addressed_hex, discover, parse_identity, tcl_word
+from .openocd import (
+    IDENTIFY,
+    RRAM_END,
+    OpenOcd,
+    OpenOcdError,
+    addressed_hex,
+    discover,
+    observation_path_valid,
+    parse_identity,
+    system_control_observation_address,
+    tcl_word,
+)
 from .process import atomic_json, run_logged
 from .reference import sha256
 
@@ -45,6 +56,7 @@ def add_commands(subparsers: Any) -> None:
             action.add_argument("--attach", action="store_true")
             action.add_argument("--runtime-contract", action="store_true")
             action.add_argument("--observe", action="append", default=[])
+            action.add_argument("--observe-system-control", action="append", default=[])
         action.set_defaults(handler=command)
 
 
@@ -141,11 +153,14 @@ def _restore(backend: OpenOcd, manifest: dict[str, Any], path: Path, report: dic
 
 
 def _gdb(backend: OpenOcd, manifest: dict[str, Any], args: argparse.Namespace, report: dict[str, Any]) -> None:
-    import re
     if args.attach and args.runtime_contract:
         raise OpenOcdError("attach and runtime contract are mutually exclusive")
-    if any(not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", s) for s in args.observe):
-        raise OpenOcdError("observations must name C identifiers")
+    if any(not observation_path_valid(path) for path in args.observe):
+        raise OpenOcdError("observations must name C identifiers or member paths")
+    system_control_observations = [
+        system_control_observation_address(value)
+        for value in args.observe_system_control
+    ]
     elf = backend.run_dir / "debug.elf"
     shutil.copyfile(manifest["debug_elf"]["path"], elf)
     elf.chmod(0o400)
@@ -195,6 +210,11 @@ def _gdb(backend: OpenOcd, manifest: dict[str, Any], args: argparse.Namespace, r
                             "Hardware watchpoint", "WATCHPOINT_VALUE=00000000"]
             for symbol in args.observe:
                 commands += [f'printf "OBSERVE {symbol}=%08x\\n", *(unsigned*)&{symbol}']
+            for address in system_control_observations:
+                commands += [
+                    f'printf "OBSERVE SCS_{address:08x}=%08x\\n", '
+                    f'*(unsigned*)0x{address:08x}'
+                ]
             commands += ["delete breakpoints", "monitor resume", "detach", "quit"]
             script = backend.run_dir / "smoke.gdb"
             script.write_text("\n".join(commands) + "\n")
