@@ -5,6 +5,10 @@
 #include <nrfkit/rram.h>
 #include <nrfx_rramc.h>
 
+#ifndef DEVELOP_IN_NRF54LM20B
+#error "the nRF54LM20 DK target must enable LM20B runtime errata dispatch"
+#endif
+
 extern "C" void usb_dc_low_level_deinit(unsigned char busid);
 extern "C" void usb_dc_low_level_init(unsigned char busid);
 

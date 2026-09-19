@@ -16,7 +16,7 @@ nrfx input locked in `sources.lock`.
 | ID | Current treatment and remaining constraint |
 |---|---|
 | 7 | `drivers/src/nrfx_uarte.c` uses the FLUSHRX READY-event workaround. Raw HAL clients must also distinguish an empty FIFO from a valid AMOUNT. |
-| 8, 69 | `drivers/src/nrfx_spim.c` contains the dynamic workarounds for MOSI timing and STOPPED after suspend. Do not bypass them with raw transactions. |
+| 8, 69 | `drivers/src/nrfx_spim.c` contains the dynamic workarounds for MOSI timing and STOPPED after suspend. `NrfKit::board_nrf54lm20dk` enables the LM20B runtime branch needed to select them on the DK. Do not bypass them with raw transactions. |
 | 20 | RADIO TX/RX requires constant latency. MPSL calls the platform low-latency callbacks; direct-radio callers retain their explicit clock/power responsibility. |
 | 26 | Mixed-security PPIB/DPPIC routing must use matching channel indices. The current secure-only platform does not establish general mixed-security support. |
 | 30 | The errata identifies MPSL/NCS workaround coverage. Locked MPSL is used for combined targets; low-temperature correctness of standalone HFINT/GRTC is not established by room-temperature tests. |
@@ -34,6 +34,34 @@ nrfx input locked in `sources.lock`.
 | 105 | Do not disable TWIM mid-transaction while clock stretching. Recovery requires device reset; generic nrfx availability is not proof of safe asynchronous teardown. |
 | 111 | SAADC single-ended noise shaping requires the documented restricted input range or differential-mode alternative. Not covered by basic SAADC compile tests. |
 | 114 | Wake-on-pin designs must avoid the short DETECT transition sequence or use latched detection. Electrical power validation remains separate. |
+
+## LM20 DK silicon dispatch
+
+The public DK target intentionally keeps `NRF54LM20A_XXAA`: the application ABI,
+startup, memory map, and shared peripheral model remain the LM20A contract, and
+NPU support is outside this project's scope. The board target additionally exports
+`DEVELOP_IN_NRF54LM20B`, matching the official nRF Connect SDK v3.4.0 board
+configuration. In that SDK,
+`zephyr/boards/nordic/nrf54lm20dk/Kconfig` selects
+`SOC_NRF54LM20A_DEVELOP_IN_NRF54LM20B` for the LM20A-qualified board target, and
+`zephyr/modules/hal_nordic/nrfx/CMakeLists.txt` maps the selection to this exact
+MDK compile definition.
+
+This definition does not statically assume that every LM20A anomaly applies. The
+locked MDK v9.0.2-RC-1 uses it to compile the LM20B FICR identity branches into
+`nrf54l_erratas.h`; each `nrf54l_errata_*()` predicate still decides dynamically
+from the detected part and revision. Without the board definition, an image built
+only with `NRF54LM20A_XXAA` omits those LM20B branches. On the available DK this
+made the first SPIM transfer remain incomplete because the applicable SPIM
+workaround was never selected. Adding only the official board definition made the
+same asynchronous 4 MHz, mode-0 SPIM transaction complete and the external
+display's frame-sync transition observable after a cold start.
+
+The newer nrfx v4.6.0 release was reviewed on September 19, 2026. Its SPIM changes
+cover other instances and high-speed base-frequency handling; it does not replace
+this LM20 DK board definition. The locked nrfx v4.5.0 already contains the required
+LM20B predicates and SPIM workaround implementation, so an upstream update is not
+required for this correction.
 
 ## Storage and reset evidence
 

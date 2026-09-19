@@ -57,6 +57,11 @@ target_sources(NrfKit::board_nrf54lm20dk INTERFACE
   "${NrfKit_ROOT}/src/boards/nrf54lm20dk/init.c")
 target_include_directories(NrfKit::board_nrf54lm20dk INTERFACE
   "${NrfKit_ROOT}/src/boards/nrf54lm20dk/include")
+# The official LM20 DK board definition targets the LM20A ABI while enabling
+# LM20B runtime errata dispatch. Keep that board contract so the MDK can select
+# shared-peripheral workarounds from the detected FICR identity.
+target_compile_definitions(NrfKit::board_nrf54lm20dk INTERFACE
+  DEVELOP_IN_NRF54LM20B)
 unset(_nrfkit_mdk)
 
 include("${CMAKE_CURRENT_LIST_DIR}/NrfKitNrfxlib.cmake")
