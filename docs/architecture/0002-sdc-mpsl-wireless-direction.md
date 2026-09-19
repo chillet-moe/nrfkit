@@ -42,7 +42,7 @@ proprietary 4 Mbit/s modes in addition to 2 and 1 Mbit/s modes.
    teardown requirement into source-located, machine-checkable resource and ABI
    records. Do not discover documented requirements by trial-and-error flashing.
 6. Do not assume sdk-nrfxlib v3.4.0 is compatible with the project's newer nrfx
-   v4.5.0 merely because both support nRF54L. Gate API/header compatibility, ELF
+   v4.6.0 merely because both support nRF54L. Gate API/header compatibility, ELF
    attributes, hard-float ABI, undefined-symbol closure, startup/IRQ binding,
    resource definitions, final memory maps, and real-board behavior first.
 7. Retain the direct-RADIO implementation and two-board executor as a differential

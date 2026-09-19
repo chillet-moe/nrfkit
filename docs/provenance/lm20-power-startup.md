@@ -41,11 +41,11 @@ The versioned software comparison is NCS v3.4.0's Zephyr commit
 `soc/nordic/nrf54l/soc.c` supplies cache, regulator and oscillator initialization;
 `boards/nordic/nrf54lm20dk/nrf54lm20_a_b_cpuapp_common.dtsi` specifies the DK's
 loads and DC/DC mode. These remain read-only references, never build inputs.
-The locked nrfx v4.5.0 MDK `SystemInit` does not supply these three defaults.
+The locked nrfx v4.6.0 MDK `SystemInit` does not supply these three defaults.
 
 ## Capacitor arithmetic discrepancy
 
-The locked nrfx commit `1b7bedb5c7f379a3ec3ece851796e94d7e5d0b2c` provides
+The locked nrfx commit `d1f2c35a4820961f4f7b7b2ece007f8e037842db` provides
 `NRF_OSCILLATORS_LFXO_CAP_CALCULATE` in `hal/nrf_oscillators.h` and the HFXO
 calculation in `bsp/stable/soc/nrfx_soc_defines.h`. The LFXO macro shifts the
 slope term before multiplication and both macros extract signed slope as unsigned.

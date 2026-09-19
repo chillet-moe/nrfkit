@@ -364,7 +364,7 @@
     },
     {
       "destination": "external/nrfx/LICENSE",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "LICENSE",
       "sha256": "55e466145d9fbe1ded026036d65abf9c610483cf9042d8689aebe3553984178e",
       "license": "BSD-3-Clause",
@@ -372,7 +372,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/common/compiler_abstraction.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/common/compiler_abstraction.h",
       "sha256": "f65ff886b5219dd83b6d0cbd3a2ffe5a34c6b50d95b337e311cb4e6a85a454b8",
       "license": "BSD-3-Clause",
@@ -380,7 +380,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/common/core_vpr.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/common/core_vpr.h",
       "sha256": "809d8271b985de43d958b36c97143c5949acc63557db7b2528c2cb6023b8fa64",
       "license": "BSD-3-Clause",
@@ -388,7 +388,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/common/system_config_sau.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/common/system_config_sau.h",
       "sha256": "222c4b2a36149e9ad3c564f938d12582a9a6632513e1eff1e639ec56855befa1",
       "license": "BSD-3-Clause",
@@ -396,7 +396,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/common/system_nrf.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/common/system_nrf.h",
       "sha256": "76657d81aba544d4aa02740e0df97f341b5da0fb60405375ffcce05a2069f73c",
       "license": "Apache-2.0",
@@ -404,23 +404,23 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf.h",
-      "sha256": "906d88f66f86deffe9e6a1fc685a84912fc0b461a26f77b24486b14f30761b5e",
+      "sha256": "5a7a0bc87cc7edcba1b415c50963547afd2df074885c4ea2681eaee22077bf64",
       "license": "BSD-3-Clause",
       "patches": "none"
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/nrf54l_erratas.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/nrf54l_erratas.h",
-      "sha256": "f3b0719b62970b9178334764ab2771b1e3c2da80bb9aa98dbda183963b6ca81c",
+      "sha256": "1144d250e47e923e991c41d4ab9043e3fe8f9d37f27ca7c72b3d3473a0fa28bc",
       "license": "BSD-3-Clause",
       "patches": "none"
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a/gcc_startup_nrf54lm20a_application.S",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/gcc_startup_nrf54lm20a_application.S",
       "sha256": "dc1030b228b8e5552189818aad0cde5344466457985a656cc989d5cc153fc9b2",
       "license": "Apache-2.0",
@@ -428,7 +428,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a.h",
       "sha256": "116c982e3074e37c78ff0dc60d190dc9f50601b668dbd1a6ab6bdc6283bbb94f",
       "license": "BSD-3-Clause",
@@ -436,7 +436,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_application.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_application.h",
       "sha256": "161484696a4912ce758e8521f4acbd63a4debd45feb662da0c07bf0cd0825088",
       "license": "BSD-3-Clause",
@@ -444,7 +444,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_application.svd",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_application.svd",
       "sha256": "847e2de9bf06a4750620e3d582d680cc390dd58b34af1f874100c872788fd862",
       "license": "BSD-3-Clause",
@@ -452,7 +452,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_application_peripherals.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_application_peripherals.h",
       "sha256": "79869235f59e51ba39af5bb4e955e77ac44ccec5b21a19bf8992ae5e435ae3da",
       "license": "BSD-3-Clause",
@@ -460,7 +460,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_application_vectors.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_application_vectors.h",
       "sha256": "bd5f90147e8b9c880cad4200558cea5a4605cd4a61712b2cfd1d8ea7470b0eab",
       "license": "BSD-3-Clause",
@@ -468,7 +468,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_flpr.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_flpr.h",
       "sha256": "5896004fd28b01ff1ec84bdb98b5e7b86867d1d6ba73c34d01fcc91e28d97f25",
       "license": "BSD-3-Clause",
@@ -476,7 +476,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_flpr_peripherals.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_flpr_peripherals.h",
       "sha256": "c0afe9dbad7ac33a57230c57cc6bdc1711a683cc539864eb641158119977a1aa",
       "license": "BSD-3-Clause",
@@ -484,7 +484,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_flpr_vectors.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_flpr_vectors.h",
       "sha256": "1233ef15b99edced99de53d02d3f5a62eca48e9d89c26d8dd1612610b1f6652b",
       "license": "BSD-3-Clause",
@@ -492,7 +492,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_global.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_global.h",
       "sha256": "cf18070e347b90bac9e245f1a5e3848fc7465526fc033339d7f00552a3922d94",
       "license": "BSD-3-Clause",
@@ -500,7 +500,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_interim.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_interim.h",
       "sha256": "e3fcfe6cbb2b23dc14c352e30ba4404b58e3f4e2c2e89fb0a21a24866c315874",
       "license": "BSD-3-Clause",
@@ -508,7 +508,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_name_change.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_name_change.h",
       "sha256": "7b5f9b2a507d92b7cef3ddfc3797e81117d08710a40842e0565c55c19268632b",
       "license": "BSD-3-Clause",
@@ -516,7 +516,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_peripherals.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_peripherals.h",
       "sha256": "d8a166d51f87d74fb43056ba29636d4fc3a72a683ac4658ea3e06d2a652658be",
       "license": "BSD-3-Clause",
@@ -524,7 +524,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_types.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_types.h",
       "sha256": "821ff7d40f29e16814dcd51110e67f4cf8eafde6fc54980e7923f29271a920b6",
       "license": "BSD-3-Clause",
@@ -532,7 +532,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_version.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_version.h",
       "sha256": "ec8143f31e2a1d270de51439dc58b2f1d4d11ef488d9bc2c6fc6c808bd83960b",
       "license": "BSD-3-Clause",
@@ -540,7 +540,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_xxaa_application.ld",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_xxaa_application.ld",
       "sha256": "b735f14c15d3ee987877c96b02127ecef024557c012bd05377b95754292ccc70",
       "license": "BSD-3-Clause",
@@ -548,7 +548,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_xxaa_application_memory.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_xxaa_application_memory.h",
       "sha256": "c6a091fe5e8ff67a05f6e0b306ab5ab4efddf37a5a48706fe2616160241563fe",
       "license": "BSD-3-Clause",
@@ -556,7 +556,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_xxaa_flpr_memory.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/nrf54lm20a/nrf54lm20a_xxaa_flpr_memory.h",
       "sha256": "cc23b0c454f2898d6e9d82ad0ad2ea32232c6ee8c129152f5506058a98def8fc",
       "license": "BSD-3-Clause",
@@ -564,15 +564,15 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/system_nrf54l.c",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/system_nrf54l.c",
-      "sha256": "0d028b02ceec9dfe5d34c5d35bca8c35fe70de89c4a176614b202e20d8722c99",
+      "sha256": "146654e599ce4d9fdd3f85d96f114445286b3c1760c5115a73469f1fe0a6ab6a",
       "license": "Apache-2.0",
       "patches": "none"
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/system_nrf54l.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/system_nrf54l.h",
       "sha256": "0f1dff09c7fa8174cc916d1d15993d4377bf5aa8ecd641c593340e3e8dd31895",
       "license": "Apache-2.0",
@@ -580,7 +580,7 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf54l/system_nrf54l_approtect.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf54l/system_nrf54l_approtect.h",
       "sha256": "e0186ca8df7395be60dc3cbd8e112384ba457dea594c559c53d51ad8ad836903",
       "license": "BSD-3-Clause",
@@ -588,9 +588,9 @@
     },
     {
       "destination": "external/nrfx/bsp/stable/mdk/nrf_peripherals.h",
-      "source": "nrfx-4.5.0",
+      "source": "nrfx-4.6.0",
       "source_path": "bsp/stable/mdk/nrf_peripherals.h",
-      "sha256": "731df0d5c3bbb2f0455c08bd784d3112d4f20599ceafbebda9b81c15dbe62de4",
+      "sha256": "60ab8aa87a0bbcd916ca3738869ed6b4f44e0e1e883b67856d2d6032951e121e",
       "license": "BSD-3-Clause",
       "patches": "none"
     }

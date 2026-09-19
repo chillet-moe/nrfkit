@@ -19,6 +19,6 @@ contract and real-board reproduction are recorded in
 source-output contract of `nrfx_clock_is_running()`. The unpatched XO path
 dereferences `NULL`; this was reproduced on LM20 by the M5 clock precondition.
 
-Both corrections are still required by the locked nrfx 4.5.0 input. Directory
+Both corrections are still required by the locked nrfx 4.6.0 input. Directory
 reorganization does not retire them; removal requires a versioned equivalent
 upstream fix and the relevant regression checks.

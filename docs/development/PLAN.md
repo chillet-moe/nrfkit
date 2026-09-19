@@ -287,7 +287,7 @@ M6 首先使用 `nrf54lm/hard-float` secure MPSL 与 SDC archive，因为当前 
 standalone target 使用 hard-float 且在 secure domain 运行。官方仍将 nRF54L 的
 non-secure SDC 标为 experimental；它不得作为首个实板门禁或 production 能力声明。
 `sdk-nrfxlib` v3.4.0 只声明与对应 NCS 所用 nrfx revision 一起测试过，而本项目核心
-使用较新的 nrfx v4.5.0，因此头文件、ELF attributes、未解析符号、资源定义和实板
+使用较新的 nrfx v4.6.0，因此头文件、ELF attributes、未解析符号、资源定义和实板
 行为兼容性是 M6 的第一道门禁，不能按同一系列名称假设兼容。
 
 本机候选位置仅用于发现，不得成为构建依赖：
@@ -816,7 +816,7 @@ BlueZ 实际发现其 advertising、由 Controller 实际扫描确定性 host pe
 
 - 校验 `external/sdk-nrfxlib` submodule，并在 `sources.lock` 锁定 tag、commit、SDC/MPSL binary manifest revision、
   所选 headers/archives/license/attribution hash、安全域与 float ABI；
-- 对 nrfxlib v3.4.0 与当前 nrfx v4.5.0 执行头文件 API、ELF attributes、undefined symbols、
+- 对 nrfxlib v3.4.0 与当前 nrfx v4.6.0 执行头文件 API、ELF attributes、undefined symbols、
   link closure、startup/IRQ、内存对齐和资源占用兼容审计；不按系列名假定兼容；
 - 先用 NCS v3.4.0 `zephyr/samples/bluetooth/hci_uart`、board
   `nrf54lm20dk/nrf54lm20a/cpuapp` 建立可运行 Controller oracle；配置与 build receipt

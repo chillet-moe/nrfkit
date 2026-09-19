@@ -9,7 +9,7 @@ set(_NRFKIT_NRFX_DRIVERS
 )
 
 function(_nrfkit_prepare_nrfx out_var)
-  set(nrfx_commit "1b7bedb5c7f379a3ec3ece851796e94d7e5d0b2c")
+  set(nrfx_commit "d1f2c35a4820961f4f7b7b2ece007f8e037842db")
   set(nrfx_source "${NrfKit_ROOT}/external/nrfx")
   if(NOT EXISTS "${nrfx_source}/nrfx.h" OR
       NOT EXISTS "${nrfx_source}/bsp/stable/mdk/nrf54l/system_nrf54l.c")

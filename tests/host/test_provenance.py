@@ -42,7 +42,7 @@ class ProvenanceTests(unittest.TestCase):
         self.assertEqual(
             set(lock["audited_sources"]),
             {
-                "nrfx-4.5.0", "cmsis-6.3.0", "nrf-device-family-pack-8.44.1",
+                "nrfx-4.6.0", "cmsis-6.3.0", "nrf-device-family-pack-8.44.1",
                 "trusted-firmware-m-ncs-3.4.0", "s115-10.0.1",
                 "cherryusb-1.6.1", "nrf54lm20-datasheet-1.0",
                 "ncs-radio-test-3.4.0", "sdk-nrfxlib-3.4.0",
@@ -52,7 +52,7 @@ class ProvenanceTests(unittest.TestCase):
             imported_on = date.fromisoformat(source["import_date"])
             self.assertEqual(imported_on.isoformat(), source["import_date"])
             self.assertIsInstance(source["imported"], bool)
-            if source_id == "nrfx-4.5.0":
+            if source_id == "nrfx-4.6.0":
                 self.assertEqual(
                     source["patches"],
                     [
@@ -90,14 +90,14 @@ class ProvenanceTests(unittest.TestCase):
         lock = json.loads(
             (ROOT / "docs/provenance/sources.lock").read_text(encoding="utf-8")
         )
-        expected = lock["audited_sources"]["nrfx-4.5.0"]["commit"]
+        expected = lock["audited_sources"]["nrfx-4.6.0"]["commit"]
         actual = subprocess.run(
             ["git", "-C", str(ROOT / "external/nrfx"), "rev-parse", "HEAD"],
             text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False,
         )
         self.assertEqual(actual.returncode, 0, actual.stdout)
         self.assertEqual(actual.stdout.strip(), expected)
-        for patch in lock["audited_sources"]["nrfx-4.5.0"]["patches"]:
+        for patch in lock["audited_sources"]["nrfx-4.6.0"]["patches"]:
             check = subprocess.run(
                 [
                     "git", "-C", str(ROOT / "external/nrfx"), "apply", "--check",
@@ -189,7 +189,7 @@ class ProvenanceTests(unittest.TestCase):
             self.assertTrue(item["license"])
             self.assertEqual(item["patches"], "none")
 
-        for source_id, selection in (("nrfx-4.5.0", "cmake/nrfx-selection.txt"),
+        for source_id, selection in (("nrfx-4.6.0", "cmake/nrfx-selection.txt"),
                                      ("cmsis-6.3.0", "cmake/cmsis-selection.txt")):
             source = lock["audited_sources"][source_id]
             metadata = source["selection_manifest"]
@@ -224,7 +224,7 @@ class ProvenanceTests(unittest.TestCase):
 
     def test_audit_records_new_official_startup_conclusion(self) -> None:
         audit = (ROOT / "docs/provenance/source-audit.md").read_text(encoding="utf-8")
-        self.assertIn("nrfx v4.5.0", audit)
+        self.assertIn("nrfx v4.6.0", audit)
         self.assertIn("Official GNU application", audit)
         self.assertIn("No device-specific Arm/ArmClang", audit)
         self.assertIn("not currently planned for import", audit)

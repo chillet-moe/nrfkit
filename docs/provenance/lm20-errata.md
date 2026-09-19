@@ -48,7 +48,7 @@ configuration. In that SDK,
 MDK compile definition.
 
 This definition does not statically assume that every LM20A anomaly applies. The
-locked MDK v9.0.2-RC-1 uses it to compile the LM20B FICR identity branches into
+locked MDK v9.1.0 uses it to compile the LM20B FICR identity branches into
 `nrf54l_erratas.h`; each `nrf54l_errata_*()` predicate still decides dynamically
 from the detected part and revision. Without the board definition, an image built
 only with `NRF54LM20A_XXAA` omits those LM20B branches. On the available DK this
@@ -57,11 +57,10 @@ workaround was never selected. Adding only the official board definition made th
 same asynchronous 4 MHz, mode-0 SPIM transaction complete and the external
 display's frame-sync transition observable after a cold start.
 
-The newer nrfx v4.6.0 release was reviewed on September 19, 2026. Its SPIM changes
-cover other instances and high-speed base-frequency handling; it does not replace
-this LM20 DK board definition. The locked nrfx v4.5.0 already contains the required
-LM20B predicates and SPIM workaround implementation, so an upstream update is not
-required for this correction.
+The locked nrfx v4.6.0 release was reviewed on September 19, 2026. Its SPIM
+changes cover other instances and high-speed base-frequency handling; they do not
+replace this LM20 DK board definition. The release retains the required LM20B
+predicates and SPIM workaround implementation.
 
 ## Storage and reset evidence
 

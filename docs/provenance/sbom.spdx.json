@@ -23,8 +23,8 @@
     {
       "SPDXID": "SPDXRef-Package-nrfx",
       "name": "nrfx",
-      "versionInfo": "4.5.0",
-      "downloadLocation": "git+https://github.com/NordicSemiconductor/nrfx.git@1b7bedb5c7f379a3ec3ece851796e94d7e5d0b2c",
+      "versionInfo": "4.6.0",
+      "downloadLocation": "git+https://github.com/NordicSemiconductor/nrfx.git@d1f2c35a4820961f4f7b7b2ece007f8e037842db",
       "filesAnalyzed": false,
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "BSD-3-Clause AND Apache-2.0 AND LicenseRef-CodeSourcery-Linker-Script",
@@ -129,7 +129,7 @@
       "licenseId": "LicenseRef-CodeSourcery-Linker-Script",
       "name": "CodeSourcery linker script permissive notice",
       "extractedText": "Permission is granted to use, copy, modify, distribute, and license the software and documentation for any purpose, provided existing copyright notices are retained and the notice is included verbatim in distributions.",
-      "seeAlsos": ["https://github.com/NordicSemiconductor/nrfx/blob/v4.5.0/bsp/stable/mdk/common/nrf_common.ld"]
+      "seeAlsos": ["https://github.com/NordicSemiconductor/nrfx/blob/v4.6.0/bsp/stable/mdk/common/nrf_common.ld"]
     },
     {
       "licenseId": "LicenseRef-Nordic-5-Clause",

@@ -1,7 +1,8 @@
 # Source and license audit
 
-The startup/MDK audit was performed on 2026-09-04 and the first-class nrfxlib
-selection was added on 2026-09-05. Exact commits and file hashes are in
+The startup/MDK audit was performed on 2026-09-04, the first-class nrfxlib
+selection was added on 2026-09-05, and nrfx was advanced to v4.6.0 on
+2026-09-19. Exact commits and file hashes are in
 `sources.lock`. The audited CMSIS Core snapshot is stored in `external/cmsis`.
 Startup/MDK and nrfx drivers now share the immutable `external/nrfx` input; the
 earlier M1 MDK snapshot is no longer duplicated. sdk-nrfxlib is also an immutable
@@ -12,7 +13,7 @@ consumer package.
 
 - [nRF Connect SDK v3.4.0](https://github.com/nrfconnect/sdk-nrf/releases/tag/v3.4.0) remains the production reference-oracle release selected for nRF54LM20 revision 1. Its already validated commits are unchanged.
 - nRF Connect SDK Bare Metal v2.0.1 remains the source of the validated S115 10.0.1 binary, headers, license, and release notes.
-- [nrfx v4.5.0](https://github.com/NordicSemiconductor/nrfx/releases/tag/v4.5.0) is newer than the nrfx 4.2.1-derived HAL snapshots in those workspaces. Its audited LM20A MDK/startup subset is the M1 consumer source, not a silent replacement for either P0 oracle.
+- [nrfx v4.6.0](https://github.com/NordicSemiconductor/nrfx/releases/tag/v4.6.0) is newer than the nrfx 4.2.1-derived HAL snapshots in those workspaces. Its audited MDK 9.1.0 LM20A startup subset is the M1 consumer source, not a silent replacement for either P0 oracle.
 - [CMSIS 6.3.0](https://github.com/ARM-software/CMSIS_6/releases/tag/v6.3.0), commit `45dab712`, supplies the Cortex-M33 compiler/core headers used by both Clang and GNU Arm builds.
 - [sdk-nrfxlib v3.4.0](https://github.com/nrfconnect/sdk-nrfxlib/tree/v3.4.0),
   commit `d4ce5fe1`, is the first-class wireless input. Its nRF54LM SDC and MPSL
@@ -34,7 +35,7 @@ resource/ABI contract and automated checks. No hardware trial should guess a fac
 already documented by the locked package.
 
 sdk-nrfxlib v3.4.0 was tested by Nordic with the nrfx revision paired with its NCS
-release, while this project uses nrfx v4.5.0. Compatibility is therefore an open
+release, while this project uses nrfx v4.6.0. Compatibility is therefore an open
 gate, not an assumption: compare API types and macros, ELF attributes and hard-float
 ABI, archive undefined symbols and link closure, startup/vector bindings, resource
 definitions, final map/RAM usage, and real-board behavior. A mismatch must be
@@ -68,12 +69,12 @@ state, repeated real-board operation, and independent GDB.
 
 | Source searched | Scope | nRF54LM20A / nRF54L15 result |
 |---|---|---|
-| nrfx v4.5.0 tag `1b7bedb5` | Entire release tree; GNU, Clang, Arm/ArmClang, and IAR filename patterns | Official GNU application and FLPR startup assembly and per-device GNU linker scripts exist for both SoCs. No device-specific Arm/ArmClang scatter file or IAR startup/linker file was found. |
+| nrfx v4.6.0 tag `d1f2c35a` | Entire release tree; GNU, Clang, Arm/ArmClang, and IAR filename patterns | Official GNU application and FLPR startup assembly and per-device GNU linker scripts exist for both SoCs. No device-specific Arm/ArmClang scatter file or IAR startup/linker file was found. |
 | nRF Device Family Pack 8.44.1 | Complete public CMSIS pack archive | The pack predates both target SoCs and contains neither target. It is evidence only and is not an import source. |
 | NCS v3.4.0 | Nordic HAL/nrfx, Zephyr SoC/board data, and TF-M module | The bundled nrfx tree has MDK headers, SVDs, memory headers, and `system_nrf54l.c`, but no target-specific standalone startup/linker pair. TF-M contains Apache-2.0 C vector tables for LM20/L15-family targets derived from CMSIS 5.9.0. |
 | NCS Bare Metal v2.0.1 | Manifest repository, Nordic HAL module, board and SoftDevice trees | No independent target startup/linker pair beyond its older nrfx/Zephyr inputs. It supplies the production S115 10.0.1 package and integration evidence. |
 
-The earlier fallback assumption is therefore superseded: M1 should start from the official nrfx v4.5.0 GNU startup, not synthesize a large assembly file from TF-M. The TF-M C implementation remains independent comparison evidence for vector order and reset behavior.
+The earlier fallback assumption is therefore superseded: M1 uses the official nrfx v4.6.0 GNU startup rather than synthesizing a large assembly file from TF-M. The TF-M C implementation remains independent comparison evidence for vector order and reset behavior.
 
 ## Planned source and license disposition
 
@@ -91,7 +92,7 @@ The earlier fallback assumption is therefore superseded: M1 should start from th
 
 ## Memory cross-check
 
-Nordic document `4539_001 v1.0`, Figure 3 on PDF page 15, shows RRAM from `0x00000000`, configuration areas at `0x00FFC000` through `0x00FFF000`, and RAM from `0x20000000` with a reserved top tail for VPR saved context and ProtectedRAM. The nrfx v4.5.0 LM20 memory header describes two physical 256 KiB RAM banks, while NCS v3.4.0 exposes a smaller CPU application SRAM range. These facts describe different abstraction levels; the full physical bank size is not by itself permission to allocate the reserved tail.
+Nordic document `4539_001 v1.0`, Figure 3 on PDF page 15, shows RRAM from `0x00000000`, configuration areas at `0x00FFC000` through `0x00FFF000`, and RAM from `0x20000000` with a reserved top tail for VPR saved context and ProtectedRAM. The nrfx v4.6.0 LM20 memory header describes two physical 256 KiB RAM banks, while NCS v3.4.0 exposes a smaller CPU application SRAM range. These facts describe different abstraction levels; the full physical bank size is not by itself permission to allocate the reserved tail.
 
 M1 therefore exposes only RAM0 (`0x20000000..0x20040000`) for the initial standalone layout. RAM1 stays unavailable until a later layout explicitly accounts for the VPR saved-context and ProtectedRAM tail. The SDK does not copy a generated Zephyr linker script or allocate the entire second bank merely because the generic nrfx memory header names it. The same cross-check applies to RRAM, S115 placement, configuration areas, and every linker assertion.
 

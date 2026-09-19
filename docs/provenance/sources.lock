@@ -2,7 +2,7 @@
   "schema": "nrfkit-sources/v1",
   "vendor_import_manifest": {
     "path": "docs/provenance/vendor-imports.lock",
-    "sha256": "63cdcd821a9a891ad7b900695105b359733ca2aabd3ba0068ebe993df9b921b3"
+    "sha256": "e490bd8977e4c9ba0da2033ff3bbb5e8c389af1ee87aec28834890af040ac616"
   },
   "audited_sources": {
     "nrf54lm20-datasheet-1.0": {
@@ -282,17 +282,17 @@
       },
       "tag": "v3.4.0"
     },
-    "nrfx-4.5.0": {
+    "nrfx-4.6.0": {
       "selection_manifest": {
         "path": "cmake/nrfx-selection.txt",
-        "sha256": "9c70661b2360c59eacef638a62bcf5f5f9fd2f3e6723a72f6d4a9732713aabf8",
-        "file_count": 327
+        "sha256": "e893020657af967f10984334401ac8e999ebb0358ff4abe471da6049353e1c99",
+        "file_count": 313
       },
-      "release": "nrfx v4.5.0",
+      "release": "nrfx v4.6.0",
       "repository": "https://github.com/NordicSemiconductor/nrfx",
-      "commit": "1b7bedb5c7f379a3ec3ece851796e94d7e5d0b2c",
-      "mdk_version": "9.0.2-RC-1",
-      "import_date": "2026-09-04",
+      "commit": "d1f2c35a4820961f4f7b7b2ece007f8e037842db",
+      "mdk_version": "9.1.0",
+      "import_date": "2026-09-19",
       "imported": true,
       "patches": [
         "patches/nrfx/0001-grtc-enable-compare-after-programming.patch",
@@ -308,7 +308,7 @@
           "license": "LicenseRef-CodeSourcery-Linker-Script"
         },
         "bsp/stable/mdk/nrf54l/system_nrf54l.c": {
-          "sha256": "0d028b02ceec9dfe5d34c5d35bca8c35fe70de89c4a176614b202e20d8722c99",
+          "sha256": "146654e599ce4d9fdd3f85d96f114445286b3c1760c5115a73469f1fe0a6ab6a",
           "license": "Apache-2.0"
         },
         "bsp/stable/mdk/nrf54l/system_nrf54l.h": {

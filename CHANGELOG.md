@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+- Update the immutable nrfx input to v4.6.0 and MDK 9.1.0, retaining the
+  reviewed LM20 driver closure and project-owned adaptations.
 - Add an independent BLU939 discovery, power-session and bounded-capture workflow
   that emits normalized M7 current CSV without using the manufacturer's SDK at
   build or run time; split the M7 power reducer out of the top-level CLI module.
