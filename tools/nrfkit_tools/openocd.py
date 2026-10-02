@@ -88,10 +88,9 @@ tcl port disabled
 telnet port disabled
 source [find target/nordic/nrf54lm20.cfg]
 adapter speed {speed_khz}
-# Use wired nRESET. Do not fall back to CTRL-AP soft reset (anomaly 63).
-reset_config srst_only srst_nogate
-adapter srst pulse_width 100
-adapter srst delay 100
+# Require the target-owned, anomaly-63-safe reset contract before init.
+nrf54lm20_reset_config system
+
 """
 
 
@@ -165,7 +164,30 @@ class OpenOcd:
         return [str(self.executable), "-s", str(self.scripts), "-f", str(script)]
 
     def run(self, name: str, commands: str) -> str:
-        result = run_logged(self.argv(name, "init\n" + IDENTIFY + commands + "\nshutdown\n"),
+        return self._run_script(name, "init\n" + IDENTIFY + commands)
+
+    def reset(self, *, halt: bool = False, diagnostics: bool = False, pin: bool = False) -> str:
+        if halt and pin:
+            raise OpenOcdError("pin reset cannot guarantee a halt at the reset vector")
+        # Pin reset is an explicit recovery path when firmware prevents debug
+        # access. System reset uses the target's checked CONSTLAT preparation.
+        setup = ""
+        release = ""
+        if pin:
+            setup = "nrf54lm20_reset_config pin\n"
+            release = "adapter deassert srst\n"
+        mode = "run" if pin else "halt"
+        resume = "resume\n" if not halt and not pin else ""
+        trace = "debug_level 3\n" if diagnostics else ""
+        return self._run_script("reset", trace + setup + f"""set reset_failed [catch {{
+init
+reset {mode}
+{resume}}} reset_message]
+{release}if {{$reset_failed}} {{error $reset_message}}
+""" + ("debug_level 2\n" if diagnostics else "") + IDENTIFY)
+
+    def _run_script(self, name: str, commands: str) -> str:
+        result = run_logged(self.argv(name, commands + "\nshutdown\n"),
                             self.run_dir / f"{name}.log", self.timeout)
         if result.returncode or result.timed_out:
             raise OpenOcdError(f"OpenOCD {name} failed; see its run log")

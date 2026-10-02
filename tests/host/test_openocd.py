@@ -9,6 +9,7 @@ from unittest.mock import patch, MagicMock
 
 from nrfkit_tools.image import ImageContractError, parse_ihex
 from nrfkit_tools.openocd import (
+    OpenOcd,
     OpenOcdError,
     addressed_hex,
     configuration,
@@ -19,6 +20,8 @@ from nrfkit_tools.openocd import (
 )
 from nrfkit_tools.openocd_cli import (
     _backup,
+    _backup_ranges,
+    _clear_rram,
     _restore,
     _settings_span,
     command,
@@ -59,15 +62,61 @@ class OpenOcdTests(unittest.TestCase):
                 tcl_word(text)
         self.assertEqual(tcl_word('a space/$value[command]'), '{a space/$value[command]}')
 
-    def test_configuration_binds_one_probe_and_uses_physical_reset(self):
+    def test_configuration_binds_one_probe_and_defers_reset_to_target(self):
         text = configuration({'serial': 'probe', 'vid': 0x0d28, 'pid': 0x0204, 'interface': 0}, 2000)
         self.assertIn('adapter serial {probe}', text)
-        self.assertIn('reset_config srst_only srst_nogate', text)
+        self.assertIn('source [find target/nordic/nrf54lm20.cfg]', text)
+        self.assertIn('nrf54lm20_reset_config system', text)
+        self.assertNotIn('reset_config srst', text)
         self.assertIn('gdb port disabled', text)
         self.assertNotIn('sysresetreq', text)
         for speed in (0, 8000):
             with self.assertRaises(OpenOcdError):
                 configuration({}, speed)
+
+    def test_reset_precedes_identity_but_memory_operations_do_not(self):
+        with TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            scripts = directory / "target/nordic"
+            scripts.mkdir(parents=True)
+            (scripts / "nrf54lm20.cfg").touch()
+            executable = directory / "openocd"
+            executable.touch()
+            backend = OpenOcd(executable, directory,
+                              {'serial': 'probe', 'vid': 0x0d28, 'pid': 0x0204,
+                               'interface': 0}, directory, 1000, 20)
+            identity = 'NRFKIT_ID 054bc20b 41414244 2036\nNRFKIT_DEVICEID 00000001 00000002\n'
+            result = MagicMock(returncode=0, timed_out=False, stdout=identity)
+            with patch('nrfkit_tools.openocd.run_logged', return_value=result):
+                backend.reset(pin=True)
+                script = (directory / 'reset.tcl').read_text()
+                self.assertLess(script.index('reset run'), script.index('read_memory'))
+                self.assertLess(script.index('adapter deassert srst'),
+                                script.index('if {$reset_failed}'))
+                self.assertNotIn('sysresetreq', script)
+                backend.run('program', 'halt\nflash write_image {image.hex}')
+                script = (directory / 'program.tcl').read_text()
+                self.assertLess(script.index('read_memory'), script.index('flash write_image'))
+                self.assertNotIn('reset run', script)
+                with self.assertRaisesRegex(OpenOcdError, 'pin reset'):
+                    backend.reset(halt=True, pin=True)
+                (directory / 'reset.tcl').unlink()
+                backend.reset(halt=True, diagnostics=True)
+                script = (directory / 'reset.tcl').read_text()
+                self.assertNotIn('connect_assert_srst', script)
+                self.assertLess(script.index('debug_level 3'), script.index('\ninit\n'))
+                self.assertLess(script.index('debug_level 2'), script.index('read_memory'))
+                self.assertLess(script.index('reset halt'), script.index('read_memory'))
+                self.assertNotIn('reset run', script)
+                (directory / 'reset.tcl').unlink()
+                backend.reset()
+                script = (directory / 'reset.tcl').read_text()
+                self.assertIn('reset halt\nresume\n', script)
+                self.assertNotIn('reset run', script)
+                (directory / 'reset.tcl').unlink()
+                result.stdout = ''
+                with self.assertRaisesRegex(OpenOcdError, 'identity'):
+                    backend.reset()
 
     def test_identity_accepts_both_lm20_parts_but_not_other_chips(self):
         for part in ('054bc20a', '054bc20b'):
@@ -121,6 +170,52 @@ class OpenOcdTests(unittest.TestCase):
                 _restore(backend, {'debug_allowlist': [[0, 32]]}, report_path, {})
             self.assertEqual(backend.run.call_count, 1)
             self.assertEqual(backend.run.call_args.args[0], 'restore-identity')
+
+    def test_clear_requires_matching_backup_and_checks_full_readback(self):
+        identity = 'NRFKIT_ID 054bc20b 41414244 2036\nNRFKIT_DEVICEID 00000001 00000002\n'
+        for failure in (None, 'backup', 'readback'):
+            with self.subTest(failure=failure), TemporaryDirectory() as temporary:
+                directory = Path(temporary)
+                backend = MagicMock(run_dir=directory)
+                report = {}
+
+                def run(name, commands):
+                    if name == 'backup':
+                        (directory / 'backup-0-1.bin').write_bytes(b'A' * 32)
+                        (directory / 'backup-0-2.bin').write_bytes(
+                            (b'B' if failure == 'backup' else b'A') * 32)
+                    else:
+                        self.assertEqual(name, 'clear')
+                        self.assertTrue((directory / 'backup.json').is_file())
+                        self.assertIn('target changed after backup', commands)
+                        self.assertLess(commands.index('target changed'),
+                                        commands.index('flash write_image'))
+                        self.assertNotIn('erase', commands)
+                        self.assertNotIn('reset', commands)
+                        self.assertEqual(parse_ihex(directory / 'clear-rram.hex').ranges,
+                                         ((0, 32),))
+                        (directory / 'clear-readback.bin').write_bytes(
+                            (b'A' if failure == 'readback' else b'\xff') * 32)
+                    return identity
+
+                backend.run.side_effect = run
+                with patch('nrfkit_tools.openocd_cli.RRAM_END', 32):
+                    if failure:
+                        with self.assertRaises(OpenOcdError):
+                            _clear_rram(backend, report)
+                        self.assertNotIn('clear_verified', report)
+                        self.assertEqual(backend.run.call_count, 1 if failure == 'backup' else 2)
+                    else:
+                        _clear_rram(backend, report)
+                        self.assertTrue(report['clear_verified'])
+                        self.assertEqual(report['target_state'], 'halted')
+
+    def test_backup_ranges_reject_config_and_misalignment_before_hardware(self):
+        backend = MagicMock()
+        for spans in ([], [(0, 17)], [(0, 0)], [(0x00ffd000, 0x00ffe000)]):
+            with self.assertRaises((ImageContractError, OpenOcdError)):
+                _backup_ranges(backend, spans, {})
+        backend.run.assert_not_called()
 
     def test_backup_checks_rounded_range_before_target_access(self):
         backend = MagicMock()

@@ -34,7 +34,7 @@ from .reference import sha256
 def add_commands(subparsers: Any) -> None:
     parser = subparsers.add_parser("openocd", help="guarded LM20 CMSIS-DAP backend")
     actions = parser.add_subparsers(dest="openocd_action", required=True)
-    for name in ("list", "info", "backup", "flash", "restore", "reset", "gdb-smoke"):
+    for name in ("list", "info", "backup", "flash", "restore", "reset", "gdb-smoke", "clear-rram"):
         action = actions.add_parser(name)
         action.add_argument("--probe-serial")
         action.add_argument("--vid", type=lambda v: int(v, 0), default=0x0d28)
@@ -44,6 +44,14 @@ def add_commands(subparsers: Any) -> None:
             action.add_argument("--openocd", type=Path, required=True)
             action.add_argument("--scripts", type=Path, required=True)
             action.add_argument("--speed-khz", type=int, choices=(1000, 2000, 4000), default=1000)
+        if name == "reset":
+            action.add_argument("--diagnostics", action="store_true",
+                                help="record detailed OpenOCD reset diagnostics")
+            reset_mode = action.add_mutually_exclusive_group()
+            reset_mode.add_argument("--halt", action="store_true",
+                                    help="halt at the reset vector using checked system reset")
+            reset_mode.add_argument("--pin", action="store_true",
+                                    help="pulse wired SRST for physical recovery; runs firmware")
         if name in ("backup", "flash", "restore", "gdb-smoke"):
             action.add_argument("--manifest", type=Path, required=True, action="append" if name == "backup" else "store")
         if name == "restore":
@@ -87,6 +95,15 @@ def _backup(backend: OpenOcd, manifests: list[dict[str, Any]], report: dict[str,
                 span = (start // 16 * 16, (end + 15) // 16 * 16)
                 require_allowed((span,), tuple(map(tuple, item["allowlist"])))
                 ranges.append(span)
+    _backup_ranges(backend, ranges, report)
+    report["includes_declared_settings"] = include_settings
+
+
+def _backup_ranges(backend: OpenOcd, ranges: list[tuple[int, int]],
+                   report: dict[str, Any]) -> None:
+    require_allowed(tuple(ranges), ((0, RRAM_END),))
+    if not ranges or any(start % 16 or end % 16 or start >= end for start, end in ranges):
+        raise OpenOcdError("backup ranges must contain aligned ordinary RRAM")
     merged: list[list[int]] = []
     for start, end in sorted(ranges):
         if merged and start <= merged[-1][1]:
@@ -114,8 +131,51 @@ def _backup(backend: OpenOcd, manifests: list[dict[str, Any]], report: dict[str,
         second.chmod(0o400)
         backups.append({"path": str(path), "sha256": sha256(path), "range": [start, end]})
     report["backups"] = backups
-    report["includes_declared_settings"] = include_settings
     report["target_state"] = "halted"
+
+
+def _clear_rram(backend: OpenOcd, report: dict[str, Any]) -> None:
+    # An explicit maintenance operation over the fixed ordinary RRAM bank.
+    # Writing FF avoids CTRL-AP ERASEALL and all configuration-memory banks.
+    cleared = bytes([0xff]) * RRAM_END
+    snapshot = backend.run_dir / "clear-rram.hex"
+    snapshot.write_text(addressed_hex(0, cleared), encoding="ascii")
+    snapshot.chmod(0o400)
+    image = parse_ihex(snapshot)
+    require_allowed(image.ranges, ((0, RRAM_END),))
+    if image.ranges != ((0, RRAM_END),):
+        raise OpenOcdError("clear snapshot does not cover exactly ordinary RRAM")
+    report["clear_range"] = [0, RRAM_END]
+    report["clear_sha256"] = sha256(snapshot)
+    _backup_ranges(backend, [(0, RRAM_END)], report)
+    # Publish the original bytes before the first write, including on failure.
+    backup_report = backend.run_dir / "backup.json"
+    atomic_json(backup_report, {
+        "operation": "openocd-backup", "status": "ok",
+        "target": report["target"], "backups": report["backups"],
+        "target_state": "halted", "range": [0, RRAM_END],
+    })
+    report["backup_report"] = str(backup_report)
+    target = report["target"]
+    device_id = target["device_id"]
+    # Reject a different LM20 if the physical connection changed after backup.
+    identity_guard = (
+        f'if {{$part != {target["part"]} || $variant != {target["variant"]} || '
+        f'[lindex [read_memory 0x00ffc304 32 1] 0] != 0x{device_id[:8]} || '
+        f'[lindex [read_memory 0x00ffc308 32 1] 0] != 0x{device_id[8:]}}} '
+        '{error "target changed after backup"}'
+    )
+    readback = backend.run_dir / "clear-readback.bin"
+    report["target_state"] = "unverified"
+    backend.run("clear", "\n".join([
+        identity_guard, "halt", f"flash write_image {tcl_word(snapshot)}",
+        f"verify_image {tcl_word(snapshot)}",
+        f"dump_image {tcl_word(readback)} 0 {RRAM_END}",
+    ]))
+    if readback.read_bytes() != cleared:
+        raise OpenOcdError("ordinary RRAM clear readback mismatch")
+    report.update(clear_verified=True, target_state="halted",
+                  readback_sha256=sha256(readback))
 
 
 def _restore(backend: OpenOcd, manifest: dict[str, Any], path: Path, report: dict[str, Any],
@@ -192,7 +252,9 @@ def _gdb(backend: OpenOcd, manifest: dict[str, Any], args: argparse.Namespace, r
                         "monitor halt", 'printf "CPUID=%08x\\n", *(unsigned*)0xe000ed00', "info registers pc sp"]
             markers = ["CPUID="]
             if not args.attach:
-                commands += ["monitor reset halt", "hbreak main", "continue",
+                # Monitor resets do not invalidate GDB's cached registers.
+                commands += ["monitor reset halt", "maintenance flush register-cache",
+                             "hbreak main", "continue",
                              'printf "MAIN_REACHED\\n"', "stepi", 'printf "STEP_COMPLETE\\n"']
                 markers += ["MAIN_REACHED", "STEP_COMPLETE"]
             if args.runtime_contract:
@@ -201,6 +263,7 @@ def _gdb(backend: OpenOcd, manifest: dict[str, Any], args: argparse.Namespace, r
                              "set nrfkit_gdb_scratch = 0xa55a5aa5",
                              'printf "RAM_VALUE=%08x\\n", nrfkit_gdb_scratch',
                              "delete breakpoints", "monitor reset halt",
+                             "maintenance flush register-cache",
                              "if $pc != ((unsigned)&Reset_Handler & ~1)",
                              "  echo Unexpected reset PC\\n", "  quit 1", "end",
                              'printf "RESET_HANDLER_REACHED\\n"',
@@ -264,6 +327,8 @@ def command(args: argparse.Namespace) -> int:
             with _probe_lock(device["serial"], "openocd-" + action):
                 if action == "info":
                     report["target"] = parse_identity(backend.run("info", ""))
+                elif action == "clear-rram":
+                    _clear_rram(backend, report)
                 elif action == "backup":
                     _backup(backend, manifests, report, include_settings=args.include_settings)
                 elif action == "restore":
@@ -277,8 +342,8 @@ def command(args: argparse.Namespace) -> int:
                     report["target"] = parse_identity(backend.run("program", "\n".join(commands)))
                     report.update(image_sha256=[sha256(p) for p in snapshots], target_state="halted")
                 elif action == "reset":
-                    report["target"] = parse_identity(backend.run("reset", "reset run"))
-                    report["target_state"] = "running"
+                    report["target"] = parse_identity(backend.reset(halt=args.halt, diagnostics=args.diagnostics, pin=args.pin))
+                    report["target_state"] = "halted" if args.halt else "running"
                 elif action == "gdb-smoke":
                     _gdb(backend, manifests[0], args, report)
         report["status"] = "ok"
